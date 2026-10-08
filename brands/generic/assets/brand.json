@@ -1,0 +1,31 @@
+{
+  "id": "generic",
+  "applicationId": "com.networkbroadcast.hospitality",
+  "displayName": "Hospitality TV",
+  "direction": "RESORT",
+  "languages": [
+    "es",
+    "en",
+    "pt"
+  ],
+  "defaultLanguage": "es",
+  "location": null,
+  "showLogo": false,
+  "panaccess": {
+    "vendor": "NetworkBroadcast",
+    "branding": "Bromteck",
+    "discoveryMode": "cvsys",
+    "discoveryHint": "intv"
+  },
+  "features": {
+    "liveTv": true,
+    "vod": true,
+    "hotelInfo": false,
+    "languageSelection": true,
+    "checkout": true,
+    "companion": true
+  },
+  "hotel": {
+    "asset": null
+  }
+}

@@ -1,0 +1,30 @@
+{
+  "id": "royal_hotel",
+  "applicationId": "com.networkbroadcast.hospitality.royalhotel",
+  "displayName": "Royal Hotel",
+  "direction": "CINEMATIC",
+  "languages": [
+    "es",
+    "en",
+    "pt"
+  ],
+  "defaultLanguage": "es",
+  "location": "Cancún",
+  "showLogo": false,
+  "panaccess": {
+    "vendor": "NetworkBroadcast",
+    "branding": "Bromteck",
+    "discoveryMode": "cvsys",
+    "discoveryHint": "intv"
+  },
+  "features": {
+    "liveTv": true,
+    "vod": false,
+    "hotelInfo": true,
+    "languageSelection": true,
+    "checkout": true
+  },
+  "hotel": {
+    "asset": "hotel_data.json"
+  }
+}

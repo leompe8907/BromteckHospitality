@@ -1,0 +1,279 @@
+{
+  "currency": "MXN",
+  "zones": [
+    {
+      "id": "pool",
+      "name": {
+        "es": "Piscina",
+        "en": "Pool",
+        "pt": "Piscina"
+      },
+      "spotLabel": {
+        "es": "Camastro",
+        "en": "Lounger",
+        "pt": "Espreguiçadeira"
+      },
+      "spots": 40
+    },
+    {
+      "id": "beach",
+      "name": {
+        "es": "Playa",
+        "en": "Beach",
+        "pt": "Praia"
+      },
+      "spotLabel": {
+        "es": "Camastro",
+        "en": "Lounger",
+        "pt": "Espreguiçadeira"
+      },
+      "spots": 60
+    }
+  ],
+  "categories": [
+    {
+      "id": "drinks",
+      "name": {
+        "es": "Bebidas y champán",
+        "en": "Drinks & champagne",
+        "pt": "Bebidas e champanhe"
+      },
+      "items": [
+        {
+          "id": "champagne",
+          "name": {
+            "es": "Botella de champán",
+            "en": "Bottle of champagne",
+            "pt": "Garrafa de champanhe"
+          },
+          "description": {
+            "es": "Bien fría, con dos copas. Te la llevamos a la habitación o a tu camastro.",
+            "en": "Well chilled, with two glasses. We bring it to your room or lounger.",
+            "pt": "Bem gelada, com duas taças. Levamos ao quarto ou à sua espreguiçadeira."
+          },
+          "price": 2400,
+          "imageUrl": "asset:fondos/4-piscina-atardecer.jpg",
+          "availableAt": [
+            "room",
+            "pool",
+            "beach"
+          ]
+        },
+        {
+          "id": "margarita",
+          "name": {
+            "es": "Margarita de la casa",
+            "en": "House margarita",
+            "pt": "Margarita da casa"
+          },
+          "description": {
+            "es": "Tequila blanco, limón y sal con chile.",
+            "en": "Blanco tequila, lime and chili salt.",
+            "pt": "Tequila branca, limão e sal com pimenta."
+          },
+          "price": 180,
+          "availableAt": [
+            "room",
+            "pool",
+            "beach"
+          ]
+        },
+        {
+          "id": "coconut-water",
+          "name": {
+            "es": "Agua de coco",
+            "en": "Coconut water",
+            "pt": "Água de coco"
+          },
+          "description": {
+            "es": "Servida en el coco, recién abierto.",
+            "en": "Served in a freshly opened coconut.",
+            "pt": "Servida no coco, recém-aberto."
+          },
+          "price": 90,
+          "availableAt": [
+            "room",
+            "pool",
+            "beach"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "spa",
+      "name": {
+        "es": "Spa y bienestar",
+        "en": "Spa & wellness",
+        "pt": "Spa e bem-estar"
+      },
+      "items": [
+        {
+          "id": "massage-60",
+          "name": {
+            "es": "Masaje relajante",
+            "en": "Relaxing massage",
+            "pt": "Massagem relaxante"
+          },
+          "description": {
+            "es": "En tu habitación o en la cabaña de playa. Incluye aceites aromáticos.",
+            "en": "In your room or at the beach cabana. Aromatic oils included.",
+            "pt": "No seu quarto ou na cabana da praia. Inclui óleos aromáticos."
+          },
+          "price": 1800,
+          "durationMin": 60,
+          "imageUrl": "asset:hotel/5-spa.jpg",
+          "availableAt": [
+            "room",
+            "beach"
+          ]
+        },
+        {
+          "id": "facial",
+          "name": {
+            "es": "Facial hidratante",
+            "en": "Hydrating facial",
+            "pt": "Facial hidratante"
+          },
+          "description": {
+            "es": "Limpieza, exfoliación y mascarilla de aloe.",
+            "en": "Cleansing, exfoliation and aloe mask.",
+            "pt": "Limpeza, esfoliação e máscara de aloe."
+          },
+          "price": 1200,
+          "durationMin": 45,
+          "availableAt": [
+            "room"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "food",
+      "name": {
+        "es": "Room service",
+        "en": "Room service",
+        "pt": "Serviço de quarto"
+      },
+      "items": [
+        {
+          "id": "club-sandwich",
+          "name": {
+            "es": "Club sándwich",
+            "en": "Club sandwich",
+            "pt": "Club sanduíche"
+          },
+          "description": {
+            "es": "Con papas fritas y ensalada.",
+            "en": "With fries and salad.",
+            "pt": "Com batatas fritas e salada."
+          },
+          "price": 260,
+          "imageUrl": "asset:hotel/6-gastronomia.jpg",
+          "availableAt": [
+            "room",
+            "pool",
+            "beach"
+          ]
+        },
+        {
+          "id": "ceviche",
+          "name": {
+            "es": "Ceviche de pescado",
+            "en": "Fish ceviche",
+            "pt": "Ceviche de peixe"
+          },
+          "description": {
+            "es": "Pesca del día, limón, cebolla morada y totopos.",
+            "en": "Catch of the day, lime, red onion and tortilla chips.",
+            "pt": "Peixe do dia, limão, cebola roxa e tortilhas."
+          },
+          "price": 320,
+          "availableAt": [
+            "room",
+            "pool",
+            "beach"
+          ]
+        },
+        {
+          "id": "kids-menu",
+          "name": {
+            "es": "Menú infantil",
+            "en": "Kids menu",
+            "pt": "Menu infantil"
+          },
+          "description": {
+            "es": "Nuggets o pasta, jugo y postre.",
+            "en": "Nuggets or pasta, juice and dessert.",
+            "pt": "Nuggets ou massa, suco e sobremesa."
+          },
+          "price": 190,
+          "availableAt": [
+            "room",
+            "pool"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "room",
+      "name": {
+        "es": "Para tu habitación",
+        "en": "For your room",
+        "pt": "Para o seu quarto"
+      },
+      "items": [
+        {
+          "id": "towels",
+          "name": {
+            "es": "Toallas extra",
+            "en": "Extra towels",
+            "pt": "Toalhas extras"
+          },
+          "description": {
+            "es": "Juego de toallas de baño y de playa.",
+            "en": "Set of bath and beach towels.",
+            "pt": "Jogo de toalhas de banho e praia."
+          },
+          "price": 0,
+          "availableAt": [
+            "room"
+          ]
+        },
+        {
+          "id": "pillows",
+          "name": {
+            "es": "Menú de almohadas",
+            "en": "Pillow menu",
+            "pt": "Menu de travesseiros"
+          },
+          "description": {
+            "es": "Firme, suave o de plumas.",
+            "en": "Firm, soft or feather.",
+            "pt": "Firme, macio ou de penas."
+          },
+          "price": 0,
+          "availableAt": [
+            "room"
+          ]
+        },
+        {
+          "id": "turndown",
+          "name": {
+            "es": "Arreglo de cortesía",
+            "en": "Turndown service",
+            "pt": "Serviço de arrumação noturna"
+          },
+          "description": {
+            "es": "Preparamos la habitación para la noche.",
+            "en": "We prepare your room for the night.",
+            "pt": "Preparamos o quarto para a noite."
+          },
+          "price": 0,
+          "availableAt": [
+            "room"
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Ícono genérico (una "H" sobre un sol). Cada marca lo reemplaza con sus mipmaps. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path android:fillColor="#F5C24C" android:pathData="M54,30a24,24 0,1 1,0 48a24,24 0,1 1,0 -48z" />
+    <path android:fillColor="#0E2E32" android:pathData="M44,41h6v10h8v-10h6v26h-6v-11h-8v11h-6z" />
+</vector>

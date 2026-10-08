@@ -1,0 +1,59 @@
+{
+  "id": "demo",
+  "applicationId": "com.networkbroadcast.hospitality.demo",
+  "displayName": "Aqua Caribe",
+  "direction": "RESORT",
+  "languages": [
+    "es",
+    "en",
+    "pt",
+    "fr",
+    "de"
+  ],
+  "defaultLanguage": "es",
+  "location": "Cancún",
+  "showLogo": false,
+  "panaccess": {
+    "vendor": "NetworkBroadcast",
+    "branding": "Bromteck",
+    "discoveryMode": "cvsys",
+    "discoveryHint": "intv"
+  },
+  "backgrounds": [
+    "asset:fondos/1-playa-palapas.jpg",
+    "asset:fondos/2-muelle-turquesa.jpg",
+    "asset:fondos/3-playa-resort.jpg",
+    "asset:fondos/4-piscina-atardecer.jpg"
+  ],
+  "welcome": {
+    "enabled": true,
+    "demoGuestName": "Marta",
+    "demoRoom": "214",
+    "message": {
+      "es": "Esperamos que disfrutes tu estadía. Desde esta TV podés ver canales y películas, conocer el hotel y conectar tu celular.",
+      "en": "We hope you enjoy your stay. From this TV you can watch channels and movies, discover the hotel and connect your phone.",
+      "pt": "Esperamos que você aproveite sua estadia. Nesta TV você pode ver canais e filmes, conhecer o hotel e conectar seu celular.",
+      "fr": "Nous vous souhaitons un excellent séjour. Depuis cette TV, regardez chaînes et films, découvrez l'hôtel et connectez votre téléphone.",
+      "de": "Wir wünschen Ihnen einen schönen Aufenthalt. Über diesen TV sehen Sie Sender und Filme, entdecken das Hotel und verbinden Ihr Handy."
+    }
+  },
+  "features": {
+    "liveTv": true,
+    "vod": true,
+    "hotelInfo": true,
+    "languageSelection": true,
+    "checkout": true,
+    "roomService": true,
+    "housekeeping": false,
+    "wakeUpCall": false,
+    "messaging": false,
+    "companion": true
+  },
+  "hotel": {
+    "asset": "hotel_data.json",
+    "url": null
+  },
+  "services": {
+    "asset": "services.json"
+  }
+}

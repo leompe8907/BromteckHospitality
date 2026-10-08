@@ -1,0 +1,49 @@
+# Mismas versiones que PanaccessApp (rama leo/features/migracion-compose-mobile), para que
+# más adelante los dos builds se puedan componer (includeBuild) sin choques de plugins.
+[versions]
+agp = "9.4.0"
+kotlin = "2.2.10"
+composeBom = "2025.11.00"
+coreKtx = "1.16.0"
+activityCompose = "1.10.1"
+lifecycle = "2.9.4"
+kotlinxSerialization = "1.9.0"
+kotlinxCoroutines = "1.10.2"
+coil3 = "3.4.0"
+junit = "4.13.2"
+media3 = "1.6.1"
+kotlinxDatetime = "0.6.2"
+
+[libraries]
+core-ktx = { module = "androidx.core:core-ktx", version.ref = "coreKtx" }
+activity-compose = { module = "androidx.activity:activity-compose", version.ref = "activityCompose" }
+lifecycle-runtime-compose = { module = "androidx.lifecycle:lifecycle-runtime-compose", version.ref = "lifecycle" }
+lifecycle-viewmodel-compose = { module = "androidx.lifecycle:lifecycle-viewmodel-compose", version.ref = "lifecycle" }
+compose-bom = { module = "androidx.compose:compose-bom", version.ref = "composeBom" }
+compose-ui = { module = "androidx.compose.ui:ui" }
+compose-ui-tooling = { module = "androidx.compose.ui:ui-tooling" }
+compose-ui-tooling-preview = { module = "androidx.compose.ui:ui-tooling-preview" }
+compose-foundation = { module = "androidx.compose.foundation:foundation" }
+compose-material3 = { module = "androidx.compose.material3:material3" }
+kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "kotlinxSerialization" }
+kotlinx-datetime = { module = "org.jetbrains.kotlinx:kotlinx-datetime", version.ref = "kotlinxDatetime" }
+kotlinx-coroutines-android = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-android", version.ref = "kotlinxCoroutines" }
+coil-compose = { module = "io.coil-kt.coil3:coil-compose", version.ref = "coil3" }
+coil-network-okhttp = { module = "io.coil-kt.coil3:coil-network-okhttp", version.ref = "coil3" }
+junit = { module = "junit:junit", version.ref = "junit" }
+media3-exoplayer = { module = "androidx.media3:media3-exoplayer", version.ref = "media3" }
+# HLS de Media3 modificado por Panaccess (lib-exoplayer-hls-release.aar del base), en lugar del oficial.
+media3-exoplayer-hls = { module = "com.panaccess:exoplayer-hls", version = "1.6.1-panaccess" }
+media3-ui = { module = "androidx.media3:media3-ui", version.ref = "media3" }
+zxing-core = { module = "com.google.zxing:core", version = "3.4.1" }
+security-crypto = { module = "androidx.security:security-crypto", version = "1.1.0-alpha06" }
+panaccess-panexo-datasource = { module = "com.panaccess:panexo-datasource", version = "1.0.19r204" }
+panaccess-copyprotect = { module = "com.panaccess:copyprotect", version = "1.0.19r190" }
+constraintlayout = { module = "androidx.constraintlayout:constraintlayout", version = "2.2.1" }
+panaccess-drm-mobile = { module = "com.panaccess:drm-mobile-nb", version = "2.0.52r291" }
+
+[plugins]
+android-application = { id = "com.android.application", version.ref = "agp" }
+android-library = { id = "com.android.library", version.ref = "agp" }
+compose-compiler = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
+kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }

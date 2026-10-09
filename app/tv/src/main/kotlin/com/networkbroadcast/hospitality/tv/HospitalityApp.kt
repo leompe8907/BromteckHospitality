@@ -1,5 +1,6 @@
 package com.networkbroadcast.hospitality.tv
 
+import android.util.Log
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
@@ -177,10 +178,22 @@ fun HospitalityApp(app: HospitalityApplication, showLogin: Boolean = false) {
     var guideChannel by remember { mutableStateOf<String?>(null) }
     var selectedVod by remember { mutableStateOf<VodItem?>(null) }
     var media by remember { mutableStateOf<MediaRequest?>(null) }
+    // Canales y VOD se piden en paralelo apenas la sesión está lista, no cuando el huésped entra a
+    // "TV en vivo" / "Películas y series": antes iban uno detrás del otro en esta misma corrutina, y
+    // un catálogo grande (canales con recuperación de sesión, VOD paginado) dejaba a VOD esperando a
+    // que canales terminara, con la home vacía varios minutos. Cada `launch` corre su propio pedido;
+    // si el huésped ya navegó a la pantalla, usa el mismo resultado (el estado es compartido y
+    // PanaccessEntertainmentSource cachea/deduplica por su cuenta).
     LaunchedEffect(auth) {
         if (auth != Auth.Ready) return@LaunchedEffect
-        if (channels == null) channels = entertainment.channels()
-        if (brand.features.vod && vod == null) vod = entertainment.vodShelves()
+        if (channels == null) {
+            Log.i("Hospitality.Catalog", "precarga: pidiendo canales (home lista para mostrarlos)")
+            launch { channels = entertainment.channels() }
+        }
+        if (brand.features.vod && vod == null) {
+            Log.i("Hospitality.Catalog", "precarga: pidiendo vod (home lista para mostrarlo)")
+            launch { vod = entertainment.vodShelves() }
+        }
     }
     // Lo que se emite ahora en el canal de la tarjeta "En vivo ahora" (último visto, o el primero).
     val liveChannel = channels?.channels?.let { list -> list.firstOrNull { it.id == playingChannel } ?: list.firstOrNull() }
@@ -284,6 +297,12 @@ fun HospitalityApp(app: HospitalityApplication, showLogin: Boolean = false) {
         }
 
         val text = UiText.of(current)
+        // Con el idioma elegido, la home no se muestra vacía: espera a que el catálogo (que ya se
+        // pidió en el LaunchedEffect de arriba apenas la sesión quedó lista) esté disponible, así el
+        // huésped no ve "TV en vivo"/"Películas y series" cargar en vivo ni, peor, un "no hay
+        // canales" que en realidad es "todavía no llegó la respuesta" (ver HOSP-S1-05/06).
+        val catalogReady = channels != null && (!brand.features.vod || vod != null)
+        if (!catalogReady) { CenteredMessage(text.loading); return@Box }
         val channelList = channels?.channels.orEmpty()
         when (backStack.last()) {
             Screen.Home -> HomeScreen(

@@ -153,7 +153,10 @@ fun VodDetailScreen(item: VodItem, text: UiText, onPlay: () -> Unit) {
     Box(Modifier.fillMaxSize()) {
         (item.backdropUrl ?: item.posterUrl)?.let {
             AsyncImage(model = it, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
-            Box(Modifier.fillMaxSize().background(colors.background.copy(alpha = 0.75f)))
+            // Negro neutro, no colors.background: ese es el verde/turquesa de la paleta Resort, y
+            // tapaba el backdrop entero con un tinte de color en vez de solo oscurecerlo para leer
+            // el texto encima (el "filtro verde" que se veía en toda la ficha de la película).
+            Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.75f)))
         }
         Column(
             Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 64.dp, vertical = 48.dp),

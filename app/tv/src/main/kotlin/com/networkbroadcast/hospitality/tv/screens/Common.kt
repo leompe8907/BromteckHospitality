@@ -54,11 +54,15 @@ fun CenteredMessage(text: String) {
     }
 }
 
-/** Degradado oscuro abajo, como en el mockup, para que el texto sobre una foto se lea siempre. */
+/**
+ * Degradado oscuro abajo para que el texto sobre una foto se lea siempre. Negro neutro, no el color
+ * de fondo del tema: antes usaba el verde de la paleta Resort y se veía como un filtro de color
+ * sobre cualquier póster, en vez de un simple sombreado para legibilidad.
+ */
 @Composable
 fun BoxScope.BottomScrim() {
     Box(
         Modifier.align(Alignment.BottomCenter).fillMaxWidth().fillMaxHeight(0.55f)
-            .background(Brush.verticalGradient(listOf(Color.Transparent, Color(0xD90E2E32)))),
+            .background(Brush.verticalGradient(listOf(Color.Transparent, Color.Black.copy(alpha = 0.85f)))),
     )
 }

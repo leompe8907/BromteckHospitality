@@ -14,7 +14,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
@@ -27,6 +27,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -57,6 +58,7 @@ import androidx.compose.ui.unit.sp
 import com.networkbroadcast.hospitality.brand.UiText
 import com.networkbroadcast.hospitality.designsystem.FocusCard
 import com.networkbroadcast.hospitality.designsystem.HospitalityTheme
+import kotlinx.coroutines.delay
 
 /**
  * Login de la TV (diseño A "Recepción" del canvas de login): a la izquierda la foto de la marca con
@@ -120,13 +122,25 @@ private fun LoginForm(
     // Compose no siempre adivina bien hacia dónde ir con las flechas. Se lo decimos a mano.
     val passwordFocusRequester = remember { FocusRequester() }
     val eyeFocusRequester = remember { FocusRequester() }
+    // Un solo mecanismo maneja el scroll, nada por campo: el OutlinedTextField trae su propio
+    // auto-scroll-al-foco interno de Compose (ligado a imePadding()), que competía en carrera con
+    // cualquier scroll manual puesto en cada campo — Usuario también terminaba scrolleando, y volver
+    // a 0 no siempre ganaba la carrera. Sacamos imePadding() (ahí vivía ese comportamiento automático)
+    // y lo reemplazamos por esto: un efecto único que mira si la contraseña tiene foco y decide todo.
+    var passwordFocused by remember { mutableStateOf(false) }
+    val scrollState = rememberScrollState()
+    LaunchedEffect(passwordFocused) {
+        delay(300) // el teclado real tarda en terminar de abrirse/cerrarse.
+        scrollState.animateScrollTo(if (passwordFocused) scrollState.maxValue else 0)
+    }
     fun submit() { if (!busy && user.isNotBlank() && password.isNotEmpty()) onSubmit(user, password) }
 
     Column(modifier.background(colors.surface).padding(horizontal = 60.dp)) {
-        // El teclado en pantalla de la TV ocupa la mitad de abajo: con imePadding + scroll el campo con
-        // foco y el botón quedan visibles encima del teclado (en el HAKO Pro tapaba contraseña y Entrar).
+        // El teclado en pantalla de la TV ocupa la mitad de abajo: el Spacer de abajo deja lugar de
+        // sobra para que el LaunchedEffect de arriba corra el campo de contraseña y "Entrar" por
+        // encima (en el HAKO Pro tapaba contraseña y Entrar).
         Column(
-            Modifier.weight(1f).fillMaxWidth().imePadding().verticalScroll(rememberScrollState()).padding(top = 56.dp, bottom = 16.dp),
+            Modifier.weight(1f).fillMaxWidth().verticalScroll(scrollState).padding(top = 56.dp, bottom = 16.dp),
             verticalArrangement = Arrangement.spacedBy(20.dp),
         ) {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -155,6 +169,7 @@ private fun LoginForm(
                 visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, imeAction = ImeAction.Done),
                 keyboardActions = KeyboardActions(onDone = { submit() }),
+                onFocusChanged = { isFocused -> passwordFocused = isFocused },
                 modifier = Modifier
                     .focusRequester(passwordFocusRequester)
                     .focusProperties { right = eyeFocusRequester },
@@ -190,6 +205,12 @@ private fun LoginForm(
                 Icon(LockIcon, contentDescription = null, tint = colors.textSecondary, modifier = Modifier.size(16.dp))
                 Text(text.loginNote, style = HospitalityTheme.typography.body.copy(fontSize = 13.sp, lineHeight = 19.sp), color = colors.textSecondary)
             }
+            // Colchón para poder scrollear el campo enfocado por arriba del teclado real (medido en el
+            // HAKO Pro: el teclado ocupa 225dp desde abajo). Sin este espacio de sobra no hay nada para
+            // scrollear — el contenido normal ya entra solo en la pantalla sin teclado, así que
+            // verticalScroll no tiene rango propio. Prioridad elegida: ver el campo completo vale más
+            // que ver el encabezado mientras se escribe (el encabezado puede salir de pantalla un rato).
+            Spacer(Modifier.height(230.dp))
         }
         // Pie para el instalador: qué equipo es y qué versión de la app tiene.
         Box(Modifier.fillMaxWidth().height(1.dp).background(colors.surfaceBorder))
@@ -218,6 +239,7 @@ private fun LoginField(
     /** Se dibuja superpuesto sobre el borde derecho del campo (ej. el ojo de ver contraseña), como
      * hermano del OutlinedTextField dentro del mismo Box, no como su trailingIcon real. */
     overlayEnd: (@Composable () -> Unit)? = null,
+    onFocusChanged: ((Boolean) -> Unit)? = null,
 ) {
     val colors = HospitalityTheme.colors
     var focused by remember { mutableStateOf(false) }
@@ -242,7 +264,10 @@ private fun LoginField(
                 keyboardActions = keyboardActions,
                 modifier = modifier
                     .fillMaxWidth()
-                    .onFocusChanged { focused = it.isFocused }
+                    .onFocusChanged { state ->
+                        focused = state.isFocused
+                        onFocusChanged?.invoke(state.isFocused)
+                    }
                     .border(4.dp, if (focused) colors.focus.copy(alpha = 0.2f) else Color.Transparent, RoundedCornerShape(12.dp))
                     .padding(4.dp),
             )

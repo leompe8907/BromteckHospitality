@@ -69,6 +69,8 @@ para el resto del proyecto — esto es solo lo urgente / primer sprint).
   `core/entertainment`/`core/panaccess`).
 
 ## Backlog suelto (no es para este sprint, polish general — ver también el diagnóstico completo de Fase 1 GIGMAX ya conversado en el chat)
+-Cuando se inicia sesion, TV jornal se carga antes que Películas y Series. precargar ambos..
+- Ver lo que ahy "sobre el hotel" en TV hasta ahora. 
 - Agregar "sobre el hotel" en `app/mobile` (hoy solo existe en TV).
 - Revisar el título "Acciones rápidas" (mezcla acciones con un ítem informativo).
 - Completar los tokens de tema restantes para personalización (hoy solo 4 de ~10 son overrideables).

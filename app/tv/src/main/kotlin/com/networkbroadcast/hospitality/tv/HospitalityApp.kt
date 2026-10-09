@@ -237,7 +237,9 @@ fun HospitalityApp(app: HospitalityApplication, showLogin: Boolean = false) {
                     text = setupText,
                     brandName = brand.displayName,
                     backgrounds = brand.backgrounds,
-                    initialUser = panaccess.username,
+                    // Con --ez showLogin true no se precarga el usuario guardado: así se puede ver el
+                    // formulario como lo vería una TV nueva, sin tocar la sesión/licencia real.
+                    initialUser = if (showLogin) null else panaccess.username,
                     busy = authBusy,
                     error = authError,
                     onSubmit = { user, password ->

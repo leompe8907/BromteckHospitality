@@ -24,6 +24,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.painter.ColorPainter
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -119,7 +121,15 @@ fun VodScreen(vod: VodResult?, text: UiText, focusOn: String?, onOpen: (VodItem)
                                 .then(if (isTarget) Modifier.focusRequester(first) else Modifier),
                         ) {
                             item.posterUrl?.let {
-                                AsyncImage(model = it, contentDescription = item.title, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
+                                val neutralPlaceholder = ColorPainter(if (colors.isDark) Color(0xFF2A2A2A) else Color(0xFFE2E2DE))
+                                AsyncImage(
+                                    model = it,
+                                    contentDescription = item.title,
+                                    contentScale = ContentScale.Crop,
+                                    placeholder = neutralPlaceholder,
+                                    error = neutralPlaceholder,
+                                    modifier = Modifier.fillMaxSize(),
+                                )
                             }
                             BottomScrim()
                             Text(

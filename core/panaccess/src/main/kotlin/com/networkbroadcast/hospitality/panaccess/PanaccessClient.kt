@@ -8,6 +8,7 @@ import kotlinx.coroutines.CancellableContinuation
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import org.json.JSONObject
 import java.security.MessageDigest
 import kotlin.coroutines.resume
@@ -99,9 +100,18 @@ class PanaccessClient(
         }
     }
 
-    /** Servidor del operador; base de las URLs de imágenes de VOD (`<server>/public/images/<id>/v/<variante>`). */
-    suspend fun responsibleServer(): String? =
-        withContext(Dispatchers.IO) { runCatching { drm.getResponsibleServer() }.getOrNull() }
+    /**
+     * Servidor del operador; base de las URLs de imágenes de VOD (`<server>/public/images/<id>/v/<variante>`).
+     *
+     * A diferencia de [callRaw], el DRM no tiene una versión con timeout de esta llamada: es
+     * bloqueante y puede tardar mucho si está actualizando el servidor responsable
+     * (`LOCAL_BUSY_UPDATING_RESPONSIBLE_SERVER` del AAR). [withTimeoutOrNull] no corta el hilo
+     * nativo bloqueado, pero sí libera la corrutina (y el lock de [PanaccessEntertainmentSource])
+     * en vez de dejar VOD colgado para siempre.
+     */
+    suspend fun responsibleServer(): String? = withContext(Dispatchers.IO) {
+        withTimeoutOrNull(RESPONSIBLE_SERVER_TIMEOUT_MS) { runCatching { drm.getResponsibleServer() }.getOrNull() }
+    }
 
     /**
      * URLs HLS para el player. El DRM reescribe la URL del catálogo con la sesión actual, así que
@@ -141,6 +151,8 @@ class PanaccessClient(
     }
 
     companion object {
+        private const val RESPONSIBLE_SERVER_TIMEOUT_MS = 15_000L
+
         internal fun md5(text: String): String =
             MessageDigest.getInstance("MD5").digest(text.toByteArray()).joinToString("") { "%02x".format(it) }
 

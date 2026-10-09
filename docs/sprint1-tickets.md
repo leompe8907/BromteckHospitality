@@ -68,6 +68,12 @@ para el resto del proyecto — esto es solo lo urgente / primer sprint).
 - **Dónde:** flujo de login → home en `app/tv` (dónde se dispara hoy la carga de
   `core/entertainment`/`core/panaccess`).
 
+### HOSP-S1-06 — Spinner de carga donde hoy solo hay texto "Cargando…"
+- **Tipo:** Mejora de UX
+- **Prioridad:** Media
+- **Descripción:** Todas las pantallas que muestran el estado de carga usan `CenteredMessage(text.loading)` — solo el texto "Cargando…", sin ningún indicador visual (spinner/loader). Agregar un spinner junto al texto en ese componente compartido.
+- **Dónde (mismo componente, se arregla en un solo lugar):** `CenteredMessage` en `app/tv/src/main/kotlin/com/networkbroadcast/hospitality/tv/screens/Common.kt`. Lo usan, entre otras: `EntertainmentScreens.kt` (TV en vivo y VOD), `GuideScreen.kt` (guía), `AboutHotelScreen.kt` (`HotelState.Loading`).
+
 ## Backlog suelto (no es para este sprint, polish general — ver también el diagnóstico completo de Fase 1 GIGMAX ya conversado en el chat)
 -Cuando se inicia sesion, TV jornal se carga antes que Películas y Series. precargar ambos..
 - Ver lo que ahy "sobre el hotel" en TV hasta ahora. 

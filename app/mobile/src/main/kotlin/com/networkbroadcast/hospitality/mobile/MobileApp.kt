@@ -58,6 +58,7 @@ import com.networkbroadcast.hospitality.brand.imageModel
 import com.networkbroadcast.hospitality.designsystem.FocusCard
 import com.networkbroadcast.hospitality.designsystem.HospitalityTheme
 import com.networkbroadcast.hospitality.designsystem.SectionTitle
+import com.networkbroadcast.hospitality.hotel.HotelActivity
 import com.networkbroadcast.hospitality.hotel.HotelData
 import com.networkbroadcast.hospitality.hotel.resolve
 import com.networkbroadcast.hospitality.services.OrderLocation
@@ -278,6 +279,24 @@ private fun HomeScreen(
                 }
             }
             Text(data.hotelInfo.description.resolve(language, app.brand.defaultLanguage), style = HospitalityTheme.typography.body, color = colors.textSecondary)
+            data.activities.takeIf { it.isNotEmpty() }?.let { activities ->
+                SectionTitle(text.activities)
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    activities.forEach { activity ->
+                        Column(
+                            modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp))
+                                .background(colors.surface).padding(14.dp),
+                            verticalArrangement = Arrangement.spacedBy(2.dp),
+                        ) {
+                            Text(activity.title.resolve(language, app.brand.defaultLanguage), style = HospitalityTheme.typography.body, color = colors.textPrimary)
+                            Text(activityScheduleLabel(activity), style = HospitalityTheme.typography.label, color = colors.textSecondary)
+                            activity.location.resolve(language, app.brand.defaultLanguage).takeIf { it.isNotEmpty() }?.let {
+                                Text(it, style = HospitalityTheme.typography.label, color = colors.textSecondary)
+                            }
+                        }
+                    }
+                }
+            }
         }
         Spacer(Modifier.height(24.dp))
     }
@@ -344,4 +363,9 @@ private fun PairScreen(app: MobileApplication, text: UiText, initialCode: String
         }
         if (app.isDemoCompanion) Text(text.demoNote, style = HospitalityTheme.typography.body, color = colors.textMuted)
     }
+}
+
+private fun activityScheduleLabel(activity: HotelActivity): String {
+    val time = activity.endTime?.let { "${activity.startTime}–$it" } ?: activity.startTime
+    return activity.date?.let { "$it · $time" } ?: time
 }

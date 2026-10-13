@@ -28,6 +28,28 @@ class HotelDataTest {
         assertEquals("Resort", data.hotelInfo.name.resolve("es"))
         assertEquals(1, data.images.size)
         assertEquals(0, data.videos.size)
+        assertEquals(0, data.activities.size)
+    }
+
+    @Test
+    fun `lee actividades con horario, y las que no la traen quedan vacias`() {
+        val data = parseHotelData(
+            """
+            {"hotelInfo":{"name":{"es":"Resort"},"description":{"es":"Frente al mar"}},
+             "activities":[
+               {"id":1,"title":{"es":"Yoga"},"location":{"es":"Salón A"},
+                "startTime":"09:00","endTime":"10:00"},
+               {"id":2,"title":{"es":"Show de fuego"},"date":"2026-10-09","startTime":"21:00"}
+             ]}
+            """
+        )
+        assertEquals(2, data.activities.size)
+        val yoga = data.activities[0]
+        assertEquals("Yoga", yoga.title.resolve("es"))
+        assertEquals("Salón A", yoga.location.resolve("es"))
+        assertNull(yoga.date)
+        assertEquals("09:00", yoga.startTime)
+        assertEquals("2026-10-09", data.activities[1].date)
     }
 
     @Test

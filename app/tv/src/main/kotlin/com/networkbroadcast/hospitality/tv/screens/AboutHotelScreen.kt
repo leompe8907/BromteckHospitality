@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -38,6 +39,7 @@ import coil3.compose.AsyncImage
 import com.networkbroadcast.hospitality.brand.imageModel
 import com.networkbroadcast.hospitality.designsystem.FocusCard
 import com.networkbroadcast.hospitality.designsystem.HospitalityTheme
+import com.networkbroadcast.hospitality.hotel.HotelActivity
 import com.networkbroadcast.hospitality.hotel.HotelData
 import com.networkbroadcast.hospitality.hotel.HotelRepository
 import com.networkbroadcast.hospitality.hotel.resolve
@@ -64,12 +66,12 @@ fun AboutHotelScreen(repository: HotelRepository?, language: String, fallback: S
     when (val s = state) {
         HotelState.Loading -> CenteredMessage(text.loading)
         HotelState.Unavailable -> CenteredMessage(text.hotelUnavailable)
-        is HotelState.Ready -> HotelContent(s.data, language, fallback)
+        is HotelState.Ready -> HotelContent(s.data, language, fallback, text)
     }
 }
 
 @Composable
-private fun HotelContent(data: HotelData, language: String, fallback: String) {
+private fun HotelContent(data: HotelData, language: String, fallback: String, text: UiText) {
     val colors = HospitalityTheme.colors
     val scroll = rememberScrollState()
     val scope = rememberCoroutineScope()
@@ -113,6 +115,10 @@ private fun HotelContent(data: HotelData, language: String, fallback: String) {
             }
         }
 
+        if (data.activities.isNotEmpty()) {
+            ActivitiesSection(data.activities, language, fallback, text)
+        }
+
         // El control remoto no "arrastra": la descripción toma foco y las flechas la desplazan.
         Text(
             text = data.hotelInfo.description.resolve(language, fallback),
@@ -141,6 +147,42 @@ private fun HotelContent(data: HotelData, language: String, fallback: String) {
                 .verticalScroll(scroll),
         )
     }
+}
+
+@Composable
+private fun ActivitiesSection(activities: List<HotelActivity>, language: String, fallback: String, text: UiText) {
+    val colors = HospitalityTheme.colors
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text(
+            text.activities,
+            style = HospitalityTheme.typography.label,
+            color = colors.textPrimary,
+            modifier = Modifier.padding(start = ScreenMargin + 12.dp),
+        )
+        LazyRow(horizontalArrangement = Arrangement.spacedBy(16.dp), contentPadding = PaddingValues(horizontal = ScreenMargin + 12.dp, vertical = 4.dp)) {
+            items(activities, key = { it.id }) { activity ->
+                FocusCard(onClick = {}, modifier = Modifier.size(width = 280.dp, height = 140.dp)) {
+                    Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text(
+                            activity.title.resolve(language, fallback),
+                            style = HospitalityTheme.typography.body,
+                            color = colors.textPrimary,
+                            maxLines = 2,
+                        )
+                        Text(activityScheduleLabel(activity), style = HospitalityTheme.typography.label, color = colors.textSecondary)
+                        activity.location.resolve(language, fallback).takeIf { it.isNotEmpty() }?.let {
+                            Text(it, style = HospitalityTheme.typography.label, color = colors.textSecondary, maxLines = 1)
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+private fun activityScheduleLabel(activity: HotelActivity): String {
+    val time = activity.endTime?.let { "${activity.startTime}–$it" } ?: activity.startTime
+    return activity.date?.let { "$it · $time" } ?: time
 }
 
 private val ScreenMargin = 52.dp

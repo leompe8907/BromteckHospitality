@@ -32,6 +32,10 @@ data class OperatorConfig(
     val showRoomNumber: Boolean? get() = flag("X_DESIGN_SHOW_HOTEL_ROOM_NUMBER")
     val defaultLanguage: String? get() = param("X_DEFAULT_LANGUAGE")
 
+    // Fondo de marca configurable por Delancer desde el panel de Cableatlántico. Si no está
+    // configurado, se cae al fondo genérico de la marca (ver HospitalityApp.kt).
+    val hotelBackgroundUrl: String? get() = param("X_APP_LOGO_BACKGROUND")
+
     companion object {
         fun parse(rawJson: String): OperatorConfig {
             val answer = CasEnvelope.answer(rawJson) as? JsonObject

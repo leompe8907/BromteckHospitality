@@ -283,7 +283,10 @@ fun HospitalityApp(app: HospitalityApplication, showLogin: Boolean = false) {
 
         val current = language
         val onHome = current == null || choosingLanguage || backStack.last() == Screen.Home
-        if (onHome) HotelBackdrop(brand.backgrounds)
+        // Delancer: fondo configurable desde el panel de Cableatlántico (X_APP_LOGO_BACKGROUND).
+        // Si el hotel no lo cargó, se usa el fondo genérico de la marca de siempre.
+        val backgrounds = panaccess.operatorConfig?.hotelBackgroundUrl?.let { listOf(it) } ?: brand.backgrounds
+        if (onHome) HotelBackdrop(backgrounds)
         if (current == null || choosingLanguage) {
             LanguageScreen(
                 brand = brand,
@@ -410,7 +413,7 @@ fun HospitalityApp(app: HospitalityApplication, showLogin: Boolean = false) {
                 hotelName = brand.displayName,
                 room = panaccess.license?.licenseName ?: brand.welcome.demoRoom,
                 message = brand.welcome.message.let { it[current] ?: it[brand.defaultLanguage] ?: it["en"] },
-                imageUrl = brand.backgrounds.firstOrNull(),
+                imageUrl = backgrounds.firstOrNull(),
                 onDismiss = { session.welcomed = true; showingWelcome = false },
             )
         }

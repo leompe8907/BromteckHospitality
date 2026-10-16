@@ -138,7 +138,8 @@ fun HomeScreen(
                 // el cliente para fecha/hora, a diferencia del resto del contexto (clima, habitación).
                 Text(
                     "$dateText · $timeText",
-                    style = HospitalityTheme.typography.label,
+                    // Mismo tamaño que los títulos de sección ("Entretenimiento"), a pedido del cliente.
+                    style = HospitalityTheme.typography.section,
                     color = colors.textSecondary,
                     modifier = Modifier.padding(start = 16.dp),
                 )

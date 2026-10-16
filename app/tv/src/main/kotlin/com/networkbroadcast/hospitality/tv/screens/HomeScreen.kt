@@ -83,9 +83,6 @@ fun HomeScreen(
     val cardColors = if (brand.backgrounds.isEmpty()) base else base.copy(surface = base.surface.copy(alpha = 0.82f))
     CompositionLocalProvider(LocalHospitalityColors provides cardColors) {
     Row(Modifier.fillMaxSize()) {
-        // Barra lateral angosta del mockup; por ahora sólo identidad (la navegación va en la home).
-        Box(Modifier.width(24.dp).fillMaxHeight().background(colors.rail.copy(alpha = if (brand.backgrounds.isEmpty()) 1f else 0.6f)))
-
         // Desplazable: en 960x540 dp (TV 1080p) las dos filas no entran juntas. El foco hace scroll
         // solo: al pasar a "Acciones rápidas", la columna sube lo necesario para mostrarla.
         Column(

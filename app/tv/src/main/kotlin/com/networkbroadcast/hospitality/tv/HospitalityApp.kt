@@ -16,8 +16,12 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import coil3.SingletonImageLoader
+import coil3.request.ImageRequest
 import com.networkbroadcast.hospitality.brand.BrandConfig
 import com.networkbroadcast.hospitality.brand.UiText
+import com.networkbroadcast.hospitality.brand.imageModel
 import com.networkbroadcast.hospitality.designsystem.HospitalityTheme
 import com.networkbroadcast.hospitality.entertainment.ChannelsResult
 import com.networkbroadcast.hospitality.entertainment.Playable
@@ -286,6 +290,18 @@ fun HospitalityApp(app: HospitalityApplication, showLogin: Boolean = false) {
         // Delancer: fondo configurable desde el panel de Cableatlántico (X_APP_LOGO_BACKGROUND).
         // Si el hotel no lo cargó, se usa el fondo genérico de la marca de siempre.
         val backgrounds = panaccess.operatorConfig?.hotelBackgroundUrl?.let { listOf(it) } ?: brand.backgrounds
+        val logoUrl = panaccess.operatorConfig?.hotelLogoUrl
+        // Precarga del fondo/logo apenas se conocen (no bloquea nada: si no llegan a tiempo, el
+        // placeholder de HotelBackdrop/LanguageScreen cubre el hueco) — mismo espíritu que la
+        // precarga del catálogo de más arriba, para que no se vea el salto de color sólido a foto.
+        val context = LocalContext.current
+        LaunchedEffect(backgrounds, logoUrl) {
+            val imageLoader = SingletonImageLoader.get(context)
+            listOfNotNull(backgrounds.firstOrNull(), logoUrl).forEach { url ->
+                Log.i("Hospitality.Catalog", "precarga: pidiendo imagen de marca ($url)")
+                runCatching { imageLoader.execute(ImageRequest.Builder(context).data(imageModel(url)).build()) }
+            }
+        }
         if (onHome) HotelBackdrop(backgrounds)
         if (current == null || choosingLanguage) {
             LanguageScreen(
@@ -296,7 +312,7 @@ fun HospitalityApp(app: HospitalityApplication, showLogin: Boolean = false) {
                     language = it
                     choosingLanguage = false
                 },
-                logoUrl = panaccess.operatorConfig?.hotelLogoUrl,
+                logoUrl = logoUrl,
             )
             if (choosingLanguage) BackHandler { choosingLanguage = false }
             return@Box

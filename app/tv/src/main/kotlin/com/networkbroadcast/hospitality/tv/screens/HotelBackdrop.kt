@@ -14,7 +14,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.painter.ColorPainter
 import androidx.compose.ui.layout.ContentScale
 import coil3.compose.AsyncImage
 import com.networkbroadcast.hospitality.brand.imageModel
@@ -28,7 +27,7 @@ import kotlinx.coroutines.delay
  * color del tema para que el texto se lea. Sin fotos, no dibuja nada (queda el fondo liso del tema).
  */
 @Composable
-fun HotelBackdrop(images: List<String>, modifier: Modifier = Modifier) {
+fun HotelBackdrop(images: List<String>, modifier: Modifier = Modifier, placeholderColorHex: String? = null) {
     if (images.isEmpty()) return
     val colors = HospitalityTheme.colors
     var index by remember(images) { mutableIntStateOf(0) }
@@ -39,9 +38,9 @@ fun HotelBackdrop(images: List<String>, modifier: Modifier = Modifier) {
         }
     }
     // Mientras la imagen carga (o si la URL falla, p. ej. un fondo configurado mal desde
-    // Panaccess), un color fijo en vez de dejar la pantalla vacía — mismo criterio que
-    // neutralPlaceholder en EntertainmentScreens.kt para fotos de canal/VOD rotas.
-    val placeholder = remember(colors.isDark) { ColorPainter(if (colors.isDark) Color(0xFF2A2A2A) else Color(0xFFE2E2DE)) }
+    // Panaccess), un color fijo en vez de dejar la pantalla vacía — mismo helper que usa
+    // VodScreen en EntertainmentScreens.kt para fotos de canal/VOD rotas.
+    val placeholder = remember(colors, placeholderColorHex) { colors.placeholderPainter(placeholderColorHex) }
     Box(modifier.fillMaxSize()) {
         Crossfade(targetState = images[index], animationSpec = tween(1_800), label = "photo") { url ->
             AsyncImage(

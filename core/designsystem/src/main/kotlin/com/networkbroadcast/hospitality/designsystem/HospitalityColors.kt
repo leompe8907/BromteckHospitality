@@ -2,6 +2,7 @@ package com.networkbroadcast.hospitality.designsystem
 
 import androidx.compose.runtime.Immutable
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.painter.ColorPainter
 
 /**
  * Las tres direcciones visuales del canvas "Hospitality Android TV". Mismo contenido y layout;
@@ -101,4 +102,13 @@ data class HospitalityColors(
         val text = readableTextColor(custom)
         return copy(surface = custom, surfaceBorder = custom, textPrimary = text, textSecondary = text.copy(alpha = 0.75f))
     }
+
+    /**
+     * Gris neutro para fotos que están cargando o fallaron (fondo del hotel, pósters de VOD):
+     * mismo criterio en los dos lugares que lo usan, acá para no duplicarlo. El operador puede
+     * pisarlo con X_APP_PLACEHOLDER_COLOR (ver OperatorConfig); sin eso, el gris fijo de siempre
+     * según el tema sea claro u oscuro.
+     */
+    fun placeholderPainter(customHex: String? = null): ColorPainter =
+        ColorPainter(parseHex(customHex) ?: if (isDark) Color(0xFF2A2A2A) else Color(0xFFE2E2DE))
 }

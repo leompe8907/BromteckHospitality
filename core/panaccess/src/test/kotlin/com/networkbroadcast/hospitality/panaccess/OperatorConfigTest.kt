@@ -79,4 +79,32 @@ class OperatorConfigTest {
         val config = OperatorConfig.parse("""{"success":true,"answer":{"device":{"parameters":{}}}}""")
         assertNull(config.hotelBackgroundUrl)
     }
+
+    @Test
+    fun `X_APP_PLACEHOLDER_COLOR configurado se lee, sin el queda null (cae al gris fijo)`() {
+        val conConfig = OperatorConfig.parse(
+            """{"success":true,"answer":{"device":{"parameters":{"X_APP_PLACEHOLDER_COLOR":"#163F42"}}}}""",
+        )
+        assertEquals("#163F42", conConfig.placeholderColorHex)
+        val sinConfig = OperatorConfig.parse("""{"success":true,"answer":{"device":{"parameters":{}}}}""")
+        assertNull(sinConfig.placeholderColorHex)
+    }
+
+    @Test
+    fun `X_APP_SHOW_WEATHER manda sobre los flags viejos (declarativo, sea cual sea el otro valor)`() {
+        val oculto = OperatorConfig.parse(
+            sample.replace(
+                "\"X_DESIGN_SHOW_HOTEL_ROOM_NUMBER\":\"0\"",
+                "\"X_DESIGN_SHOW_HOTEL_ROOM_NUMBER\":\"0\",\"X_APP_SHOW_WEATHER\":\"false\",\"SHOW_WEATHER_DATA\":\"true\"",
+            ),
+        )
+        assertNull(oculto.weatherText)
+        val mostrado = OperatorConfig.parse(
+            sample.replace(
+                "\"X_DESIGN_SHOW_HOTEL_ROOM_NUMBER\":\"0\"",
+                "\"X_DESIGN_SHOW_HOTEL_ROOM_NUMBER\":\"0\",\"X_APP_SHOW_WEATHER\":\"true\",\"SHOW_WEATHER_DATA\":\"false\"",
+            ),
+        )
+        assertEquals("29° · cielo claro", mostrado.weatherText)
+    }
 }

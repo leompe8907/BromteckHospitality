@@ -25,7 +25,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.painter.ColorPainter
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -98,7 +97,7 @@ private fun ChannelCard(channel: Channel, modifier: Modifier, onClick: () -> Uni
 
 /** Películas y series: una fila por categoría, con pósters. OK abre la ficha. */
 @Composable
-fun VodScreen(vod: VodResult?, text: UiText, focusOn: String?, onOpen: (VodItem) -> Unit) {
+fun VodScreen(vod: VodResult?, text: UiText, focusOn: String?, placeholderColorHex: String? = null, onOpen: (VodItem) -> Unit) {
     val colors = HospitalityTheme.colors
     val result = vod ?: return CenteredMessage(text.loading)
     val shelves = result.shelves.filter { it.items.isNotEmpty() }
@@ -121,7 +120,7 @@ fun VodScreen(vod: VodResult?, text: UiText, focusOn: String?, onOpen: (VodItem)
                                 .then(if (isTarget) Modifier.focusRequester(first) else Modifier),
                         ) {
                             item.posterUrl?.let {
-                                val neutralPlaceholder = ColorPainter(if (colors.isDark) Color(0xFF2A2A2A) else Color(0xFFE2E2DE))
+                                val neutralPlaceholder = colors.placeholderPainter(placeholderColorHex)
                                 AsyncImage(
                                     model = it,
                                     contentDescription = item.title,

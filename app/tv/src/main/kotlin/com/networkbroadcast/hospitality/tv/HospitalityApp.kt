@@ -302,7 +302,7 @@ fun HospitalityApp(app: HospitalityApplication, showLogin: Boolean = false) {
                 runCatching { imageLoader.execute(ImageRequest.Builder(context).data(imageModel(url)).build()) }
             }
         }
-        if (onHome) HotelBackdrop(backgrounds)
+        if (onHome) HotelBackdrop(backgrounds, placeholderColorHex = panaccess.operatorConfig?.placeholderColorHex)
         if (current == null || choosingLanguage) {
             LanguageScreen(
                 brand = brand,
@@ -402,6 +402,7 @@ fun HospitalityApp(app: HospitalityApplication, showLogin: Boolean = false) {
                 vod = vod,
                 text = text,
                 focusOn = selectedVod?.id,
+                placeholderColorHex = panaccess.operatorConfig?.placeholderColorHex,
                 onOpen = { selectedVod = it; open(Screen.VodDetail) },
             )
             Screen.VodDetail -> selectedVod?.let { item ->

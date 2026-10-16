@@ -332,6 +332,8 @@ fun HospitalityApp(app: HospitalityApplication, showLogin: Boolean = false) {
                 text = text,
                 // Número de habitación: el nombre de la licencia, como MainFragment del base.
                 roomNumber = panaccess.license?.licenseName?.takeIf { panaccess.operatorConfig?.showRoomNumber != false },
+                // Color de las tarjetas configurable por Delancer, null = el de la marca de siempre.
+                cardColorHex = panaccess.operatorConfig?.cardColorHex,
                 // Segundo logo del hotel: tvModel de la licencia (MainFragment.onLicensesChanged del base).
                 secondLogoUrl = panaccess.license?.tvModel?.takeIf { it.startsWith("http") },
                 quickActions = brand.quickActions(app.showsHotelInfo),

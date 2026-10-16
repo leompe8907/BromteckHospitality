@@ -71,5 +71,34 @@ data class HospitalityColors(
             VisualDirection.CINEMATIC -> Cinematic
             VisualDirection.MINIMAL -> Minimal
         }
+
+        /** "#163F42" o "#FF163F42" -> Color. null si no es un hex válido (ej. el operador no lo configuró). */
+        fun parseHex(hex: String?): Color? {
+            val clean = hex?.removePrefix("#") ?: return null
+            return runCatching {
+                when (clean.length) {
+                    6 -> Color(clean.toLong(16) or 0xFF000000)
+                    8 -> Color(clean.toLong(16))
+                    else -> null
+                }
+            }.getOrNull()
+        }
+
+        /**
+         * Blanco o negro, lo que más contraste tenga contra ese color de fondo -- para que un
+         * color de card configurable (X_APP_CARD_COLOR) nunca deje el texto invisible encima sin
+         * necesidad de un parámetro de color de texto aparte (fórmula de luminancia percibida).
+         */
+        fun readableTextColor(background: Color): Color {
+            val luminance = 0.299f * background.red + 0.587f * background.green + 0.114f * background.blue
+            return if (luminance > 0.5f) Color.Black else Color.White
+        }
+    }
+
+    /** Variante con el color de card que mandó el operador (o esta misma instancia, si no hay). */
+    fun withCustomCardColor(hex: String?): HospitalityColors {
+        val custom = parseHex(hex) ?: return this
+        val text = readableTextColor(custom)
+        return copy(surface = custom, surfaceBorder = custom, textPrimary = text, textSecondary = text.copy(alpha = 0.75f))
     }
 }

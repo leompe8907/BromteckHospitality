@@ -35,14 +35,14 @@ data class OperatorConfig(
     // que Cableatlántico cargó para esta cuenta) y lo manda embebido en getClientConfig — acá
     // solo se parsea, no se llama a ninguna API propia (ver docs/decisiones.md en el backend
     // para el camino alternativo, para hoteles que no pasen por Panaccess).
-    // El flag de mostrar/ocultar vino con dos nombres distintos según la cuenta: "X_SHOW_WEATHER"
-    // (el de la lista de parámetros del código base) y "SHOW_WEATHER_DATA" (sin el prefijo X_,
-    // visto en una cuenta real) -- se chequean los dos, el que esté presente manda. =false lo
-    // oculta a propósito aunque el dato venga; si ninguno está seteado, se muestra apenas haya
-    // temperatura (ya es señal de que el hotel lo tiene configurado).
+    // Flag declarativo para Delancer: true = mostrar (análogo a X_APP_LOGO/X_APP_CARD_COLOR).
+    // "X_SHOW_WEATHER"/"SHOW_WEATHER_DATA" quedan como fallback de cuentas viejas que ya los
+    // traían (se vieron con dos nombres distintos según la cuenta) -- ahí el default es
+    // mostrarlo apenas haya temperatura, y =false lo oculta a propósito.
     val weatherText: String?
         get() {
-            if (flag("X_SHOW_WEATHER") == false || flag("SHOW_WEATHER_DATA") == false) return null
+            val shown = flag("X_APP_SHOW_WEATHER") ?: flag("X_SHOW_WEATHER") ?: flag("SHOW_WEATHER_DATA") ?: true
+            if (!shown) return null
             val temp = weatherTempCelsius ?: return null
             return listOfNotNull("$temp°", weatherDescription).joinToString(" · ")
         }
@@ -68,6 +68,11 @@ data class OperatorConfig(
     // hex (ej. "#163F42"). El color de texto sobre la tarjeta se calcula solo según este valor
     // (ver HospitalityColors.readableTextColor) -- no hace falta un parámetro de texto aparte.
     val cardColorHex: String? get() = param("X_APP_CARD_COLOR")
+
+    // Gris de placeholder (fondo del hotel, pósters de VOD mientras cargan o si fallan)
+    // configurable por Delancer, en hex. Si no está configurado, se cae al gris fijo de siempre
+    // según el tema (ver HospitalityColors.placeholderPainter).
+    val placeholderColorHex: String? get() = param("X_APP_PLACEHOLDER_COLOR")
 
     companion object {
         fun parse(rawJson: String): OperatorConfig {

@@ -59,6 +59,14 @@ class OperatorConfigTest {
     }
 
     @Test
+    fun `con SHOW_WEATHER_DATA en false (nombre visto en una cuenta real, sin prefijo X_) tambien se oculta`() {
+        val config = OperatorConfig.parse(
+            sample.replace("\"X_DESIGN_SHOW_HOTEL_ROOM_NUMBER\":\"0\"", "\"X_DESIGN_SHOW_HOTEL_ROOM_NUMBER\":\"0\",\"SHOW_WEATHER_DATA\":\"false\""),
+        )
+        assertNull(config.weatherText)
+    }
+
+    @Test
     fun `una respuesta sin answer no rompe`() {
         val config = OperatorConfig.parse("""{"success":false}""")
         assertTrue(config.parameters.isEmpty())

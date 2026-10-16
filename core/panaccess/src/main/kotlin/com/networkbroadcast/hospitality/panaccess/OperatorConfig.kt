@@ -35,11 +35,14 @@ data class OperatorConfig(
     // que Cableatlántico cargó para esta cuenta) y lo manda embebido en getClientConfig — acá
     // solo se parsea, no se llama a ninguna API propia (ver docs/decisiones.md en el backend
     // para el camino alternativo, para hoteles que no pasen por Panaccess).
-    // X_SHOW_WEATHER=false lo oculta a propósito aunque el dato venga; si no está seteado, se
-    // muestra apenas haya temperatura (ya es señal de que el hotel lo tiene configurado).
+    // El flag de mostrar/ocultar vino con dos nombres distintos según la cuenta: "X_SHOW_WEATHER"
+    // (el de la lista de parámetros del código base) y "SHOW_WEATHER_DATA" (sin el prefijo X_,
+    // visto en una cuenta real) -- se chequean los dos, el que esté presente manda. =false lo
+    // oculta a propósito aunque el dato venga; si ninguno está seteado, se muestra apenas haya
+    // temperatura (ya es señal de que el hotel lo tiene configurado).
     val weatherText: String?
         get() {
-            if (flag("X_SHOW_WEATHER") == false) return null
+            if (flag("X_SHOW_WEATHER") == false || flag("SHOW_WEATHER_DATA") == false) return null
             val temp = weatherTempCelsius ?: return null
             return listOfNotNull("$temp°", weatherDescription).joinToString(" · ")
         }

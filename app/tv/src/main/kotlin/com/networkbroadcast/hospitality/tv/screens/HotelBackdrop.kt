@@ -50,13 +50,17 @@ fun HotelBackdrop(images: List<String>, modifier: Modifier = Modifier) {
                 modifier = Modifier.fillMaxSize(),
             )
         }
-        // Velo: casi opaco abajo (donde están las tarjetas) y más liviano arriba, donde se ve la foto.
+        // Velo: casi opaco abajo (donde están las tarjetas) y más liviano arriba, donde se ve la
+        // foto. Negro neutro, no el color de fondo del tema -- con un fondo real (sobre todo uno
+        // con verdes, como el de Delancer) el teal/verde del tema sumado al velo se veía como un
+        // filtro de color encima de la foto, no un simple sombreado. Mismo criterio ya usado en
+        // BottomScrim (Common.kt) para el mismo problema con los pósters de VOD.
         Box(
             Modifier.fillMaxSize().background(
                 Brush.verticalGradient(
-                    0f to colors.background.copy(alpha = 0.35f),
-                    0.45f to colors.background.copy(alpha = 0.70f),
-                    1f to colors.background.copy(alpha = 0.94f),
+                    0f to Color.Black.copy(alpha = 0.20f),
+                    0.45f to Color.Black.copy(alpha = 0.55f),
+                    1f to Color.Black.copy(alpha = 0.85f),
                 ),
             ),
         )

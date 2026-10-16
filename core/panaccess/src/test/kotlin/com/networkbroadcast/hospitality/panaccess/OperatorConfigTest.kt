@@ -10,7 +10,7 @@ class OperatorConfigTest {
     private val sample = """
         {"success":true,"answer":{
           "subscriber":{"operator":"intv","firstName":"Ana","lastName":"Paz"},
-          "device":{"parameters":{"X_HOTEL_SHOW_ABOUT":"true","X_HOTEL_APK_BASE_URL":"http://h/","X_HOTEL_APK_BASE_FOLDER":"HotelRoyal","X_DESIGN_SHOW_HOTEL_ROOM_NUMBER":"0","X_APP_LOGO_BACKGROUND":"https://i.imgur.com/jpFevda.jpeg"}},
+          "device":{"parameters":{"X_HOTEL_SHOW_ABOUT":"true","X_HOTEL_APK_BASE_URL":"http://h/","X_HOTEL_APK_BASE_FOLDER":"HotelRoyal","X_DESIGN_SHOW_HOTEL_ROOM_NUMBER":"0","X_APP_LOGO_BACKGROUND":"https://i.imgur.com/jpFevda.jpeg","X_APP_LOGO":"https://i.imgur.com/logo.png"}},
           "epgCdnGroupId":"3",
           "cdnServers":[{"id":1,"urls":["http://otro"]},{"id":3,"urls":["http://epg.cdn/","http://epg2.cdn/"]}],
           "defaultTimeZone":"America/Recife"
@@ -28,6 +28,7 @@ class OperatorConfigTest {
         assertEquals("HotelRoyal", config.hotelBaseFolder)
         assertEquals(false, config.showRoomNumber)
         assertEquals("https://i.imgur.com/jpFevda.jpeg", config.hotelBackgroundUrl)
+        assertEquals("https://i.imgur.com/logo.png", config.hotelLogoUrl)
     }
 
     @Test

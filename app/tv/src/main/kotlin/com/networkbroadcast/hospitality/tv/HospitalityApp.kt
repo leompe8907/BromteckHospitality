@@ -296,6 +296,7 @@ fun HospitalityApp(app: HospitalityApplication, showLogin: Boolean = false) {
                     language = it
                     choosingLanguage = false
                 },
+                logoUrl = panaccess.operatorConfig?.hotelLogoUrl,
             )
             if (choosingLanguage) BackHandler { choosingLanguage = false }
             return@Box

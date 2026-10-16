@@ -19,6 +19,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.painter.ColorPainter
 import androidx.compose.ui.layout.ContentScale
 import coil3.compose.AsyncImage
 import com.networkbroadcast.hospitality.brand.imageModel
@@ -47,10 +49,15 @@ fun HotelBackdrop(images: List<String>, modifier: Modifier = Modifier) {
         animationSpec = infiniteRepeatable(tween(18_000, easing = LinearEasing), RepeatMode.Reverse),
         label = "zoom",
     )
+    // Mientras la imagen carga (o si la URL falla, p. ej. un fondo configurado mal desde
+    // Panaccess), un color fijo en vez de dejar la pantalla vacía — mismo criterio que
+    // neutralPlaceholder en EntertainmentScreens.kt para fotos de canal/VOD rotas.
+    val placeholder = remember(colors.isDark) { ColorPainter(if (colors.isDark) Color(0xFF2A2A2A) else Color(0xFFE2E2DE)) }
     Box(modifier.fillMaxSize()) {
         Crossfade(targetState = images[index], animationSpec = tween(1_800), label = "photo") { url ->
             AsyncImage(
                 model = imageModel(url), contentDescription = null, contentScale = ContentScale.Crop,
+                placeholder = placeholder, error = placeholder,
                 modifier = Modifier.fillMaxSize().scale(zoom),
             )
         }

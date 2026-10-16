@@ -36,6 +36,11 @@ data class OperatorConfig(
     // configurado, se cae al fondo genérico de la marca (ver HospitalityApp.kt).
     val hotelBackgroundUrl: String? get() = param("X_APP_LOGO_BACKGROUND")
 
+    // Logo de marca configurable por Delancer. Nombre propuesto, análogo a X_APP_LOGO_BACKGROUND
+    // — a confirmar/pedir a Cableatlántico igual que se hizo con el fondo. Si no está configurado,
+    // se cae al logo estático de la marca (ver LanguageScreen.kt).
+    val hotelLogoUrl: String? get() = param("X_APP_LOGO")
+
     companion object {
         fun parse(rawJson: String): OperatorConfig {
             val answer = CasEnvelope.answer(rawJson) as? JsonObject

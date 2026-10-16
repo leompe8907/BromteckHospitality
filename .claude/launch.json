@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "panel-gestion",
+      "runtimeExecutable": "/home/sw1/Desktop/valentina/PanelDeGestion/.venv/bin/python",
+      "runtimeArgs": ["/home/sw1/Desktop/valentina/PanelDeGestion/manage.py", "runserver", "0.0.0.0:8001"],
+      "port": 8001
+    }
+  ]
+}

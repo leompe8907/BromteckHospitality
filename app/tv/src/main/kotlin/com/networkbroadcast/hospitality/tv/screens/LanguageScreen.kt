@@ -16,14 +16,16 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
+import coil3.compose.AsyncImage
 import com.networkbroadcast.hospitality.brand.BrandConfig
+import com.networkbroadcast.hospitality.brand.imageModel
 import com.networkbroadcast.hospitality.designsystem.FocusCard
 import com.networkbroadcast.hospitality.designsystem.HospitalityTheme
 import com.networkbroadcast.hospitality.tv.R
 import com.networkbroadcast.hospitality.brand.UiText
 
 @Composable
-fun LanguageScreen(brand: BrandConfig, selected: String?, onSelected: (String) -> Unit) {
+fun LanguageScreen(brand: BrandConfig, selected: String?, onSelected: (String) -> Unit, logoUrl: String? = null) {
     val colors = HospitalityTheme.colors
     val first = rememberInitialFocus()
     Column(
@@ -31,10 +33,17 @@ fun LanguageScreen(brand: BrandConfig, selected: String?, onSelected: (String) -
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
     ) {
-        if (brand.showLogo) {
-            Image(painterResource(R.drawable.brand_logo), contentDescription = brand.displayName, modifier = Modifier.height(72.dp))
-        } else {
-            Text(brand.displayName, style = HospitalityTheme.typography.display, color = colors.textPrimary)
+        when {
+            // Logo configurado por el operador desde Panaccess (Delancer): gana aunque la marca
+            // no tenga showLogo, porque acá sí hay un logo real que mostrar. Mientras carga o si
+            // la URL falla, se ve el logo estático de la marca en su lugar (nunca vacío).
+            logoUrl != null -> AsyncImage(
+                model = imageModel(logoUrl), contentDescription = brand.displayName,
+                placeholder = painterResource(R.drawable.brand_logo), error = painterResource(R.drawable.brand_logo),
+                modifier = Modifier.height(72.dp),
+            )
+            brand.showLogo -> Image(painterResource(R.drawable.brand_logo), contentDescription = brand.displayName, modifier = Modifier.height(72.dp))
+            else -> Text(brand.displayName, style = HospitalityTheme.typography.display, color = colors.textPrimary)
         }
         // El título va en cada idioma ofrecido: el huésped todavía no eligió el suyo.
         Text(

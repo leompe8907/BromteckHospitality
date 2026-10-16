@@ -99,7 +99,8 @@ fun HomeScreen(
     val now by rememberTicking()
     val dateText = remember(now) { SimpleDateFormat("EEE d MMM", Locale.getDefault()).format(now) }
     val timeText = remember(now) { SimpleDateFormat("HH:mm", Locale.getDefault()).format(now) }
-    val context = listOfNotNull(dateText, timeText, weatherText, brand.location, roomNumber?.let { "${text.room} $it" })
+    // Fecha y hora salieron de la píldora: van arriba a la derecha, sin fondo (pedido del cliente).
+    val context = listOfNotNull(weatherText, brand.location, roomNumber?.let { "${text.room} $it" })
     val entertainment = buildList {
         if (brand.features.liveTv) add(HomeAction.LiveTv to text.liveNow)
         if (brand.features.liveTv && brand.features.guide) add(HomeAction.Guide to text.guide)
@@ -133,6 +134,14 @@ fun HomeScreen(
                 secondLogoUrl?.let {
                     AsyncImage(model = it, contentDescription = null, contentScale = ContentScale.Fit, modifier = Modifier.height(56.dp).width(200.dp))
                 }
+                // Esquina superior derecha, directo sobre la foto de fondo (sin píldora): así lo pidió
+                // el cliente para fecha/hora, a diferencia del resto del contexto (clima, habitación).
+                Text(
+                    "$dateText · $timeText",
+                    style = HospitalityTheme.typography.label,
+                    color = colors.textSecondary,
+                    modifier = Modifier.padding(start = 16.dp),
+                )
             }
             if (context.isNotEmpty()) InfoPill(context.joinToString(" · "))
 

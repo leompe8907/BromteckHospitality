@@ -41,6 +41,7 @@ import coil3.compose.AsyncImage
 import com.networkbroadcast.hospitality.brand.BrandConfig
 import com.networkbroadcast.hospitality.brand.imageModel
 import com.networkbroadcast.hospitality.designsystem.FocusCard
+import com.networkbroadcast.hospitality.designsystem.HospitalityColors
 import com.networkbroadcast.hospitality.designsystem.HospitalityTheme
 import com.networkbroadcast.hospitality.designsystem.LocalHospitalityColors
 import com.networkbroadcast.hospitality.designsystem.InfoPill
@@ -72,6 +73,8 @@ fun HomeScreen(
     roomNumber: String?,
     /** "29° · nublado", ya resuelto por Panaccess (ver OperatorConfig.weatherText); null si el hotel no lo tiene configurado. */
     weatherText: String?,
+    /** "#163F42", color de card configurado por Delancer (OperatorConfig.cardColorHex); null = el de la marca. */
+    cardColorHex: String?,
     secondLogoUrl: String?,
     quickActions: List<HomeAction>,
     /** Lo que muestran las tarjetas de entretenimiento; todo opcional (mientras carga, tarjeta lisa). */
@@ -110,6 +113,11 @@ fun HomeScreen(
     // Con foto de fondo, tarjetas levemente translúcidas: se ve la playa detrás sin perder lectura.
     val base = HospitalityTheme.colors
     val cardColors = if (brand.backgrounds.isEmpty()) base else base.copy(surface = base.surface.copy(alpha = 0.82f))
+    // Color de card configurable por Delancer: a propósito un CompositionLocalProvider aparte
+    // (más abajo, alrededor de cada fila de tarjetas), no éste -- éste envuelve TODA la pantalla,
+    // incluido el saludo y los títulos de sección, que van sobre la foto de fondo, no sobre una
+    // card, y no deben cambiar de color solo porque cambió el color de las tarjetas.
+    val customCardColors = cardColorHex?.let { cardColors.withCustomCardColor(it) }
     CompositionLocalProvider(LocalHospitalityColors provides cardColors) {
     Row(Modifier.fillMaxSize()) {
         // Desplazable: en 960x540 dp (TV 1080p) las dos filas no entran juntas. El foco hace scroll
@@ -130,6 +138,7 @@ fun HomeScreen(
 
             if (entertainment.isNotEmpty()) {
                 SectionTitle(text.entertainment)
+                CardRow(customCardColors) {
                 Row(horizontalArrangement = Arrangement.spacedBy(16.dp), modifier = Modifier.fillMaxWidth()) {
                     entertainment.forEachIndexed { index, (action, label) ->
                         FocusCard(
@@ -138,6 +147,7 @@ fun HomeScreen(
                                 .weight(if (index == 0) 2f else 1f)
                                 .then(if (action == target) Modifier.focusRequester(first) else Modifier),
                         ) {
+                            val cardColors2 = HospitalityTheme.colors
                             when (action) {
                                 HomeAction.LiveTv -> LivePreview(previews)
                                 HomeAction.Guide -> GuidePreview(previews)
@@ -150,34 +160,37 @@ fun HomeScreen(
                             Column(Modifier.align(Alignment.BottomStart).padding(18.dp).padding(end = reserveEnd)) {
                                 if (action == HomeAction.LiveTv) previews.liveProgram?.let {
                                     Text(
-                                        it, style = HospitalityTheme.typography.body, color = colors.textSecondary,
+                                        it, style = HospitalityTheme.typography.body, color = cardColors2.textSecondary,
                                         maxLines = 1, overflow = TextOverflow.Ellipsis,
                                     )
                                 }
-                                Text(label, style = HospitalityTheme.typography.label, color = colors.textPrimary)
+                                Text(label, style = HospitalityTheme.typography.label, color = cardColors2.textPrimary)
                             }
                         }
                     }
+                }
                 }
             }
 
             if (services != null) {
                 SectionTitle(services.title)
+                CardRow(customCardColors) {
                 Row(horizontalArrangement = Arrangement.spacedBy(16.dp), modifier = Modifier.fillMaxWidth()) {
                     FocusCard(
                         onClick = { onAction(HomeAction.Services) },
                         modifier = Modifier.height(130.dp).weight(2f)
                             .then(if (HomeAction.Services == target) Modifier.focusRequester(first) else Modifier),
                     ) {
+                        val cardColors2 = HospitalityTheme.colors
                         services.imageUrl?.let {
                             AsyncImage(model = imageModel(it), contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
                             // Velo parejo además del degradado: la foto puede ser muy clara (atardecer) y el texto va encima.
-                            Box(Modifier.fillMaxSize().background(colors.background.copy(alpha = 0.35f)))
+                            Box(Modifier.fillMaxSize().background(cardColors2.background.copy(alpha = 0.35f)))
                             BottomScrim()
                         }
                         Column(Modifier.align(Alignment.BottomStart).padding(18.dp)) {
-                            Text(services.categories, style = HospitalityTheme.typography.body, color = colors.textSecondary, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                            Text(services.orderLabel, style = HospitalityTheme.typography.label, color = colors.textPrimary)
+                            Text(services.categories, style = HospitalityTheme.typography.body, color = cardColors2.textSecondary, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                            Text(services.orderLabel, style = HospitalityTheme.typography.label, color = cardColors2.textPrimary)
                         }
                     }
                     FocusCard(
@@ -185,19 +198,22 @@ fun HomeScreen(
                         modifier = Modifier.height(130.dp).weight(1f)
                             .then(if (HomeAction.MyOrders == target) Modifier.focusRequester(first) else Modifier),
                     ) {
-                        Icon(painterResource(R.drawable.ic_bell), contentDescription = null, tint = colors.accent, modifier = Modifier.padding(18.dp).size(28.dp))
+                        val cardColors2 = HospitalityTheme.colors
+                        Icon(painterResource(R.drawable.ic_bell), contentDescription = null, tint = cardColors2.accent, modifier = Modifier.padding(18.dp).size(28.dp))
                         Column(Modifier.align(Alignment.BottomStart).padding(18.dp)) {
                             services.activeOrder?.let {
-                                Text(it, style = HospitalityTheme.typography.body, color = colors.accent, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                Text(it, style = HospitalityTheme.typography.body, color = cardColors2.accent, maxLines = 1, overflow = TextOverflow.Ellipsis)
                             }
-                            Text(services.myOrdersLabel, style = HospitalityTheme.typography.label, color = colors.textPrimary)
+                            Text(services.myOrdersLabel, style = HospitalityTheme.typography.label, color = cardColors2.textPrimary)
                         }
                     }
+                }
                 }
             }
 
             if (quickActions.isNotEmpty()) {
                 SectionTitle(text.quickActions)
+                CardRow(customCardColors) {
                 Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                     quickActions.forEach { action ->
                         val label = when (action) {
@@ -215,23 +231,36 @@ fun HomeScreen(
                             modifier = Modifier.size(width = 220.dp, height = 110.dp)
                                 .then(if (action == target) Modifier.focusRequester(first) else Modifier),
                         ) {
+                            val cardColors2 = HospitalityTheme.colors
                             Icon(
-                                painterResource(action.icon()), contentDescription = null, tint = colors.accent,
+                                painterResource(action.icon()), contentDescription = null, tint = cardColors2.accent,
                                 modifier = Modifier.padding(18.dp).size(28.dp),
                             )
                             Text(
                                 label,
                                 style = HospitalityTheme.typography.label,
-                                color = colors.textPrimary,
+                                color = cardColors2.textPrimary,
                                 modifier = Modifier.align(Alignment.BottomStart).padding(18.dp),
                             )
                         }
                     }
                 }
+                }
             }
         }
     }
     }
+}
+
+/**
+ * Envuelve una fila de tarjetas con el color custom del operador (si hay) -- a propósito acotado
+ * a esto y no a toda la pantalla, para que el saludo y los títulos de sección (que van sobre la
+ * foto de fondo, no sobre una card) no cambien de color por esto.
+ */
+@Composable
+private fun CardRow(customColors: HospitalityColors?, content: @Composable () -> Unit) {
+    if (customColors != null) CompositionLocalProvider(LocalHospitalityColors provides customColors, content = content)
+    else content()
 }
 
 /** La fila de servicios de la home: textos ya traducidos y el pedido en curso, si hay. */

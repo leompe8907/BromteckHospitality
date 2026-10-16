@@ -64,6 +64,11 @@ data class OperatorConfig(
     // se cae al logo estático de la marca (ver LanguageScreen.kt).
     val hotelLogoUrl: String? get() = param("X_APP_LOGO")
 
+    // Color de las tarjetas (Entretenimiento y Acciones rápidas) configurable por Delancer, en
+    // hex (ej. "#163F42"). El color de texto sobre la tarjeta se calcula solo según este valor
+    // (ver HospitalityColors.readableTextColor) -- no hace falta un parámetro de texto aparte.
+    val cardColorHex: String? get() = param("X_APP_CARD_COLOR")
+
     companion object {
         fun parse(rawJson: String): OperatorConfig {
             val answer = CasEnvelope.answer(rawJson) as? JsonObject

@@ -70,7 +70,7 @@ enum class Screen { Home, AboutHotel, LiveTv, Guide, Player, Vod, VodDetail, Med
 private enum class Auth { Provisioning, Checking, NeedsLogin, ChooseLicense, Ready }
 
 /** Acciones de la home. Cada una existe sólo si su flag está prendido. */
-enum class HomeAction { LiveTv, Guide, Vod, Services, MyOrders, AboutHotel, PairPhone, Language, Checkout }
+enum class HomeAction { LiveTv, Guide, Vod, CatchUp, Services, MyOrders, AboutHotel, PairPhone, Language, Checkout }
 
 fun BrandConfig.quickActions(showsHotelInfo: Boolean): List<HomeAction> = buildList {
     if (showsHotelInfo) add(HomeAction.AboutHotel)
@@ -339,6 +339,11 @@ fun HospitalityApp(app: HospitalityApplication, showLogin: Boolean = false) {
                 // Segundo logo del hotel: tvModel de la licencia (MainFragment.onLicensesChanged del base).
                 secondLogoUrl = panaccess.license?.tvModel?.takeIf { it.startsWith("http") },
                 quickActions = brand.quickActions(app.showsHotelInfo),
+                // brand.features.vod es un tope por marca, no una garantía de que esta cuenta tenga
+                // contenido real (ver HomeScreen.entertainment): sin VOD real, si hay canales con
+                // catchup se ofrece esa caja en su lugar.
+                vodHasContent = vod?.shelves?.any { it.items.isNotEmpty() } == true,
+                catchUpAvailable = channelList.any { it.hasCatchup },
                 services = guestServices?.let {
                     val servicesText = ServicesText.of(current)
                     HomeServices(
@@ -362,7 +367,7 @@ fun HospitalityApp(app: HospitalityApplication, showLogin: Boolean = false) {
                     lastHomeAction = action
                     when (action) {
                         HomeAction.LiveTv -> open(Screen.LiveTv)
-                        HomeAction.Guide -> open(Screen.Guide)
+                        HomeAction.Guide, HomeAction.CatchUp -> open(Screen.Guide)
                         HomeAction.Vod -> open(Screen.Vod)
                         HomeAction.Services -> open(Screen.Services)
                         HomeAction.MyOrders -> open(Screen.MyOrders)
@@ -465,6 +470,10 @@ fun HospitalityApp(app: HospitalityApplication, showLogin: Boolean = false) {
                     session.clear()
                     scope.launch { app.tvPairing.unpairAll() }
                     scope.launch { guestServices?.endStay() }
+                    // Delancer puede cambiar el fondo (X_APP_LOGO_BACKGROUND) entre huéspedes sin
+                    // tocar la cuenta de la TV: sin esto, el fondo quedaba fijo en el de la primera
+                    // sesión de la TV. El logo no se re-pide todavía -- fuera de alcance por ahora.
+                    scope.launch { panaccess.refreshOperatorConfig() }
                     knownStatuses.clear()
                     confirmingCheckout = false
                     lastHomeAction = null

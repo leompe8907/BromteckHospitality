@@ -46,6 +46,8 @@ data class Channel(
     val number: Int,
     val name: String,
     val logoUrl: String? = null,
+    /** true si el canal tiene catchup habilitado (Stream.hasCatchup); no implica que haya programas ya emitidos. */
+    val hasCatchup: Boolean = false,
 )
 
 /** Un bouquet con sus canales, en el orden del operador. */

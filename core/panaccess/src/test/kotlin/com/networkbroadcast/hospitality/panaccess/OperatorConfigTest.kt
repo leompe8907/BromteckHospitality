@@ -13,7 +13,8 @@ class OperatorConfigTest {
           "device":{"parameters":{"X_HOTEL_SHOW_ABOUT":"true","X_HOTEL_APK_BASE_URL":"http://h/","X_HOTEL_APK_BASE_FOLDER":"HotelRoyal","X_DESIGN_SHOW_HOTEL_ROOM_NUMBER":"0","X_APP_LOGO_BACKGROUND":"https://i.imgur.com/jpFevda.jpeg","X_APP_LOGO":"https://i.imgur.com/logo.png"}},
           "epgCdnGroupId":"3",
           "cdnServers":[{"id":1,"urls":["http://otro"]},{"id":3,"urls":["http://epg.cdn/","http://epg2.cdn/"]}],
-          "defaultTimeZone":"America/Recife"
+          "defaultTimeZone":"America/Recife",
+          "weather":{"provider":"OPENWEATHER","data":"{\"list\":[{\"main\":{\"temp\":302.15},\"weather\":[{\"description\":\"cielo claro\"}]}]}"}
         }}
     """
 
@@ -29,6 +30,32 @@ class OperatorConfigTest {
         assertEquals(false, config.showRoomNumber)
         assertEquals("https://i.imgur.com/jpFevda.jpeg", config.hotelBackgroundUrl)
         assertEquals("https://i.imgur.com/logo.png", config.hotelLogoUrl)
+        assertEquals("29° · cielo claro", config.weatherText)
+        assertTrue(config.hasWeatherField)
+    }
+
+    @Test
+    fun `sin dato de clima en la respuesta, weatherText queda null`() {
+        val config = OperatorConfig.parse("""{"success":true,"answer":{"device":{"parameters":{}}}}""")
+        assertNull(config.weatherText)
+        assertTrue(!config.hasWeatherField)
+    }
+
+    @Test
+    fun `con weather null (hotel sin clima configurado en Panaccess) no rompe y queda sin dato`() {
+        // Así lo manda Panaccess cuando no hay clima configurado para la cuenta: la clave
+        // "weather" viene igual, pero con valor JSON null, no ausente.
+        val config = OperatorConfig.parse("""{"success":true,"answer":{"device":{"parameters":{}},"weather":null}}""")
+        assertNull(config.weatherText)
+        assertTrue(!config.hasWeatherField)
+    }
+
+    @Test
+    fun `con X_SHOW_WEATHER en false se oculta aunque el dato venga`() {
+        val config = OperatorConfig.parse(
+            sample.replace("\"X_DESIGN_SHOW_HOTEL_ROOM_NUMBER\":\"0\"", "\"X_DESIGN_SHOW_HOTEL_ROOM_NUMBER\":\"0\",\"X_SHOW_WEATHER\":\"false\""),
+        )
+        assertNull(config.weatherText)
     }
 
     @Test

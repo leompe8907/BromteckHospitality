@@ -140,7 +140,12 @@ class PanaccessSession(context: Context, val client: PanaccessClient) {
         }.onFailure { Log.w(TAG, "copyprotect: ${it.message}") }
         // La configuración del cliente no es requisito para ver TV: si falla, seguimos.
         operatorConfig = (client.call("getClientConfig") as? CasResult.Success)?.let { OperatorConfig.parse(it.rawJson) }
-        Log.i(TAG, "sesión abierta; operador=${operatorConfig?.operator}, parámetros X_=${operatorConfig?.parameters?.size}, cdn guía=${operatorConfig?.epgCdnUrls?.size}")
+        Log.i(
+            TAG,
+            "sesión abierta; operador=${operatorConfig?.operator}, parámetros X_=${operatorConfig?.parameters?.size}, " +
+                "cdn guía=${operatorConfig?.epgCdnUrls?.size}, clima=${operatorConfig?.weatherText ?: "sin dato"} " +
+                "(campo weather presente=${operatorConfig?.hasWeatherField})",
+        )
         // Sólo los parámetros de marca/hotel (nunca datos del abonado).
         operatorConfig?.parameters
             ?.filterKeys { it.startsWith("X_HOTEL") || it.startsWith("X_DEFAULT_LANG") || it == "X_DESIGN_SHOW_HOTEL_ROOM_NUMBER" }

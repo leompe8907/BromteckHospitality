@@ -70,6 +70,8 @@ fun HomeScreen(
     brand: BrandConfig,
     text: UiText,
     roomNumber: String?,
+    /** "29° · nublado", ya resuelto por Panaccess (ver OperatorConfig.weatherText); null si el hotel no lo tiene configurado. */
+    weatherText: String?,
     secondLogoUrl: String?,
     quickActions: List<HomeAction>,
     /** Lo que muestran las tarjetas de entretenimiento; todo opcional (mientras carga, tarjeta lisa). */
@@ -87,14 +89,14 @@ fun HomeScreen(
         in 12..19 -> text.goodAfternoon
         else -> text.goodEvening
     }
-    // Fecha y hora: locales al dispositivo, no dependen de Panaccess ni de ningún backend (a
-    // diferencia del clima, que sí viene de Panaccess cuando el hotel lo tiene configurado, y que
-    // se suma acá mismo el día que se implemente). Se actualiza cada 30s -- alcanza para un reloj
-    // de ambiente, no hace falta por segundo.
+    // Fecha y hora: locales al dispositivo, no dependen de Panaccess ni de ningún backend. El
+    // clima sí viene de Panaccess (null si el hotel no lo tiene configurado -- no se oculta nada
+    // más por eso, la píldora simplemente queda con un elemento menos). Se actualiza cada 30s --
+    // alcanza para un reloj de ambiente, no hace falta por segundo.
     val now by rememberTicking()
     val dateText = remember(now) { SimpleDateFormat("EEE d MMM", Locale.getDefault()).format(now) }
     val timeText = remember(now) { SimpleDateFormat("HH:mm", Locale.getDefault()).format(now) }
-    val context = listOfNotNull(dateText, timeText, brand.location, roomNumber?.let { "${text.room} $it" })
+    val context = listOfNotNull(dateText, timeText, weatherText, brand.location, roomNumber?.let { "${text.room} $it" })
     val entertainment = buildList {
         if (brand.features.liveTv) add(HomeAction.LiveTv to text.liveNow)
         if (brand.features.liveTv && brand.features.guide) add(HomeAction.Guide to text.guide)

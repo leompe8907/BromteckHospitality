@@ -332,6 +332,8 @@ fun HospitalityApp(app: HospitalityApplication, showLogin: Boolean = false) {
                 text = text,
                 // Número de habitación: el nombre de la licencia, como MainFragment del base.
                 roomNumber = panaccess.license?.licenseName?.takeIf { panaccess.operatorConfig?.showRoomNumber != false },
+                // Clima: ya resuelto por Panaccess (ver OperatorConfig.weatherText), null si el hotel no lo tiene configurado.
+                weatherText = panaccess.operatorConfig?.weatherText,
                 // Segundo logo del hotel: tvModel de la licencia (MainFragment.onLicensesChanged del base).
                 secondLogoUrl = panaccess.license?.tvModel?.takeIf { it.startsWith("http") },
                 quickActions = brand.quickActions(app.showsHotelInfo),

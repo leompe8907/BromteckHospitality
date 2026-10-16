@@ -1,7 +1,9 @@
 package com.networkbroadcast.hospitality.panaccess
 
 import com.panaccess.android.streaming.shared.cas.CasEnvelope
+import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
@@ -20,9 +22,27 @@ data class OperatorConfig(
     val subscriberName: String?,
     val epgCdnUrls: List<String>,
     val defaultTimeZone: String?,
+    val weatherTempCelsius: Int?,
+    val weatherDescription: String?,
+    /** true si `answer.weather` vino en la respuesta, haya podido parsearse o no -- para
+     *  distinguir en logs "Cableatlántico no configuró esto" de "vino pero no se pudo leer". */
+    val hasWeatherField: Boolean,
 ) {
     fun param(key: String): String? = parameters[key]?.takeIf { it.isNotBlank() }
     fun flag(key: String): Boolean? = param(key)?.let { it.equals("true", true) || it == "1" }
+
+    // Clima: Panaccess ya lo resuelve en su backend (consulta OpenWeatherMap con la ubicación
+    // que Cableatlántico cargó para esta cuenta) y lo manda embebido en getClientConfig — acá
+    // solo se parsea, no se llama a ninguna API propia (ver docs/decisiones.md en el backend
+    // para el camino alternativo, para hoteles que no pasen por Panaccess).
+    // X_SHOW_WEATHER=false lo oculta a propósito aunque el dato venga; si no está seteado, se
+    // muestra apenas haya temperatura (ya es señal de que el hotel lo tiene configurado).
+    val weatherText: String?
+        get() {
+            if (flag("X_SHOW_WEATHER") == false) return null
+            val temp = weatherTempCelsius ?: return null
+            return listOfNotNull("$temp°", weatherDescription).joinToString(" · ")
+        }
 
     // Contenido "acerca del hotel" del sistema viejo: GET <url>/<carpeta>/images_hotel
     val hotelApk: Boolean? get() = flag("X_HOTEL_APK")
@@ -44,12 +64,19 @@ data class OperatorConfig(
     companion object {
         fun parse(rawJson: String): OperatorConfig {
             val answer = CasEnvelope.answer(rawJson) as? JsonObject
+            val weather = weather(answer)
             return OperatorConfig(
                 parameters = parameters(answer),
                 operator = text(answer?.get("subscriber")?.let { runCatching { it.jsonObject["operator"] }.getOrNull() }),
                 subscriberName = subscriberName(answer),
                 epgCdnUrls = epgCdnUrls(answer),
                 defaultTimeZone = text(answer?.get("defaultTimeZone")),
+                weatherTempCelsius = weather.first,
+                weatherDescription = weather.second,
+                // Ojo: Panaccess manda la clave "weather" igual aunque no haya clima configurado
+                // para esta cuenta -- con el valor JSON null (JsonNull), no ausente. Por eso no
+                // alcanza con "!= null" de Kotlin: hay que descartar explícitamente JsonNull.
+                hasWeatherField = runCatching { answer?.get("weather")?.let { it !is JsonNull } }.getOrNull() == true,
             )
         }
 
@@ -76,6 +103,25 @@ data class OperatorConfig(
             } ?: return emptyList()
             val urls = runCatching { group.jsonObject["urls"] as? JsonArray }.getOrNull() ?: return emptyList()
             return urls.mapNotNull { text(it) }
+        }
+
+        /**
+         * `answer.weather.data` es un string con JSON adentro (así lo manda Panaccess, no un
+         * objeto anidado directo) -- formato crudo de OpenWeatherMap: ver `Openweather.kt`/
+         * `ClientConfig.kt` del repo base. Temperatura en Kelvin, se convierte acá.
+         */
+        private fun weather(answer: JsonObject?): Pair<Int?, String?> {
+            val weatherObj = runCatching { answer?.get("weather")?.jsonObject }.getOrNull()
+            val dataString = weatherObj?.get("data")?.let { text(it) } ?: return null to null
+            val first = runCatching {
+                Json.parseToJsonElement(dataString).jsonObject["list"]?.let { it as JsonArray }?.firstOrNull()?.jsonObject
+            }.getOrNull() ?: return null to null
+            val tempKelvin = runCatching { first["main"]?.jsonObject?.get("temp")?.jsonPrimitive?.content?.toDouble() }.getOrNull()
+            val tempCelsius = tempKelvin?.let { Math.round(it - 273.15).toInt() }
+            val description = runCatching {
+                (first["weather"] as? JsonArray)?.firstOrNull()?.jsonObject?.get("description")?.jsonPrimitive?.content
+            }.getOrNull()
+            return tempCelsius to description
         }
     }
 }

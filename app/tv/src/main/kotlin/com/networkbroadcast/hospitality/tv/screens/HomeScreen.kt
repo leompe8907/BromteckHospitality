@@ -26,6 +26,11 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.focusRequester
@@ -42,7 +47,22 @@ import com.networkbroadcast.hospitality.designsystem.InfoPill
 import com.networkbroadcast.hospitality.designsystem.SectionTitle
 import com.networkbroadcast.hospitality.tv.HomeAction
 import com.networkbroadcast.hospitality.brand.UiText
+import kotlinx.coroutines.delay
+import java.text.SimpleDateFormat
 import java.util.Calendar
+import java.util.Date
+import java.util.Locale
+
+/** Fecha/hora actual, releída cada 30s -- lo que usa [HomeScreen] para la píldora de contexto. */
+@Composable
+private fun rememberTicking() = remember { mutableStateOf(Date()) }.also { state ->
+    LaunchedEffect(Unit) {
+        while (true) {
+            delay(30_000)
+            state.value = Date()
+        }
+    }
+}
 
 /** Home del mockup "resort cálido": saludo, píldora de contexto, entretenimiento y acciones. */
 @Composable
@@ -67,7 +87,14 @@ fun HomeScreen(
         in 12..19 -> text.goodAfternoon
         else -> text.goodEvening
     }
-    val context = listOfNotNull(brand.location, roomNumber?.let { "${text.room} $it" })
+    // Fecha y hora: locales al dispositivo, no dependen de Panaccess ni de ningún backend (a
+    // diferencia del clima, que sí viene de Panaccess cuando el hotel lo tiene configurado, y que
+    // se suma acá mismo el día que se implemente). Se actualiza cada 30s -- alcanza para un reloj
+    // de ambiente, no hace falta por segundo.
+    val now by rememberTicking()
+    val dateText = remember(now) { SimpleDateFormat("EEE d MMM", Locale.getDefault()).format(now) }
+    val timeText = remember(now) { SimpleDateFormat("HH:mm", Locale.getDefault()).format(now) }
+    val context = listOfNotNull(dateText, timeText, brand.location, roomNumber?.let { "${text.room} $it" })
     val entertainment = buildList {
         if (brand.features.liveTv) add(HomeAction.LiveTv to text.liveNow)
         if (brand.features.liveTv && brand.features.guide) add(HomeAction.Guide to text.guide)

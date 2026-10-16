@@ -21,3 +21,5 @@ core/build/
 libs/build/
 tools/build/
 brands/*/build/
+.idea/
+.claude/

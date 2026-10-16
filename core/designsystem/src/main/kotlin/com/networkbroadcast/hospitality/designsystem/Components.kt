@@ -20,6 +20,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 
 private val CardShape = RoundedCornerShape(14.dp)
@@ -70,6 +71,11 @@ fun InfoPill(text: String, modifier: Modifier = Modifier) {
         text = text,
         style = HospitalityTheme.typography.label,
         color = colors.textSecondary,
+        // Una sola línea: con un nombre de hotel largo + fecha/hora/habitación, el texto puede
+        // pasarse del ancho disponible -- mejor recortarlo con "…" que dejar que la píldora se
+        // deforme envolviendo a dos líneas (no se superpone con nada, solo se ve mal).
+        maxLines = 1,
+        overflow = TextOverflow.Ellipsis,
         modifier = modifier
             .clip(RoundedCornerShape(100.dp))
             .background(colors.surface)

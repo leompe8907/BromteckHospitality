@@ -26,9 +26,11 @@ import androidx.compose.ui.unit.dp
 private val CardShape = RoundedCornerShape(14.dp)
 
 /**
- * Tarjeta navegable con el control remoto: crece un poco y muestra el borde de foco
- * (amarillo en resort, como en el mockup de la home). Toda la app usa ésta, así el foco
- * se comporta igual en todas las pantallas.
+ * Tarjeta navegable con el control remoto: crece un poco y muestra el borde de foco. El borde
+ * toma el color del texto de la propia tarjeta (`textPrimary`, resuelto fresco acá adentro) en
+ * vez de un color de foco fijo -- así, si una tarjeta tiene un color custom (ver
+ * `withCustomCardColor`), el borde de foco combina con ella automáticamente, sin pasar un
+ * parámetro nuevo por cada uno de los ~10 call sites de este componente.
  */
 @Composable
 fun FocusCard(
@@ -53,7 +55,7 @@ fun FocusCard(
             .background(colors.surface)
             .border(
                 width = if (focused) 3.dp else 1.dp,
-                color = if (focused) colors.focus else colors.surfaceBorder,
+                color = if (focused) colors.textPrimary else colors.surfaceBorder,
                 shape = shape,
             )
             // clickable ya es enfocable y responde al OK del control (DPAD_CENTER / Enter).

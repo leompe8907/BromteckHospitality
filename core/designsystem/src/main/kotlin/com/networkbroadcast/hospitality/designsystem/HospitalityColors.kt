@@ -21,7 +21,7 @@ data class HospitalityColors(
     val textSecondary: Color,
     val textMuted: Color,
     val accent: Color,          // íconos activos, cifras, acentos de marca
-    val focus: Color,           // borde de la tarjeta con foco del control remoto
+    val focus: Color,           // foco de campos de texto (TextField); FocusCard usa textPrimary
     val isDark: Boolean,
 ) {
     companion object {

@@ -49,7 +49,7 @@ class PanaccessEntertainmentSource(
             else ChannelGroup(bouquet.name, members.map { it.streamId.toString() })
         }
         ChannelsResult(
-            channels = result.streams.map { Channel(it.streamId.toString(), it.channelNumber, it.name, it.imageUrl) },
+            channels = result.streams.map { Channel(it.streamId.toString(), it.channelNumber, it.name, it.imageUrl, it.hasCatchup) },
             groups = groups,
             failure = result.failure,
         ).also { if (it.failure == null) cachedChannels = it }

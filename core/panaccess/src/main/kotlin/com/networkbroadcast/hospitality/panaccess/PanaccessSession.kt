@@ -130,6 +130,18 @@ class PanaccessSession(context: Context, val client: PanaccessClient) {
         }
     }
 
+    /**
+     * Re-pide getClientConfig sin pasar por login: para refrescar valores que pueden cambiar entre
+     * huéspedes (hoy sólo el fondo -- ver el checkout en HospitalityApp) sin forzar un re-login
+     * completo, que cortaría la sesión de Panaccess de la TV.
+     */
+    suspend fun refreshOperatorConfig() {
+        operatorConfig = fetchOperatorConfig()
+    }
+
+    private suspend fun fetchOperatorConfig(): OperatorConfig? =
+        (client.call("getClientConfig") as? CasResult.Success)?.let { OperatorConfig.parse(it.rawJson) }
+
     private suspend fun onLicenseEnabled(enabled: License): SessionOutcome {
         license = enabled
         prefs.edit().putString(KEY_LICENSE, enabled.key).apply()
@@ -139,7 +151,7 @@ class PanaccessSession(context: Context, val client: PanaccessClient) {
             PanaccessDrm.getInst().configureAppBehaviorService(true, 10)
         }.onFailure { Log.w(TAG, "copyprotect: ${it.message}") }
         // La configuración del cliente no es requisito para ver TV: si falla, seguimos.
-        operatorConfig = (client.call("getClientConfig") as? CasResult.Success)?.let { OperatorConfig.parse(it.rawJson) }
+        operatorConfig = fetchOperatorConfig()
         Log.i(
             TAG,
             "sesión abierta; operador=${operatorConfig?.operator}, parámetros X_=${operatorConfig?.parameters?.size}, " +

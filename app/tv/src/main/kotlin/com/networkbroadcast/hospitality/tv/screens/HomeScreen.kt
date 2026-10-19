@@ -77,6 +77,10 @@ fun HomeScreen(
     cardColorHex: String?,
     secondLogoUrl: String?,
     quickActions: List<HomeAction>,
+    /** true si vodShelves() ya trajo contenido real, no sólo brand.features.vod (que es un flag fijo por marca). */
+    vodHasContent: Boolean = false,
+    /** true si algún canal del catálogo tiene catchup habilitado (Channel.hasCatchup). */
+    catchUpAvailable: Boolean = false,
     /** Lo que muestran las tarjetas de entretenimiento; todo opcional (mientras carga, tarjeta lisa). */
     previews: HomePreviews = HomePreviews(),
     /** Fila "Servicios del hotel" (pedidos); null si la marca no los ofrece. */
@@ -104,7 +108,11 @@ fun HomeScreen(
     val entertainment = buildList {
         if (brand.features.liveTv) add(HomeAction.LiveTv to text.liveNow)
         if (brand.features.liveTv && brand.features.guide) add(HomeAction.Guide to text.guide)
-        if (brand.features.vod) add(HomeAction.Vod to text.moviesAndSeries)
+        // El flag de marca es un tope ("nunca mostrar esto para esta marca"), no una garantía de que
+        // la cuenta de Panaccess tenga contenido real -- ver HOSP bug "caja de películas en vez de
+        // catchup". Sin VOD real, si la cuenta sí tiene canales con catchup, esa caja ocupa el lugar.
+        if (brand.features.vod && vodHasContent) add(HomeAction.Vod to text.moviesAndSeries)
+        else if (brand.features.guide && catchUpAvailable) add(HomeAction.CatchUp to text.catchUp)
     }
     val serviceActions = if (services != null) listOf(HomeAction.Services, HomeAction.MyOrders) else emptyList()
     val all = entertainment.map { it.first } + serviceActions + quickActions
@@ -161,7 +169,8 @@ fun HomeScreen(
                             val cardColors2 = HospitalityTheme.colors
                             when (action) {
                                 HomeAction.LiveTv -> LivePreview(previews)
-                                HomeAction.Guide -> GuidePreview(previews)
+                                // Mismo destino que Guide (GuideScreen): misma preview de logos.
+                                HomeAction.Guide, HomeAction.CatchUp -> GuidePreview(previews)
                                 HomeAction.Vod -> VodPreview(previews)
                                 else -> Unit
                             }
@@ -235,6 +244,7 @@ fun HomeScreen(
                             HomeAction.LiveTv -> text.liveTv
                             HomeAction.Guide -> text.guide
                             HomeAction.Vod -> text.moviesAndSeries
+                            HomeAction.CatchUp -> text.catchUp
                             HomeAction.Services, HomeAction.MyOrders -> services?.title.orEmpty()
                         }
                         FocusCard(

@@ -23,7 +23,7 @@
     "hotelInfo": false,
     "languageSelection": true,
     "checkout": true,
-    "companion": true
+    "companion": false
   },
   "hotel": {
     "asset": null

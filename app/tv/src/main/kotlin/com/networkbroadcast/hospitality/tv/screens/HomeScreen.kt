@@ -91,6 +91,8 @@ fun HomeScreen(
     services: HomeServices? = null,
     /** Cuadrados configurables por Delancer (OperatorConfig.widgets); vacío = sin fila. */
     widgets: List<HomeWidget> = emptyList(),
+    /** Abre la ficha de un widget (instalación del hotel: bar, restaurant, etc.). */
+    onOpenWidget: (HomeWidget) -> Unit = {},
     /** Tarjeta que recibe el foco: la que abrió la pantalla de la que se vuelve, o la primera. */
     focusOn: HomeAction?,
     onAction: (HomeAction) -> Unit,
@@ -215,9 +217,7 @@ fun HomeScreen(
                 Row(horizontalArrangement = Arrangement.spacedBy(16.dp), modifier = Modifier.fillMaxWidth()) {
                     widgets.forEach { widget ->
                         FocusCard(
-                            // Sin destino todavía -- son informativos (foto + título + descripción),
-                            // no abren ninguna pantalla en esta primera versión.
-                            onClick = {},
+                            onClick = { onOpenWidget(widget) },
                             modifier = Modifier.height(150.dp).weight(1f),
                         ) {
                             val cardColors2 = HospitalityTheme.colors

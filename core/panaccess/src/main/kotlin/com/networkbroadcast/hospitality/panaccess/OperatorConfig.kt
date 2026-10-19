@@ -9,8 +9,21 @@ import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 
-/** Un cuadrado de la fila de widgets de la home, configurado por Delancer (ver OperatorConfig.widgets). */
-data class HomeWidget(val title: String, val description: String?, val imageUrl: String)
+/**
+ * Un cuadrado de la fila de widgets de la home, configurado por Delancer (ver OperatorConfig.widgets).
+ * Pensado para instalaciones del hotel (bar, restaurant, gimnasio, pileta): al tocarlo abre una
+ * ficha de solo lectura (sin ninguna acción) con horario, piso y una galería de fotos navegable.
+ * [imageUrl] es la foto que se ve en la tarjeta de la home y también la primera de la galería.
+ */
+data class HomeWidget(
+    val title: String,
+    val description: String?,
+    val imageUrl: String,
+    val hours: String? = null,
+    val floor: String? = null,
+    /** Fotos de la ficha de detalle, en orden; incluye siempre [imageUrl] primero. */
+    val gallery: List<String> = listOf(imageUrl),
+)
 
 /**
  * Configuración del cliente que manda el operador en getClientConfig. Lo que importa para la
@@ -87,7 +100,14 @@ data class OperatorConfig(
         get() = (1..MAX_WIDGETS).mapNotNull { n ->
             val title = param("X_APP_WIDGET_${n}_TITLE") ?: return@mapNotNull null
             val imageUrl = param("X_APP_WIDGET_${n}_IMAGE") ?: return@mapNotNull null
-            HomeWidget(title = title, description = param("X_APP_WIDGET_${n}_DESC"), imageUrl = imageUrl)
+            HomeWidget(
+                title = title,
+                description = param("X_APP_WIDGET_${n}_DESC"),
+                imageUrl = imageUrl,
+                hours = param("X_APP_WIDGET_${n}_HOURS"),
+                floor = param("X_APP_WIDGET_${n}_FLOOR"),
+                gallery = listOfNotNull(imageUrl, param("X_APP_WIDGET_${n}_IMAGE_2"), param("X_APP_WIDGET_${n}_IMAGE_3")),
+            )
         }
 
     companion object {

@@ -28,6 +28,7 @@ import com.networkbroadcast.hospitality.entertainment.Playable
 import com.networkbroadcast.hospitality.entertainment.VodItem
 import com.networkbroadcast.hospitality.entertainment.VodResult
 import com.networkbroadcast.hospitality.companion.TvCommand
+import com.networkbroadcast.hospitality.panaccess.HomeWidget
 import com.networkbroadcast.hospitality.panaccess.SessionOutcome
 import com.networkbroadcast.hospitality.tv.screens.AboutHotelScreen
 import com.networkbroadcast.hospitality.tv.screens.CenteredMessage
@@ -47,6 +48,7 @@ import com.networkbroadcast.hospitality.tv.screens.MediaPlayerScreen
 import com.networkbroadcast.hospitality.tv.screens.PairPhoneDialog
 import com.networkbroadcast.hospitality.tv.screens.PlayerScreen
 import com.networkbroadcast.hospitality.tv.screens.VodDetailScreen
+import com.networkbroadcast.hospitality.tv.screens.WidgetDetailScreen
 import com.networkbroadcast.hospitality.tv.screens.VodScreen
 import com.panaccess.android.streaming.shared.domain.model.License
 import com.panaccess.android.streaming.shared.domain.model.LoginError
@@ -67,7 +69,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
 
-enum class Screen { Home, AboutHotel, LiveTv, Guide, Player, Vod, VodDetail, MediaPlayer, Services, MyOrders }
+enum class Screen { Home, AboutHotel, LiveTv, Guide, Player, Vod, VodDetail, MediaPlayer, Services, MyOrders, WidgetDetail }
 
 private enum class Auth { Provisioning, Checking, NeedsLogin, ChooseLicense, Ready }
 
@@ -183,6 +185,7 @@ fun HospitalityApp(app: HospitalityApplication, showLogin: Boolean = false) {
     var playingChannel by remember { mutableStateOf<String?>(null) }
     var guideChannel by remember { mutableStateOf<String?>(null) }
     var selectedVod by remember { mutableStateOf<VodItem?>(null) }
+    var selectedWidget by remember { mutableStateOf<HomeWidget?>(null) }
     var media by remember { mutableStateOf<MediaRequest?>(null) }
     // Canales y VOD se piden en paralelo apenas la sesión está lista, no cuando el huésped entra a
     // "TV en vivo" / "Películas y series": antes iban uno detrás del otro en esta misma corrutina, y
@@ -384,6 +387,7 @@ fun HospitalityApp(app: HospitalityApplication, showLogin: Boolean = false) {
                     )
                 },
                 widgets = panaccess.operatorConfig?.widgets.orEmpty(),
+                onOpenWidget = { selectedWidget = it; open(Screen.WidgetDetail) },
                 previews = HomePreviews(
                     liveLogoUrl = liveChannel?.logoUrl,
                     liveChannelName = liveChannel?.let { "${it.number} · ${it.name}" },
@@ -442,6 +446,7 @@ fun HospitalityApp(app: HospitalityApplication, showLogin: Boolean = false) {
             Screen.VodDetail -> selectedVod?.let { item ->
                 VodDetailScreen(item, text) { media = MediaRequest(Playable.Vod(item.id), item.title); open(Screen.MediaPlayer) }
             }
+            Screen.WidgetDetail -> selectedWidget?.let { WidgetDetailScreen(it) }
             Screen.MediaPlayer -> media?.let { MediaPlayerScreen(entertainment, it, text) }
             Screen.Services -> guestServices?.let { services ->
                 ServicesScreen(

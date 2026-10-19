@@ -96,7 +96,7 @@ fun GuideScreen(
                             .onFocusChanged { if (it.isFocused && selected != channel.id) { selected = channel.id; onChannelFocused(channel.id) } },
                     ) {
                         Row(Modifier.fillMaxSize().padding(horizontal = 14.dp), verticalAlignment = Alignment.CenterVertically) {
-                            Text("${channel.number}", style = HospitalityTheme.typography.label, color = colors.accent, modifier = Modifier.width(44.dp))
+                            Text("${channel.number}", style = HospitalityTheme.typography.label, color = colors.textPrimary, modifier = Modifier.width(44.dp))
                             Text(channel.name, style = HospitalityTheme.typography.label, color = if (channel.id == selected) colors.textPrimary else colors.textSecondary, maxLines = 1, overflow = TextOverflow.Ellipsis)
                         }
                     }

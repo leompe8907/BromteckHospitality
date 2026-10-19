@@ -18,7 +18,11 @@ import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.unit.dp
+import coil3.compose.rememberAsyncImagePainter
+import com.networkbroadcast.hospitality.brand.imageModel
+import com.networkbroadcast.hospitality.designsystem.HospitalityColors
 import com.networkbroadcast.hospitality.designsystem.HospitalityTheme
 
 /**
@@ -52,6 +56,16 @@ fun CenteredMessage(text: String) {
     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
         Text(text, style = HospitalityTheme.typography.body, color = HospitalityTheme.colors.textSecondary)
     }
+}
+
+/**
+ * Placeholder para fotos que están cargando o fallaron (fondo del hotel, pósters de VOD): una
+ * imagen configurada por Delancer (X_APP_PLACEHOLDER_IMAGE) si hay, si no el gris fijo de siempre.
+ */
+@Composable
+fun rememberPlaceholderPainter(colors: HospitalityColors, imageUrl: String?): Painter {
+    if (imageUrl != null) return rememberAsyncImagePainter(model = imageModel(imageUrl))
+    return remember(colors) { colors.placeholderPainter() }
 }
 
 /**

@@ -46,6 +46,9 @@ android {
     buildTypes {
         release {
             isMinifyEnabled = false
+            // Sin keystore de producción propio todavía: firma con el de debug (el que Android
+            // genera solo) para poder instalar y probar builds de release en dispositivos reales.
+            signingConfig = signingConfigs.getByName("debug")
         }
     }
 }

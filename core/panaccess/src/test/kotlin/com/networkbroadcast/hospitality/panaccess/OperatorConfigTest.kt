@@ -81,13 +81,13 @@ class OperatorConfigTest {
     }
 
     @Test
-    fun `X_APP_PLACEHOLDER_COLOR configurado se lee, sin el queda null (cae al gris fijo)`() {
+    fun `X_APP_PLACEHOLDER_IMAGE configurado se lee, sin el queda null (cae al gris fijo)`() {
         val conConfig = OperatorConfig.parse(
-            """{"success":true,"answer":{"device":{"parameters":{"X_APP_PLACEHOLDER_COLOR":"#163F42"}}}}""",
+            """{"success":true,"answer":{"device":{"parameters":{"X_APP_PLACEHOLDER_IMAGE":"https://i.imgur.com/placeholder.jpg"}}}}""",
         )
-        assertEquals("#163F42", conConfig.placeholderColorHex)
+        assertEquals("https://i.imgur.com/placeholder.jpg", conConfig.placeholderImageUrl)
         val sinConfig = OperatorConfig.parse("""{"success":true,"answer":{"device":{"parameters":{}}}}""")
-        assertNull(sinConfig.placeholderColorHex)
+        assertNull(sinConfig.placeholderImageUrl)
     }
 
     @Test
@@ -106,5 +106,29 @@ class OperatorConfigTest {
             ),
         )
         assertEquals("29° · cielo claro", mostrado.weatherText)
+    }
+
+    @Test
+    fun `widgets lee solo los slots con titulo E imagen, en orden, hasta 4`() {
+        val config = OperatorConfig.parse(
+            sample.replace(
+                "\"X_DESIGN_SHOW_HOTEL_ROOM_NUMBER\":\"0\"",
+                "\"X_DESIGN_SHOW_HOTEL_ROOM_NUMBER\":\"0\"," +
+                    "\"X_APP_WIDGET_1_TITLE\":\"Spa\",\"X_APP_WIDGET_1_IMAGE\":\"https://i.imgur.com/spa.jpg\",\"X_APP_WIDGET_1_DESC\":\"Reservá tu turno\"," +
+                    // Slot 2: sin imagen -- no cuenta como widget, aunque tenga título.
+                    "\"X_APP_WIDGET_2_TITLE\":\"Sin imagen\"," +
+                    "\"X_APP_WIDGET_3_TITLE\":\"Explorar\",\"X_APP_WIDGET_3_IMAGE\":\"https://i.imgur.com/tour.jpg\"",
+            ),
+        )
+
+        assertEquals(2, config.widgets.size)
+        assertEquals(HomeWidget(title = "Spa", description = "Reservá tu turno", imageUrl = "https://i.imgur.com/spa.jpg"), config.widgets[0])
+        assertEquals(HomeWidget(title = "Explorar", description = null, imageUrl = "https://i.imgur.com/tour.jpg"), config.widgets[1])
+    }
+
+    @Test
+    fun `sin ningun X_APP_WIDGET configurado, widgets queda vacio`() {
+        val config = OperatorConfig.parse("""{"success":true,"answer":{"device":{"parameters":{}}}}""")
+        assertTrue(config.widgets.isEmpty())
     }
 }

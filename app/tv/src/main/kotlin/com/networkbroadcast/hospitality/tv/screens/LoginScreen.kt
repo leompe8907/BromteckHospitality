@@ -2,6 +2,7 @@ package com.networkbroadcast.hospitality.tv.screens
 
 import android.os.Build
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -49,6 +50,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.vector.path
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -58,6 +60,7 @@ import androidx.compose.ui.unit.sp
 import com.networkbroadcast.hospitality.brand.UiText
 import com.networkbroadcast.hospitality.designsystem.FocusCard
 import com.networkbroadcast.hospitality.designsystem.HospitalityTheme
+import com.networkbroadcast.hospitality.tv.R
 import kotlinx.coroutines.delay
 
 /**
@@ -85,6 +88,13 @@ fun LoginScreen(
                 Modifier.align(Alignment.BottomStart).padding(48.dp),
                 verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
+                // Marca de Bromteck, fija para todas las marcas (no configurable por el operador):
+                // quien instala/activa la TV ve de entrada de quién es la tecnología.
+                Image(
+                    painter = painterResource(R.drawable.bromteck_watermark),
+                    contentDescription = "Bromteck",
+                    modifier = Modifier.height(28.dp),
+                )
                 Text(
                     text.loginTagline.uppercase(),
                     style = HospitalityTheme.typography.label.copy(fontSize = 13.sp, letterSpacing = 3.sp),

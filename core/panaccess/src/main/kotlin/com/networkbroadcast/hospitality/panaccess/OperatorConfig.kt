@@ -1,5 +1,6 @@
 package com.networkbroadcast.hospitality.panaccess
 
+import android.util.Log
 import com.panaccess.android.streaming.shared.cas.CasEnvelope
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
@@ -7,6 +8,9 @@ import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
+
+/** Un cuadrado de la fila de widgets de la home, configurado por Delancer (ver OperatorConfig.widgets). */
+data class HomeWidget(val title: String, val description: String?, val imageUrl: String)
 
 /**
  * Configuración del cliente que manda el operador en getClientConfig. Lo que importa para la
@@ -69,12 +73,26 @@ data class OperatorConfig(
     // (ver HospitalityColors.readableTextColor) -- no hace falta un parámetro de texto aparte.
     val cardColorHex: String? get() = param("X_APP_CARD_COLOR")
 
-    // Gris de placeholder (fondo del hotel, pósters de VOD mientras cargan o si fallan)
-    // configurable por Delancer, en hex. Si no está configurado, se cae al gris fijo de siempre
-    // según el tema (ver HospitalityColors.placeholderPainter).
-    val placeholderColorHex: String? get() = param("X_APP_PLACEHOLDER_COLOR")
+    // Imagen de placeholder (fondo del hotel, pósters de VOD mientras cargan o si fallan)
+    // configurable por Delancer. Si no está configurada, se cae al gris fijo de siempre según el
+    // tema (ver screens/Common.kt#rememberPlaceholderPainter en app/tv).
+    val placeholderImageUrl: String? get() = param("X_APP_PLACEHOLDER_IMAGE")
+
+    // Widgets personalizables (cuadrados de la home con foto + título + descripción) configurados
+    // por Delancer vía Panaccess -- no por el panel de staff propio (eso es para hoteles con
+    // backend propio, ver Parte C del plan). Slots fijos (X_APP_WIDGET_1.. _4) en vez de una lista
+    // dinámica porque los parámetros de Panaccess son pares clave/valor sueltos, no un array; un
+    // widget solo cuenta si tiene título E imagen -- la descripción es opcional.
+    val widgets: List<HomeWidget>
+        get() = (1..MAX_WIDGETS).mapNotNull { n ->
+            val title = param("X_APP_WIDGET_${n}_TITLE") ?: return@mapNotNull null
+            val imageUrl = param("X_APP_WIDGET_${n}_IMAGE") ?: return@mapNotNull null
+            HomeWidget(title = title, description = param("X_APP_WIDGET_${n}_DESC"), imageUrl = imageUrl)
+        }
 
     companion object {
+        private const val MAX_WIDGETS = 4
+
         fun parse(rawJson: String): OperatorConfig {
             val answer = CasEnvelope.answer(rawJson) as? JsonObject
             val weather = weather(answer)
@@ -125,6 +143,20 @@ data class OperatorConfig(
          */
         private fun weather(answer: JsonObject?): Pair<Int?, String?> {
             val weatherObj = runCatching { answer?.get("weather")?.jsonObject }.getOrNull()
+            // Log de diagnóstico permanente: provider+data crudos tal cual los manda Panaccess,
+            // para poder ver de entrada si la cuenta trae algo raro (ej. provider que no sea
+            // "OPENWEATHER", que es lo único que acepta la app oficial -- ver ClientConfig.java del
+            // repo base) sin tener que ir a agregar un log cada vez que haya que investigar esto.
+            // runCatching: android.util.Log no está mockeado en los tests unitarios de esta clase
+            // (JVM puro, sin Android real) y tira RuntimeException apenas se la llama -- acá no
+            // importa, es solo diagnóstico.
+            runCatching {
+                Log.d(
+                    "Hospitality.Session",
+                    "weather crudo: provider=${weatherObj?.get("provider")?.let { text(it) }}, " +
+                        "data=${weatherObj?.get("data")?.let { text(it) }?.take(300)}",
+                )
+            }
             val dataString = weatherObj?.get("data")?.let { text(it) } ?: return null to null
             val first = runCatching {
                 Json.parseToJsonElement(dataString).jsonObject["list"]?.let { it as JsonArray }?.firstOrNull()?.jsonObject

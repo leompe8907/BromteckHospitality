@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
@@ -48,6 +49,7 @@ import com.networkbroadcast.hospitality.designsystem.InfoPill
 import com.networkbroadcast.hospitality.designsystem.SectionTitle
 import com.networkbroadcast.hospitality.tv.HomeAction
 import com.networkbroadcast.hospitality.brand.UiText
+import com.networkbroadcast.hospitality.panaccess.HomeWidget
 import kotlinx.coroutines.delay
 import java.text.SimpleDateFormat
 import java.util.Calendar
@@ -70,6 +72,8 @@ private fun rememberTicking() = remember { mutableStateOf(Date()) }.also { state
 fun HomeScreen(
     brand: BrandConfig,
     text: UiText,
+    /** Logo del hotel configurado por Delancer (OperatorConfig.hotelLogoUrl); null = sin fila de logo. */
+    logoUrl: String? = null,
     roomNumber: String?,
     /** "29° · nublado", ya resuelto por Panaccess (ver OperatorConfig.weatherText); null si el hotel no lo tiene configurado. */
     weatherText: String?,
@@ -85,6 +89,8 @@ fun HomeScreen(
     previews: HomePreviews = HomePreviews(),
     /** Fila "Servicios del hotel" (pedidos); null si la marca no los ofrece. */
     services: HomeServices? = null,
+    /** Cuadrados configurables por Delancer (OperatorConfig.widgets); vacío = sin fila. */
+    widgets: List<HomeWidget> = emptyList(),
     /** Tarjeta que recibe el foco: la que abrió la pantalla de la que se vuelve, o la primera. */
     focusOn: HomeAction?,
     onAction: (HomeAction) -> Unit,
@@ -136,12 +142,17 @@ fun HomeScreen(
                 .padding(horizontal = 48.dp, vertical = 32.dp),
             verticalArrangement = Arrangement.spacedBy(20.dp),
         ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(greeting, style = HospitalityTheme.typography.display, color = colors.textPrimary)
-                Spacer(Modifier.weight(1f))
-                secondLogoUrl?.let {
-                    AsyncImage(model = it, contentDescription = null, contentScale = ContentScale.Fit, modifier = Modifier.height(56.dp).width(200.dp))
+            // Logo del hotel (Delancer) y fecha/hora en el mismo eje horizontal -- ambos arriba de
+            // todo, a la misma altura (antes la hora quedaba en la fila del saludo, un escalón más
+            // abajo que el logo, y se veía un espacio vacío encima de la hora).
+            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+                logoUrl?.let {
+                    AsyncImage(
+                        model = it, contentDescription = null, contentScale = ContentScale.Fit,
+                        modifier = Modifier.height(48.dp).widthIn(max = 220.dp),
+                    )
                 }
+                Spacer(Modifier.weight(1f))
                 // Esquina superior derecha, directo sobre la foto de fondo (sin píldora): así lo pidió
                 // el cliente para fecha/hora, a diferencia del resto del contexto (clima, habitación).
                 Text(
@@ -150,8 +161,14 @@ fun HomeScreen(
                     // del cliente -- con textSecondary se veía demasiado tenue sobre la foto de fondo.
                     style = HospitalityTheme.typography.section,
                     color = colors.textPrimary,
-                    modifier = Modifier.padding(start = 16.dp),
                 )
+            }
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(greeting, style = HospitalityTheme.typography.display, color = colors.textPrimary)
+                Spacer(Modifier.weight(1f))
+                secondLogoUrl?.let {
+                    AsyncImage(model = it, contentDescription = null, contentScale = ContentScale.Fit, modifier = Modifier.height(56.dp).width(200.dp))
+                }
             }
             if (context.isNotEmpty()) InfoPill(context.joinToString(" · "))
 
@@ -185,6 +202,33 @@ fun HomeScreen(
                                     )
                                 }
                                 Text(label, style = HospitalityTheme.typography.label, color = cardColors2.textPrimary)
+                            }
+                        }
+                    }
+                }
+                }
+            }
+
+            if (widgets.isNotEmpty()) {
+                SectionTitle(text.highlights)
+                CardRow(customCardColors) {
+                Row(horizontalArrangement = Arrangement.spacedBy(16.dp), modifier = Modifier.fillMaxWidth()) {
+                    widgets.forEach { widget ->
+                        FocusCard(
+                            // Sin destino todavía -- son informativos (foto + título + descripción),
+                            // no abren ninguna pantalla en esta primera versión.
+                            onClick = {},
+                            modifier = Modifier.height(150.dp).weight(1f),
+                        ) {
+                            val cardColors2 = HospitalityTheme.colors
+                            AsyncImage(model = imageModel(widget.imageUrl), contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
+                            Box(Modifier.fillMaxSize().background(cardColors2.background.copy(alpha = 0.35f)))
+                            BottomScrim()
+                            Column(Modifier.align(Alignment.BottomStart).padding(18.dp)) {
+                                widget.description?.let {
+                                    Text(it, style = HospitalityTheme.typography.body, color = cardColors2.textSecondary, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                }
+                                Text(widget.title, style = HospitalityTheme.typography.label, color = cardColors2.textPrimary)
                             }
                         }
                     }
@@ -253,8 +297,10 @@ fun HomeScreen(
                                 .then(if (action == target) Modifier.focusRequester(first) else Modifier),
                         ) {
                             val cardColors2 = HospitalityTheme.colors
+                            // Mismo color que la etiqueta de la tarjeta (textPrimary), a pedido del
+                            // cliente -- antes el ícono iba en accent y no hacía juego con el texto.
                             Icon(
-                                painterResource(action.icon()), contentDescription = null, tint = cardColors2.accent,
+                                painterResource(action.icon()), contentDescription = null, tint = cardColors2.textPrimary,
                                 modifier = Modifier.padding(18.dp).size(28.dp),
                             )
                             Text(
@@ -324,8 +370,8 @@ private val LiveLogoSpace = LiveLogoWidth + 24.dp
 private fun BoxScope.LivePreview(p: HomePreviews) {
     val colors = HospitalityTheme.colors
     Row(Modifier.align(Alignment.TopStart).padding(18.dp), verticalAlignment = Alignment.CenterVertically) {
-        // Punto "en vivo".
-        Box(Modifier.size(10.dp).clip(CircleShape).background(colors.accent))
+        // Punto "en vivo". Mismo color que la letra de la tarjeta (textPrimary), a pedido del cliente.
+        Box(Modifier.size(10.dp).clip(CircleShape).background(colors.textPrimary))
         p.liveChannelName?.let {
             Text(
                 it, style = HospitalityTheme.typography.body, color = colors.textSecondary,

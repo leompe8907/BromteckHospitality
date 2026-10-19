@@ -89,7 +89,7 @@ private fun ChannelCard(channel: Channel, modifier: Modifier, onClick: () -> Uni
             Modifier.align(Alignment.BottomStart).fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text("${channel.number}", style = HospitalityTheme.typography.label, color = colors.accent, modifier = Modifier.padding(end = 8.dp))
+            Text("${channel.number}", style = HospitalityTheme.typography.label, color = colors.textPrimary, modifier = Modifier.padding(end = 8.dp))
             Text(channel.name, style = HospitalityTheme.typography.label, color = colors.textPrimary, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
     }
@@ -97,7 +97,7 @@ private fun ChannelCard(channel: Channel, modifier: Modifier, onClick: () -> Uni
 
 /** Películas y series: una fila por categoría, con pósters. OK abre la ficha. */
 @Composable
-fun VodScreen(vod: VodResult?, text: UiText, focusOn: String?, placeholderColorHex: String? = null, onOpen: (VodItem) -> Unit) {
+fun VodScreen(vod: VodResult?, text: UiText, focusOn: String?, placeholderImageUrl: String? = null, onOpen: (VodItem) -> Unit) {
     val colors = HospitalityTheme.colors
     val result = vod ?: return CenteredMessage(text.loading)
     val shelves = result.shelves.filter { it.items.isNotEmpty() }
@@ -120,7 +120,7 @@ fun VodScreen(vod: VodResult?, text: UiText, focusOn: String?, placeholderColorH
                                 .then(if (isTarget) Modifier.focusRequester(first) else Modifier),
                         ) {
                             item.posterUrl?.let {
-                                val neutralPlaceholder = colors.placeholderPainter(placeholderColorHex)
+                                val neutralPlaceholder = rememberPlaceholderPainter(colors, placeholderImageUrl)
                                 AsyncImage(
                                     model = it,
                                     contentDescription = item.title,

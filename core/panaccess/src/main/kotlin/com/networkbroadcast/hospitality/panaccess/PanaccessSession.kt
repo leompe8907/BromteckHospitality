@@ -137,6 +137,14 @@ class PanaccessSession(context: Context, val client: PanaccessClient) {
      */
     suspend fun refreshOperatorConfig() {
         operatorConfig = fetchOperatorConfig()
+        // Mismo chequeo de clima que onLicenseEnabled, acá también: el checkout es la única otra
+        // vía por la que se vuelve a pedir getClientConfig en una sesión larga, y queremos poder
+        // ver si el clima empezó a llegar sin tener que forzar un re-login completo.
+        Log.i(
+            TAG,
+            "config refrescada; clima=${operatorConfig?.weatherText ?: "sin dato"} " +
+                "(campo weather presente=${operatorConfig?.hasWeatherField})",
+        )
     }
 
     private suspend fun fetchOperatorConfig(): OperatorConfig? =

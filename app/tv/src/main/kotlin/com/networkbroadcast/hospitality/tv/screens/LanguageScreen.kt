@@ -36,13 +36,16 @@ fun LanguageScreen(brand: BrandConfig, selected: String?, onSelected: (String) -
         when {
             // Logo configurado por el operador desde Panaccess (Delancer): gana aunque la marca
             // no tenga showLogo, porque acá sí hay un logo real que mostrar. Mientras carga o si
-            // la URL falla, se ve el logo estático de la marca en su lugar (nunca vacío).
+            // la URL falla, se ve un logo genérico en su lugar (nunca vacío) -- ic_launcher_foreground,
+            // no brand_logo.xml: ese es un <layer-list>, y painterResource() solo soporta vectores o
+            // imágenes rasterizadas, nunca un layer-list -- crasheaba (IllegalArgumentException) apenas
+            // una cuenta real configuró X_APP_LOGO y se ejecutó esta rama por primera vez.
             logoUrl != null -> AsyncImage(
                 model = imageModel(logoUrl), contentDescription = brand.displayName,
-                placeholder = painterResource(R.drawable.brand_logo), error = painterResource(R.drawable.brand_logo),
+                placeholder = painterResource(R.drawable.ic_launcher_foreground), error = painterResource(R.drawable.ic_launcher_foreground),
                 modifier = Modifier.height(72.dp),
             )
-            brand.showLogo -> Image(painterResource(R.drawable.brand_logo), contentDescription = brand.displayName, modifier = Modifier.height(72.dp))
+            brand.showLogo -> Image(painterResource(R.drawable.ic_launcher_foreground), contentDescription = brand.displayName, modifier = Modifier.height(72.dp))
             else -> Text(brand.displayName, style = HospitalityTheme.typography.display, color = colors.textPrimary)
         }
         // El título va en cada idioma ofrecido: el huésped todavía no eligió el suyo.

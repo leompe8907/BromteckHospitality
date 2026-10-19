@@ -64,6 +64,8 @@ import com.networkbroadcast.hospitality.tv.screens.ServicesScreen
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withPermit
 
 enum class Screen { Home, AboutHotel, LiveTv, Guide, Player, Vod, VodDetail, MediaPlayer, Services, MyOrders }
 
@@ -192,12 +194,37 @@ fun HospitalityApp(app: HospitalityApplication, showLogin: Boolean = false) {
         if (auth != Auth.Ready) return@LaunchedEffect
         if (channels == null) {
             Log.i("Hospitality.Catalog", "precarga: pidiendo canales (home lista para mostrarlos)")
-            launch { channels = entertainment.channels() }
+            launch {
+                val result = entertainment.channels()
+                channels = result
+                // Precarga de la guía de TODOS los canales en segundo plano, no solo el primero:
+                // en "Eventos anteriores"/"Guía" cada canal que el huésped tocaba (no solo el
+                // primero) mostraba "cargando" porque su guía todavía no se había pedido -- cada
+                // una es una descarga aparte (ver EpgCache). No bloquea nada: si el huésped navega
+                // antes de que termine, esa pantalla la pide igual, solo que no sale de caché
+                // todavía. Mismo límite de descargas simultáneas que ya documenta EpgCache
+                // (MAX_CONCURRENT_DOWNLOADS=5, igual que el EPGDownloader del base).
+                Log.i("Hospitality.Catalog", "precarga: pidiendo guía de ${result.channels.size} canales (máx. 5 a la vez)")
+                val guideSlots = Semaphore(5)
+                result.channels.forEach { channel ->
+                    launch { guideSlots.withPermit { runCatching { entertainment.schedule(channel.id) } } }
+                }
+            }
         }
         if (brand.features.vod && vod == null) {
             Log.i("Hospitality.Catalog", "precarga: pidiendo vod (home lista para mostrarlo)")
             launch { vod = entertainment.vodShelves() }
         }
+    }
+    // Vía rápida para el canal que el huésped tiene enfocado en la Guía en este momento: cupo propio
+    // de descargas simultáneas, separado de la precarga general de arriba -- así no tiene que
+    // esperar su turno detrás de los otros ~200 canales si la precarga general ya está ocupada.
+    // GuideScreen ya pide su propia guía al enfocar (con un debounce de 250ms); esto solo adelanta
+    // el pedido un poco más, mientras el huésped todavía está recorriendo la lista con el control.
+    val guidePrioritySlots = remember { Semaphore(2) }
+    LaunchedEffect(guideChannel) {
+        val id = guideChannel ?: return@LaunchedEffect
+        guidePrioritySlots.withPermit { runCatching { entertainment.schedule(id) } }
     }
     // Lo que se emite ahora en el canal de la tarjeta "En vivo ahora" (último visto, o el primero).
     val liveChannel = channels?.channels?.let { list -> list.firstOrNull { it.id == playingChannel } ?: list.firstOrNull() }
@@ -302,7 +329,7 @@ fun HospitalityApp(app: HospitalityApplication, showLogin: Boolean = false) {
                 runCatching { imageLoader.execute(ImageRequest.Builder(context).data(imageModel(url)).build()) }
             }
         }
-        if (onHome) HotelBackdrop(backgrounds, placeholderColorHex = panaccess.operatorConfig?.placeholderColorHex)
+        if (onHome) HotelBackdrop(backgrounds, placeholderImageUrl = panaccess.operatorConfig?.placeholderImageUrl)
         if (current == null || choosingLanguage) {
             LanguageScreen(
                 brand = brand,
@@ -330,6 +357,7 @@ fun HospitalityApp(app: HospitalityApplication, showLogin: Boolean = false) {
             Screen.Home -> HomeScreen(
                 brand = brand,
                 text = text,
+                logoUrl = logoUrl,
                 // Número de habitación: el nombre de la licencia, como MainFragment del base.
                 roomNumber = panaccess.license?.licenseName?.takeIf { panaccess.operatorConfig?.showRoomNumber != false },
                 // Clima: ya resuelto por Panaccess (ver OperatorConfig.weatherText), null si el hotel no lo tiene configurado.
@@ -355,6 +383,7 @@ fun HospitalityApp(app: HospitalityApplication, showLogin: Boolean = false) {
                         activeOrder = serviceOrders.firstOrNull { it.status.isOpen }?.let { "${it.summary}: ${servicesText.status(it.status)}" },
                     )
                 },
+                widgets = panaccess.operatorConfig?.widgets.orEmpty(),
                 previews = HomePreviews(
                     liveLogoUrl = liveChannel?.logoUrl,
                     liveChannelName = liveChannel?.let { "${it.number} · ${it.name}" },
@@ -407,7 +436,7 @@ fun HospitalityApp(app: HospitalityApplication, showLogin: Boolean = false) {
                 vod = vod,
                 text = text,
                 focusOn = selectedVod?.id,
-                placeholderColorHex = panaccess.operatorConfig?.placeholderColorHex,
+                placeholderImageUrl = panaccess.operatorConfig?.placeholderImageUrl,
                 onOpen = { selectedVod = it; open(Screen.VodDetail) },
             )
             Screen.VodDetail -> selectedVod?.let { item ->
@@ -471,16 +500,21 @@ fun HospitalityApp(app: HospitalityApplication, showLogin: Boolean = false) {
                     session.clear()
                     scope.launch { app.tvPairing.unpairAll() }
                     scope.launch { guestServices?.endStay() }
-                    // Delancer puede cambiar el fondo (X_APP_LOGO_BACKGROUND) entre huéspedes sin
-                    // tocar la cuenta de la TV: sin esto, el fondo quedaba fijo en el de la primera
-                    // sesión de la TV. El logo no se re-pide todavía -- fuera de alcance por ahora.
-                    scope.launch { panaccess.refreshOperatorConfig() }
                     knownStatuses.clear()
                     confirmingCheckout = false
-                    lastHomeAction = null
-                    showingWelcome = brand.welcome.enabled
-                    backStack.retainAll(listOf(Screen.Home))
-                    language = if (brand.features.languageSelection) null else brand.defaultLanguage
+                    // Delancer puede cambiar el fondo (X_APP_LOGO_BACKGROUND) entre huéspedes sin
+                    // tocar la cuenta de la TV. Se espera el refresh antes de pasar a la pantalla de
+                    // idioma -- a pedido del cliente, 2026-10-19: antes se navegaba enseguida y el
+                    // fondo nuevo aparecía recién un rato después (en la práctica, mientras el
+                    // huésped elegía idioma), no apenas se abría esa pantalla. El logo no se re-pide
+                    // todavía -- fuera de alcance por ahora.
+                    scope.launch {
+                        panaccess.refreshOperatorConfig()
+                        lastHomeAction = null
+                        showingWelcome = brand.welcome.enabled
+                        backStack.retainAll(listOf(Screen.Home))
+                        language = if (brand.features.languageSelection) null else brand.defaultLanguage
+                    }
                 },
                 onDismiss = { confirmingCheckout = false },
             )

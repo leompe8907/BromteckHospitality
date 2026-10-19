@@ -27,7 +27,7 @@ import kotlinx.coroutines.delay
  * color del tema para que el texto se lea. Sin fotos, no dibuja nada (queda el fondo liso del tema).
  */
 @Composable
-fun HotelBackdrop(images: List<String>, modifier: Modifier = Modifier, placeholderColorHex: String? = null) {
+fun HotelBackdrop(images: List<String>, modifier: Modifier = Modifier, placeholderImageUrl: String? = null) {
     if (images.isEmpty()) return
     val colors = HospitalityTheme.colors
     var index by remember(images) { mutableIntStateOf(0) }
@@ -38,9 +38,9 @@ fun HotelBackdrop(images: List<String>, modifier: Modifier = Modifier, placehold
         }
     }
     // Mientras la imagen carga (o si la URL falla, p. ej. un fondo configurado mal desde
-    // Panaccess), un color fijo en vez de dejar la pantalla vacía — mismo helper que usa
+    // Panaccess), un placeholder en vez de dejar la pantalla vacía — mismo helper que usa
     // VodScreen en EntertainmentScreens.kt para fotos de canal/VOD rotas.
-    val placeholder = remember(colors, placeholderColorHex) { colors.placeholderPainter(placeholderColorHex) }
+    val placeholder = rememberPlaceholderPainter(colors, placeholderImageUrl)
     Box(modifier.fillMaxSize()) {
         Crossfade(targetState = images[index], animationSpec = tween(1_800), label = "photo") { url ->
             AsyncImage(

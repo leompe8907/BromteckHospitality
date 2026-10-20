@@ -23,3 +23,4 @@ tools/build/
 brands/*/build/
 .idea/
 .claude/
+graphify-out/

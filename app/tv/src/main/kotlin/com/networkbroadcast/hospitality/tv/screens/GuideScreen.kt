@@ -57,6 +57,9 @@ fun GuideScreen(
     source: EntertainmentSource,
     channels: List<Channel>,
     text: UiText,
+    /** "Guía" o "Eventos anteriores": según cuál de las dos tarjetas de la home abrió esta misma
+     *  pantalla (HomeAction.Guide vs HomeAction.CatchUp comparten Screen.Guide). */
+    title: String = text.guide,
     focusChannel: String?,
     onChannelFocused: (String) -> Unit,
     onWatchLive: (channelId: String) -> Unit,
@@ -83,7 +86,7 @@ fun GuideScreen(
 
     Row(Modifier.fillMaxSize().padding(horizontal = 40.dp, vertical = 32.dp), horizontalArrangement = Arrangement.spacedBy(24.dp)) {
         Column(Modifier.width(300.dp).fillMaxHeight(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Text(text.guide, style = HospitalityTheme.typography.title, color = colors.textPrimary, modifier = Modifier.padding(start = 12.dp))
+            Text(title, style = HospitalityTheme.typography.title, color = colors.textPrimary, modifier = Modifier.padding(start = 12.dp))
             LazyColumn(state = channelListState, contentPadding = FocusListPadding, verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 itemsIndexed(channels, key = { _, c -> c.id }) { index, channel ->
                     FocusCard(

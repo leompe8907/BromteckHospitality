@@ -269,7 +269,7 @@ fun HospitalityApp(app: HospitalityApplication, showLogin: Boolean = false) {
         when (val c = command) {
             is TvCommand.PlayChannel -> { playingChannel = c.channelId; open(Screen.Player) }
             is TvCommand.PlayVod -> { media = MediaRequest(Playable.Vod(c.vodId), ""); open(Screen.MediaPlayer) }
-            TvCommand.OpenGuide -> open(Screen.Guide)
+            TvCommand.OpenGuide -> { lastHomeAction = HomeAction.Guide; open(Screen.Guide) }
             TvCommand.OpenHotelInfo -> if (app.showsHotelInfo) open(Screen.AboutHotel)
             null -> Unit
         }
@@ -429,6 +429,10 @@ fun HospitalityApp(app: HospitalityApplication, showLogin: Boolean = false) {
                 source = entertainment,
                 channels = channelList,
                 text = text,
+                // "Guía" y "Eventos anteriores" comparten esta pantalla (HomeAction.Guide y
+                // HomeAction.CatchUp, ver quickActions arriba): antes siempre decía "Guía", aunque
+                // se haya entrado desde "Eventos anteriores".
+                title = if (lastHomeAction == HomeAction.CatchUp) text.catchUp else text.guide,
                 focusChannel = guideChannel,
                 onChannelFocused = { guideChannel = it },
                 onWatchLive = { playingChannel = it; open(Screen.Player) },

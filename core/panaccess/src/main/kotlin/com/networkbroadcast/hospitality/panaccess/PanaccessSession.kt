@@ -10,8 +10,12 @@ import com.panaccess.android.streaming.shared.cas.CasEnvelope
 import com.panaccess.android.streaming.shared.domain.model.License
 import com.panaccess.android.streaming.shared.domain.model.LoginError
 import com.panaccess.copyprotect.CopyprotectService
+import java.net.HttpURLConnection
+import java.net.URL
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
 
 /** Resultado de abrir la sesión, listo para que la pantalla de login lo muestre. */
 sealed interface SessionOutcome {
@@ -148,7 +152,34 @@ class PanaccessSession(context: Context, val client: PanaccessClient) {
     }
 
     private suspend fun fetchOperatorConfig(): OperatorConfig? =
-        (client.call("getClientConfig") as? CasResult.Success)?.let { OperatorConfig.parse(it.rawJson) }
+        (client.call("getClientConfig") as? CasResult.Success)?.let { OperatorConfig.parse(it.rawJson) }?.let { resolveWidgetsUrl(it) }
+
+    /**
+     * X_APP_WIDGETS puede venir como el JSON directo, o como una URL a un archivo con ese JSON
+     * adentro (p. ej. un link para compartir de un NAS) -- Cableatlántico eligió esto último
+     * cuando el campo del parámetro en Panaccess no alcanzaba para el JSON completo (varios
+     * widgets, título/descripción/horario en 5 idiomas, fotos). Se resuelve acá, una sola vez al
+     * traer la config, para que OperatorConfig.widgets() siga siendo puro/síncrono y no le
+     * importe de dónde salió el texto.
+     */
+    private suspend fun resolveWidgetsUrl(config: OperatorConfig): OperatorConfig {
+        val raw = config.param("X_APP_WIDGETS") ?: return config
+        if (!raw.startsWith("http://") && !raw.startsWith("https://")) return config
+        val fetched = withContext(Dispatchers.IO) {
+            runCatching {
+                (URL(raw).openConnection() as HttpURLConnection).run {
+                    connectTimeout = 10_000
+                    readTimeout = 10_000
+                    inputStream.bufferedReader().use { it.readText() }
+                }
+            }.getOrNull()
+        }
+        if (fetched == null) {
+            Log.w(TAG, "X_APP_WIDGETS: no se pudo descargar el JSON de $raw")
+            return config
+        }
+        return config.copy(parameters = config.parameters + ("X_APP_WIDGETS" to fetched))
+    }
 
     private suspend fun onLicenseEnabled(enabled: License): SessionOutcome {
         license = enabled

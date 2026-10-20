@@ -107,6 +107,9 @@ data class OperatorConfig(
     // de la lista sigue andando (ver parseWidget).
     // Recibe el idioma porque título/descripción pueden venir por idioma (ver parseWidget):
     // se resuelven acá, no antes, porque el huésped puede cambiar de idioma durante la estadía.
+    // El valor de este parámetro puede ser el JSON directo o una URL a un archivo con ese JSON
+    // adentro (campo de Panaccess con límite de caracteres) -- esa resolución pasa antes de
+    // llegar acá, en PanaccessSession.resolveWidgetsUrl, para que esta función siga siendo pura.
     fun widgets(language: String): List<HomeWidget> {
         val raw = param("X_APP_WIDGETS") ?: return emptyList()
         val array = runCatching { Json.parseToJsonElement(raw) as? JsonArray }.getOrNull() ?: return emptyList()

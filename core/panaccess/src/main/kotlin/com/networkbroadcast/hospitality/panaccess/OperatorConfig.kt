@@ -91,24 +91,55 @@ data class OperatorConfig(
     // tema (ver screens/Common.kt#rememberPlaceholderPainter en app/tv).
     val placeholderImageUrl: String? get() = param("X_APP_PLACEHOLDER_IMAGE")
 
-    // Widgets personalizables (cuadrados de la home con foto + título + descripción) configurados
-    // por Delancer vía Panaccess -- no por el panel de staff propio (eso es para hoteles con
-    // backend propio, ver Parte C del plan). Slots fijos (X_APP_WIDGET_1.. _4) en vez de una lista
-    // dinámica porque los parámetros de Panaccess son pares clave/valor sueltos, no un array; un
-    // widget solo cuenta si tiene título E imagen -- la descripción es opcional.
-    val widgets: List<HomeWidget>
-        get() = (1..MAX_WIDGETS).mapNotNull { n ->
-            val title = param("X_APP_WIDGET_${n}_TITLE") ?: return@mapNotNull null
-            val imageUrl = param("X_APP_WIDGET_${n}_IMAGE") ?: return@mapNotNull null
-            HomeWidget(
-                title = title,
-                description = param("X_APP_WIDGET_${n}_DESC"),
-                imageUrl = imageUrl,
-                hours = param("X_APP_WIDGET_${n}_HOURS"),
-                floor = param("X_APP_WIDGET_${n}_FLOOR"),
-                gallery = listOfNotNull(imageUrl, param("X_APP_WIDGET_${n}_IMAGE_2"), param("X_APP_WIDGET_${n}_IMAGE_3")),
-            )
-        }
+    // Widgets personalizables (instalaciones del hotel: bar, restaurant, gimnasio, pileta...)
+    // configurados por Delancer vía Panaccess -- no por el panel de staff propio (eso es para
+    // hoteles con backend propio, ver Parte C del plan). Slots fijos (X_APP_WIDGET_1.. _4) en vez
+    // de una lista dinámica porque los parámetros de Panaccess son pares clave/valor sueltos, no
+    // un array. Un solo parámetro por slot con un JSON adentro (en vez de uno por campo:
+    // _TITLE/_IMAGE/_DESC/etc.) para que Delancer solo tenga que crear 4 parámetros, no ~24.
+    // Recibe el idioma porque título/descripción pueden venir por idioma (ver parseWidget):
+    // se resuelven acá, no antes, porque el huésped puede cambiar de idioma durante la estadía.
+    fun widgets(language: String): List<HomeWidget> =
+        (1..MAX_WIDGETS).mapNotNull { n -> parseWidget(param("X_APP_WIDGET_$n"), language) }
+
+    /**
+     * Formato esperado en cada parámetro `X_APP_WIDGET_<n>`:
+     * `{"title":{"es":"Bar Valentina","en":"Valentina Bar"},"description":{"es":"..."},
+     * "hours":{"es":"Abierto de 19 a 02am","en":"Open 7pm-2am"},"floor":"5",
+     * "images":["https://...","https://...","https://..."]}`
+     * `title`/`description`/`hours` aceptan también un texto simple en vez de un objeto por idioma
+     * (se usa igual en cualquier idioma) -- todo es traducible menos `images` (son fotos, no hay
+     * nada que traducir) y `floor` (es un dato, no una frase -- la palabra "Piso"/"Floor"/"Andar"
+     * la pone la app sola según el idioma, ver UiText.floorLabel). Solo `title` e `images` (con al
+     * menos una foto) son obligatorios; el resto es opcional. Un JSON inválido o incompleto hace
+     * que ese widget se descarte entero (null), no que rompa nada.
+     */
+    private fun parseWidget(raw: String?, language: String): HomeWidget? {
+        val obj = raw?.let { runCatching { Json.parseToJsonElement(it).jsonObject }.getOrNull() } ?: return null
+        val title = localizedText(obj["title"]).resolve(language)?.takeIf { it.isNotBlank() } ?: return null
+        val images = (obj["images"] as? JsonArray)?.mapNotNull { text(it) }.orEmpty()
+        val imageUrl = images.firstOrNull() ?: return null
+        return HomeWidget(
+            title = title,
+            description = localizedText(obj["description"]).resolve(language)?.takeIf { it.isNotBlank() },
+            imageUrl = imageUrl,
+            hours = localizedText(obj["hours"]).resolve(language)?.takeIf { it.isNotBlank() },
+            // Piso: solo el número/dato, no el texto -- "Piso"/"Floor"/"Andar" lo pone la app
+            // según el idioma del huésped (ver UiText.floorLabel), no hace falta traducirlo acá.
+            floor = text(obj["floor"]),
+            gallery = images,
+        )
+    }
+
+    /** `{"es":"...","en":"..."}`, o un texto simple (vale para cualquier idioma). */
+    private fun localizedText(element: kotlinx.serialization.json.JsonElement?): Map<String, String> = when (element) {
+        is JsonObject -> element.mapValues { (_, v) -> text(v).orEmpty() }
+        else -> text(element)?.let { mapOf("es" to it) }.orEmpty()
+    }
+
+    /** Texto en [language]; si falta, español, después inglés, y por último el primero que haya. */
+    private fun Map<String, String>.resolve(language: String): String? =
+        this[language] ?: this["es"] ?: this["en"] ?: values.firstOrNull()
 
     companion object {
         private const val MAX_WIDGETS = 4

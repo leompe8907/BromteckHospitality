@@ -386,7 +386,7 @@ fun HospitalityApp(app: HospitalityApplication, showLogin: Boolean = false) {
                         activeOrder = serviceOrders.firstOrNull { it.status.isOpen }?.let { "${it.summary}: ${servicesText.status(it.status)}" },
                     )
                 },
-                widgets = panaccess.operatorConfig?.widgets.orEmpty(),
+                widgets = panaccess.operatorConfig?.widgets(current).orEmpty(),
                 onOpenWidget = { selectedWidget = it; open(Screen.WidgetDetail) },
                 previews = HomePreviews(
                     liveLogoUrl = liveChannel?.logoUrl,
@@ -446,7 +446,7 @@ fun HospitalityApp(app: HospitalityApplication, showLogin: Boolean = false) {
             Screen.VodDetail -> selectedVod?.let { item ->
                 VodDetailScreen(item, text) { media = MediaRequest(Playable.Vod(item.id), item.title); open(Screen.MediaPlayer) }
             }
-            Screen.WidgetDetail -> selectedWidget?.let { WidgetDetailScreen(it) }
+            Screen.WidgetDetail -> selectedWidget?.let { WidgetDetailScreen(it, text) }
             Screen.MediaPlayer -> media?.let { MediaPlayerScreen(entertainment, it, text) }
             Screen.Services -> guestServices?.let { services ->
                 ServicesScreen(

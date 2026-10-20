@@ -22,6 +22,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
+import com.networkbroadcast.hospitality.brand.UiText
 import com.networkbroadcast.hospitality.brand.imageModel
 import com.networkbroadcast.hospitality.designsystem.FocusCard
 import com.networkbroadcast.hospitality.designsystem.HospitalityTheme
@@ -33,7 +34,7 @@ import com.networkbroadcast.hospitality.panaccess.HomeWidget
  * solo nombre, horario, piso y una galería de fotos que se navega con las flechas.
  */
 @Composable
-fun WidgetDetailScreen(widget: HomeWidget) {
+fun WidgetDetailScreen(widget: HomeWidget, text: UiText) {
     val colors = HospitalityTheme.colors
     var photoIndex by remember(widget) { mutableIntStateOf(0) }
     val gallery = widget.gallery.ifEmpty { listOf(widget.imageUrl) }
@@ -61,7 +62,7 @@ fun WidgetDetailScreen(widget: HomeWidget) {
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             Text(widget.title, style = HospitalityTheme.typography.display, color = colors.textPrimary, modifier = Modifier.width(720.dp))
-            listOfNotNull(widget.hours, widget.floor?.let { "Piso $it" }).takeIf { it.isNotEmpty() }?.let {
+            listOfNotNull(widget.hours, widget.floor?.let { "${text.floorLabel} $it" }).takeIf { it.isNotEmpty() }?.let {
                 Text(it.joinToString(" · "), style = HospitalityTheme.typography.body, color = colors.textSecondary)
             }
             widget.description?.takeIf { it.isNotBlank() }?.let {

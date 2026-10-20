@@ -109,26 +109,71 @@ class OperatorConfigTest {
     }
 
     @Test
-    fun `widgets lee solo los slots con titulo E imagen, en orden, hasta 4`() {
+    fun `widgets lee un JSON por slot (titulo, descripcion, horario, piso, imagenes), hasta 4`() {
         val config = OperatorConfig.parse(
             sample.replace(
                 "\"X_DESIGN_SHOW_HOTEL_ROOM_NUMBER\":\"0\"",
                 "\"X_DESIGN_SHOW_HOTEL_ROOM_NUMBER\":\"0\"," +
-                    "\"X_APP_WIDGET_1_TITLE\":\"Spa\",\"X_APP_WIDGET_1_IMAGE\":\"https://i.imgur.com/spa.jpg\",\"X_APP_WIDGET_1_DESC\":\"Reservá tu turno\"," +
-                    // Slot 2: sin imagen -- no cuenta como widget, aunque tenga título.
-                    "\"X_APP_WIDGET_2_TITLE\":\"Sin imagen\"," +
-                    "\"X_APP_WIDGET_3_TITLE\":\"Explorar\",\"X_APP_WIDGET_3_IMAGE\":\"https://i.imgur.com/tour.jpg\"",
+                    "\"X_APP_WIDGET_1\":\"{\\\"title\\\":\\\"Bar Valentina\\\",\\\"description\\\":\\\"Música en vivo los viernes\\\"," +
+                    "\\\"hours\\\":\\\"Abierto de 19 a 02am\\\",\\\"floor\\\":\\\"5\\\"," +
+                    "\\\"images\\\":[\\\"https://i.imgur.com/bar1.jpg\\\",\\\"https://i.imgur.com/bar2.jpg\\\",\\\"https://i.imgur.com/bar3.jpg\\\"]}\"," +
+                    // Slot 2: JSON mal formado -- se descarta entero, no rompe el resto.
+                    "\"X_APP_WIDGET_2\":\"{not valid json\"," +
+                    // Slot 3: sin "images" -- se descarta, aunque tenga título.
+                    "\"X_APP_WIDGET_3\":\"{\\\"title\\\":\\\"Sin fotos\\\"}\"," +
+                    // Slot 4: mínimo válido, solo título + 1 imagen.
+                    "\"X_APP_WIDGET_4\":\"{\\\"title\\\":\\\"Piscina\\\",\\\"images\\\":[\\\"https://i.imgur.com/pool.jpg\\\"]}\"",
             ),
         )
 
-        assertEquals(2, config.widgets.size)
-        assertEquals(HomeWidget(title = "Spa", description = "Reservá tu turno", imageUrl = "https://i.imgur.com/spa.jpg"), config.widgets[0])
-        assertEquals(HomeWidget(title = "Explorar", description = null, imageUrl = "https://i.imgur.com/tour.jpg"), config.widgets[1])
+        val widgets = config.widgets("es")
+        assertEquals(2, widgets.size)
+        val bar = widgets[0]
+        assertEquals("Bar Valentina", bar.title)
+        assertEquals("Música en vivo los viernes", bar.description)
+        assertEquals("Abierto de 19 a 02am", bar.hours)
+        assertEquals("5", bar.floor)
+        assertEquals(
+            listOf("https://i.imgur.com/bar1.jpg", "https://i.imgur.com/bar2.jpg", "https://i.imgur.com/bar3.jpg"),
+            bar.gallery,
+        )
+
+        val pool = widgets[1]
+        assertEquals("Piscina", pool.title)
+        assertNull(pool.description)
+        assertNull(pool.hours)
+        assertNull(pool.floor)
+        assertEquals(listOf("https://i.imgur.com/pool.jpg"), pool.gallery)
+    }
+
+    @Test
+    fun `titulo y descripcion por idioma -- resuelve al idioma pedido, cae a español y despues ingles`() {
+        val config = OperatorConfig.parse(
+            sample.replace(
+                "\"X_DESIGN_SHOW_HOTEL_ROOM_NUMBER\":\"0\"",
+                "\"X_DESIGN_SHOW_HOTEL_ROOM_NUMBER\":\"0\"," +
+                    "\"X_APP_WIDGET_1\":\"{\\\"title\\\":{\\\"es\\\":\\\"Bar Valentina\\\",\\\"en\\\":\\\"Valentina Bar\\\"}," +
+                    "\\\"description\\\":{\\\"es\\\":\\\"Música en vivo\\\"}," +
+                    "\\\"images\\\":[\\\"https://i.imgur.com/bar1.jpg\\\"]}\"," +
+                    // Slot 2: título como texto simple (sin por-idioma) -- vale para cualquier idioma.
+                    "\"X_APP_WIDGET_2\":\"{\\\"title\\\":\\\"Gimnasio\\\",\\\"images\\\":[\\\"https://i.imgur.com/gym.jpg\\\"]}\"",
+            ),
+        )
+
+        val en = config.widgets("en")
+        assertEquals("Valentina Bar", en[0].title)
+        // Sin "en" en la descripción: cae a español, no queda vacía.
+        assertEquals("Música en vivo", en[0].description)
+        assertEquals("Gimnasio", en[1].title)
+
+        // Idioma sin traducir ("pt"): cae a español (primer fallback), nunca a null/vacío.
+        val pt = config.widgets("pt")
+        assertEquals("Bar Valentina", pt[0].title)
     }
 
     @Test
     fun `sin ningun X_APP_WIDGET configurado, widgets queda vacio`() {
         val config = OperatorConfig.parse("""{"success":true,"answer":{"device":{"parameters":{}}}}""")
-        assertTrue(config.widgets.isEmpty())
+        assertTrue(config.widgets("es").isEmpty())
     }
 }

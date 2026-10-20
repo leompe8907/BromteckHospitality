@@ -21,6 +21,7 @@ data class HotelData(
     val hotelInfo: HotelInfo,
     val images: List<HotelMedia> = emptyList(),
     val videos: List<HotelMedia> = emptyList(),
+    val activities: List<HotelActivity> = emptyList(),
 )
 
 @Serializable
@@ -36,4 +37,21 @@ data class HotelMedia(
     val description: LocalizedText = emptyMap(),
     val url: String,
     val thumbnailUrl: String? = null,
+)
+
+/**
+ * Actividad con horario (ej. "Yoga — 9am, Salón A"). `date` nulo = se repite todos los días;
+ * con valor, es un evento puntual (ej. un show). Formatos: `date` "2026-10-09",
+ * `startTime`/`endTime` "09:00".
+ */
+@Serializable
+data class HotelActivity(
+    val id: Int,
+    val title: LocalizedText,
+    val description: LocalizedText = emptyMap(),
+    val imageUrl: String? = null,
+    val location: LocalizedText = emptyMap(),
+    val date: String? = null,
+    val startTime: String,
+    val endTime: String? = null,
 )

@@ -74,7 +74,8 @@ class HospitalityApplication : Application() {
 
     /**
      * De dónde sale "acerca del hotel", en orden: lo que diga el operador (API del sistema viejo,
-     * X_HOTEL_APK_BASE_URL + X_HOTEL_APK_BASE_FOLDER), la URL de la marca, el archivo de la marca.
+     * X_HOTEL_APK_BASE_URL + X_HOTEL_APK_BASE_FOLDER), el backend propio por hotel (marca genérica
+     * + X_HOTEL_ID del operador), la URL fija de la marca, el archivo de la marca.
      * Se resuelve al abrir la pantalla porque la configuración del operador llega con el login.
      */
     fun hotelRepository(): HotelRepository? {
@@ -84,9 +85,12 @@ class HospitalityApplication : Application() {
                 LegacyHotelApiRepository(url, folder, name = mapOf(brand.defaultLanguage to brand.displayName))
             }
         }
+        val backendRepo = brand.hotel.contentBaseUrl?.let { base ->
+            config?.param("X_HOTEL_ID")?.let { hotelId -> UrlHotelRepository("$base/hotels/$hotelId/content.json") }
+        }
         val asset = brand.hotel.asset?.let { AssetHotelRepository(this, it) }
         val url = brand.hotel.url?.let { UrlHotelRepository(it) }
-        val chain = listOfNotNull(operatorRepo, url, asset)
+        val chain = listOfNotNull(operatorRepo, backendRepo, url, asset)
         return chain.reduceOrNull<HotelRepository, HotelRepository> { acc, next -> FallbackHotelRepository(acc, next) }
     }
 

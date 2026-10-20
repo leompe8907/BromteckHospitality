@@ -82,9 +82,14 @@ data class OperatorConfig(
     val hotelLogoUrl: String? get() = param("X_APP_LOGO")
 
     // Color de las tarjetas (Entretenimiento y Acciones rápidas) configurable por Delancer, en
-    // hex (ej. "#163F42"). El color de texto sobre la tarjeta se calcula solo según este valor
-    // (ver HospitalityColors.readableTextColor) -- no hace falta un parámetro de texto aparte.
+    // hex (ej. "#163F42"). Sin X_APP_TEXT_COLOR, el color de texto sobre la tarjeta se calcula
+    // solo según este valor (ver HospitalityColors.readableTextColor).
     val cardColorHex: String? get() = param("X_APP_CARD_COLOR")
+
+    // Color de letra (e íconos que acompañan texto, ej. Acciones rápidas) configurable por
+    // Delancer, en hex. Pisa el cálculo automático de contraste de X_APP_CARD_COLOR cuando el
+    // operador quiere un color de letra puntual en vez de ese cálculo.
+    val textColorHex: String? get() = param("X_APP_TEXT_COLOR")
 
     // Imagen de placeholder (fondo del hotel, pósters de VOD mientras cargan o si fallan)
     // configurable por Delancer. Si no está configurada, se cae al gris fijo de siempre según el

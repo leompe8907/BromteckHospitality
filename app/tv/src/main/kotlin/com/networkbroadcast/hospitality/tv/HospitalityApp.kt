@@ -367,6 +367,9 @@ fun HospitalityApp(app: HospitalityApplication, showLogin: Boolean = false) {
                 weatherText = panaccess.operatorConfig?.weatherText,
                 // Color de las tarjetas configurable por Delancer, null = el de la marca de siempre.
                 cardColorHex = panaccess.operatorConfig?.cardColorHex,
+                // Color de letra (e íconos que acompañan texto) configurable por Delancer, null =
+                // el que surge del contraste de cardColorHex, o el de la marca.
+                textColorHex = panaccess.operatorConfig?.textColorHex,
                 // Segundo logo del hotel: tvModel de la licencia (MainFragment.onLicensesChanged del base).
                 secondLogoUrl = panaccess.license?.tvModel?.takeIf { it.startsWith("http") },
                 quickActions = brand.quickActions(app.showsHotelInfo),

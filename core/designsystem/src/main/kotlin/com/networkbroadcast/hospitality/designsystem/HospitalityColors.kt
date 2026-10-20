@@ -104,6 +104,17 @@ data class HospitalityColors(
     }
 
     /**
+     * Variante con el color de letra que mandó el operador (X_APP_TEXT_COLOR), independiente del
+     * color de card -- pisa el cálculo automático de [withCustomCardColor] cuando el operador
+     * quiere un color de letra puntual. Se aplica también a los íconos que acompañan texto
+     * (Acciones rápidas), que ya toman este mismo token.
+     */
+    fun withCustomTextColor(hex: String?): HospitalityColors {
+        val custom = parseHex(hex) ?: return this
+        return copy(textPrimary = custom, textSecondary = custom.copy(alpha = 0.75f))
+    }
+
+    /**
      * Gris neutro para fotos que están cargando o fallaron (fondo del hotel, pósters de VOD):
      * mismo criterio en los dos lugares que lo usan, acá para no duplicarlo. El operador puede
      * pisarlo con una imagen propia (X_APP_PLACEHOLDER_IMAGE, ver OperatorConfig/Common.kt); sin

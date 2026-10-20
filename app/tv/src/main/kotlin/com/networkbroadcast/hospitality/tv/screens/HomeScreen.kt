@@ -79,6 +79,9 @@ fun HomeScreen(
     weatherText: String?,
     /** "#163F42", color de card configurado por Delancer (OperatorConfig.cardColorHex); null = el de la marca. */
     cardColorHex: String?,
+    /** "#F2F6EC", color de letra (e íconos que acompañan texto) configurado por Delancer
+     *  (OperatorConfig.textColorHex); null = el que surge del contraste de [cardColorHex], o el de la marca. */
+    textColorHex: String? = null,
     secondLogoUrl: String?,
     quickActions: List<HomeAction>,
     /** true si vodShelves() ya trajo contenido real, no sólo brand.features.vod (que es un flag fijo por marca). */
@@ -135,6 +138,8 @@ fun HomeScreen(
     // incluido el saludo y los títulos de sección, que van sobre la foto de fondo, no sobre una
     // card, y no deben cambiar de color solo porque cambió el color de las tarjetas.
     val customCardColors = cardColorHex?.let { cardColors.withCustomCardColor(it) }
+        ?.let { c -> textColorHex?.let(c::withCustomTextColor) ?: c }
+        ?: textColorHex?.let(cardColors::withCustomTextColor)
     CompositionLocalProvider(LocalHospitalityColors provides cardColors) {
     Row(Modifier.fillMaxSize()) {
         // Desplazable: en 960x540 dp (TV 1080p) las dos filas no entran juntas. El foco hace scroll

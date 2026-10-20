@@ -317,6 +317,10 @@ fun HospitalityApp(app: HospitalityApplication, showLogin: Boolean = false) {
 
         val current = language
         val onHome = current == null || choosingLanguage || backStack.last() == Screen.Home
+        // Guía, TV en vivo y Series/películas (que incluye "Eventos anteriores", comparte
+        // Screen.Guide) también muestran el fondo del hotel -- a pedido del cliente, para que no
+        // se sienta un cambio brusco a un color sólido al salir de la Home.
+        val showsHotelBackdrop = onHome || backStack.last() in setOf(Screen.Guide, Screen.LiveTv, Screen.Vod)
         // Delancer: fondo configurable desde el panel de Cableatlántico (X_APP_LOGO_BACKGROUND).
         // Si el hotel no lo cargó, se usa el fondo genérico de la marca de siempre.
         val backgrounds = panaccess.operatorConfig?.hotelBackgroundUrl?.let { listOf(it) } ?: brand.backgrounds
@@ -332,7 +336,7 @@ fun HospitalityApp(app: HospitalityApplication, showLogin: Boolean = false) {
                 runCatching { imageLoader.execute(ImageRequest.Builder(context).data(imageModel(url)).build()) }
             }
         }
-        if (onHome) HotelBackdrop(backgrounds, placeholderImageUrl = panaccess.operatorConfig?.placeholderImageUrl)
+        if (showsHotelBackdrop) HotelBackdrop(backgrounds, placeholderImageUrl = panaccess.operatorConfig?.placeholderImageUrl)
         if (current == null || choosingLanguage) {
             LanguageScreen(
                 brand = brand,

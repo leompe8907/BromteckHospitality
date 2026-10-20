@@ -1,6 +1,7 @@
 package com.networkbroadcast.hospitality.tv.screens
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -9,10 +10,12 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -26,14 +29,19 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import coil3.compose.AsyncImage
+import com.networkbroadcast.hospitality.brand.imageModel
 import com.networkbroadcast.hospitality.designsystem.FocusCard
 import com.networkbroadcast.hospitality.designsystem.HospitalityTheme
 import com.networkbroadcast.hospitality.entertainment.Channel
 import com.networkbroadcast.hospitality.entertainment.EntertainmentSource
 import com.networkbroadcast.hospitality.entertainment.Program
 import com.networkbroadcast.hospitality.brand.UiText
+import com.networkbroadcast.hospitality.tv.R
 import kotlinx.coroutines.delay
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -99,7 +107,8 @@ fun GuideScreen(
                             .onFocusChanged { if (it.isFocused && selected != channel.id) { selected = channel.id; onChannelFocused(channel.id) } },
                     ) {
                         Row(Modifier.fillMaxSize().padding(horizontal = 14.dp), verticalAlignment = Alignment.CenterVertically) {
-                            Text("${channel.number}", style = HospitalityTheme.typography.label, color = colors.textPrimary, modifier = Modifier.width(44.dp))
+                            Text("${channel.number}", style = HospitalityTheme.typography.label, color = colors.textPrimary, modifier = Modifier.width(36.dp))
+                            ChannelLogo(channel.logoUrl, modifier = Modifier.padding(end = 10.dp))
                             Text(channel.name, style = HospitalityTheme.typography.label, color = if (channel.id == selected) colors.textPrimary else colors.textSecondary, maxLines = 1, overflow = TextOverflow.Ellipsis)
                         }
                     }
@@ -133,6 +142,33 @@ fun GuideScreen(
                     }
                 }
             }
+        }
+    }
+}
+
+/**
+ * Logo del canal en la lista de la guía, con el mismo criterio que la app de streaming hermana
+ * (androidpanaccessapp, CatalogComponents.kt#ChannelLogo): el respaldo (ícono genérico) se dibuja
+ * siempre por debajo y sólo se oculta cuando la imagen terminó de cargar -- si se dibujara nomás
+ * mientras `logoUrl == null`, un logo transparente o que no llena el recuadro dejaría ver un hueco.
+ */
+@Composable
+private fun ChannelLogo(logoUrl: String?, modifier: Modifier = Modifier) {
+    val colors = HospitalityTheme.colors
+    var loaded by remember(logoUrl) { mutableStateOf(false) }
+    Box(modifier.size(width = 44.dp, height = 32.dp), contentAlignment = Alignment.Center) {
+        if (!loaded) {
+            Icon(
+                painterResource(R.drawable.ic_live), contentDescription = null,
+                tint = colors.textMuted, modifier = Modifier.size(18.dp),
+            )
+        }
+        if (!logoUrl.isNullOrBlank()) {
+            AsyncImage(
+                model = imageModel(logoUrl), contentDescription = null, contentScale = ContentScale.Fit,
+                onSuccess = { loaded = true }, onError = { loaded = false },
+                modifier = Modifier.fillMaxSize(),
+            )
         }
     }
 }

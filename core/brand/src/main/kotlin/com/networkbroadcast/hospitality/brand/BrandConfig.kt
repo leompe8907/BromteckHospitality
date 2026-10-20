@@ -120,6 +120,13 @@ data class HotelSource(
     val asset: String? = "hotel_data.json",
     /** URL remota con el mismo formato; si está, tiene prioridad sobre el asset. */
     val url: String? = null,
+    /**
+     * Base del CDN para la app genérica que sirve a cualquier hotel (mismo dominio para todos):
+     * el contenido se arma como "$contentBaseUrl/hotels/$hotelId/content.json", con `hotelId`
+     * resuelto en tiempo de ejecución (parámetro `X_HOTEL_ID` del operador de Panaccess). Sin
+     * esto, la marca sigue usando su propio `url`/`asset` fijo.
+     */
+    val contentBaseUrl: String? = null,
 )
 
 object BrandLoader {

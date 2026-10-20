@@ -109,20 +109,22 @@ class OperatorConfigTest {
     }
 
     @Test
-    fun `widgets lee un JSON por slot (titulo, descripcion, horario, piso, imagenes), hasta 4`() {
+    fun `widgets lee un array JSON (titulo, descripcion, horario, piso, imagenes), descarta elementos invalidos sin romper`() {
         val config = OperatorConfig.parse(
             sample.replace(
                 "\"X_DESIGN_SHOW_HOTEL_ROOM_NUMBER\":\"0\"",
                 "\"X_DESIGN_SHOW_HOTEL_ROOM_NUMBER\":\"0\"," +
-                    "\"X_APP_WIDGET_1\":\"{\\\"title\\\":\\\"Bar Valentina\\\",\\\"description\\\":\\\"Música en vivo los viernes\\\"," +
+                    "\"X_APP_WIDGETS\":\"[" +
+                    "{\\\"title\\\":\\\"Bar Valentina\\\",\\\"description\\\":\\\"Música en vivo los viernes\\\"," +
                     "\\\"hours\\\":\\\"Abierto de 19 a 02am\\\",\\\"floor\\\":\\\"5\\\"," +
-                    "\\\"images\\\":[\\\"https://i.imgur.com/bar1.jpg\\\",\\\"https://i.imgur.com/bar2.jpg\\\",\\\"https://i.imgur.com/bar3.jpg\\\"]}\"," +
-                    // Slot 2: JSON mal formado -- se descarta entero, no rompe el resto.
-                    "\"X_APP_WIDGET_2\":\"{not valid json\"," +
-                    // Slot 3: sin "images" -- se descarta, aunque tenga título.
-                    "\"X_APP_WIDGET_3\":\"{\\\"title\\\":\\\"Sin fotos\\\"}\"," +
-                    // Slot 4: mínimo válido, solo título + 1 imagen.
-                    "\"X_APP_WIDGET_4\":\"{\\\"title\\\":\\\"Piscina\\\",\\\"images\\\":[\\\"https://i.imgur.com/pool.jpg\\\"]}\"",
+                    "\\\"images\\\":[\\\"https://i.imgur.com/bar1.jpg\\\",\\\"https://i.imgur.com/bar2.jpg\\\",\\\"https://i.imgur.com/bar3.jpg\\\"]}," +
+                    // Elemento que no es un objeto -- se descarta, no rompe el resto del array.
+                    "\\\"no es un objeto\\\"," +
+                    // Sin "images" -- se descarta, aunque tenga título.
+                    "{\\\"title\\\":\\\"Sin fotos\\\"}," +
+                    // Mínimo válido: solo título + 1 imagen.
+                    "{\\\"title\\\":\\\"Piscina\\\",\\\"images\\\":[\\\"https://i.imgur.com/pool.jpg\\\"]}" +
+                    "]\"",
             ),
         )
 
@@ -152,11 +154,13 @@ class OperatorConfigTest {
             sample.replace(
                 "\"X_DESIGN_SHOW_HOTEL_ROOM_NUMBER\":\"0\"",
                 "\"X_DESIGN_SHOW_HOTEL_ROOM_NUMBER\":\"0\"," +
-                    "\"X_APP_WIDGET_1\":\"{\\\"title\\\":{\\\"es\\\":\\\"Bar Valentina\\\",\\\"en\\\":\\\"Valentina Bar\\\"}," +
+                    "\"X_APP_WIDGETS\":\"[" +
+                    "{\\\"title\\\":{\\\"es\\\":\\\"Bar Valentina\\\",\\\"en\\\":\\\"Valentina Bar\\\"}," +
                     "\\\"description\\\":{\\\"es\\\":\\\"Música en vivo\\\"}," +
-                    "\\\"images\\\":[\\\"https://i.imgur.com/bar1.jpg\\\"]}\"," +
-                    // Slot 2: título como texto simple (sin por-idioma) -- vale para cualquier idioma.
-                    "\"X_APP_WIDGET_2\":\"{\\\"title\\\":\\\"Gimnasio\\\",\\\"images\\\":[\\\"https://i.imgur.com/gym.jpg\\\"]}\"",
+                    "\\\"images\\\":[\\\"https://i.imgur.com/bar1.jpg\\\"]}," +
+                    // Título como texto simple (sin por-idioma) -- vale para cualquier idioma.
+                    "{\\\"title\\\":\\\"Gimnasio\\\",\\\"images\\\":[\\\"https://i.imgur.com/gym.jpg\\\"]}" +
+                    "]\"",
             ),
         )
 
@@ -172,7 +176,18 @@ class OperatorConfigTest {
     }
 
     @Test
-    fun `sin ningun X_APP_WIDGET configurado, widgets queda vacio`() {
+    fun `X_APP_WIDGETS con JSON invalido (no es un array) no rompe, queda vacio`() {
+        val config = OperatorConfig.parse(
+            sample.replace(
+                "\"X_DESIGN_SHOW_HOTEL_ROOM_NUMBER\":\"0\"",
+                "\"X_DESIGN_SHOW_HOTEL_ROOM_NUMBER\":\"0\",\"X_APP_WIDGETS\":\"{not valid json\"",
+            ),
+        )
+        assertTrue(config.widgets("es").isEmpty())
+    }
+
+    @Test
+    fun `sin X_APP_WIDGETS configurado, widgets queda vacio`() {
         val config = OperatorConfig.parse("""{"success":true,"answer":{"device":{"parameters":{}}}}""")
         assertTrue(config.widgets("es").isEmpty())
     }

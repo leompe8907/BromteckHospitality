@@ -98,17 +98,23 @@ data class OperatorConfig(
 
     // Widgets personalizables (instalaciones del hotel: bar, restaurant, gimnasio, pileta...)
     // configurados por Delancer vía Panaccess -- no por el panel de staff propio (eso es para
-    // hoteles con backend propio, ver Parte C del plan). Slots fijos (X_APP_WIDGET_1.. _4) en vez
-    // de una lista dinámica porque los parámetros de Panaccess son pares clave/valor sueltos, no
-    // un array. Un solo parámetro por slot con un JSON adentro (en vez de uno por campo:
-    // _TITLE/_IMAGE/_DESC/etc.) para que Delancer solo tenga que crear 4 parámetros, no ~24.
+    // hoteles con backend propio, ver Parte C del plan). Un solo parámetro (X_APP_WIDGETS) con un
+    // array JSON adentro, en vez de un parámetro por widget (como era antes, con slots fijos
+    // X_APP_WIDGET_1.._4): agregar un widget más es agregar un elemento al array, no crear un
+    // parámetro nuevo en Panaccess. Si el array entero viene con JSON inválido, se descarta
+    // completo (lista vacía) -- es la contra de juntar todo en un solo parámetro, pero un elemento
+    // individual con forma rara (no es un objeto, o le falta algo) solo se descarta a él, el resto
+    // de la lista sigue andando (ver parseWidget).
     // Recibe el idioma porque título/descripción pueden venir por idioma (ver parseWidget):
     // se resuelven acá, no antes, porque el huésped puede cambiar de idioma durante la estadía.
-    fun widgets(language: String): List<HomeWidget> =
-        (1..MAX_WIDGETS).mapNotNull { n -> parseWidget(param("X_APP_WIDGET_$n"), language) }
+    fun widgets(language: String): List<HomeWidget> {
+        val raw = param("X_APP_WIDGETS") ?: return emptyList()
+        val array = runCatching { Json.parseToJsonElement(raw) as? JsonArray }.getOrNull() ?: return emptyList()
+        return array.mapNotNull { element -> (element as? JsonObject)?.let { parseWidget(it, language) } }
+    }
 
     /**
-     * Formato esperado en cada parámetro `X_APP_WIDGET_<n>`:
+     * Formato esperado de cada elemento del array `X_APP_WIDGETS`:
      * `{"title":{"es":"Bar Valentina","en":"Valentina Bar"},"description":{"es":"..."},
      * "hours":{"es":"Abierto de 19 a 02am","en":"Open 7pm-2am"},"floor":"5",
      * "images":["https://...","https://...","https://..."]}`
@@ -116,11 +122,10 @@ data class OperatorConfig(
      * (se usa igual en cualquier idioma) -- todo es traducible menos `images` (son fotos, no hay
      * nada que traducir) y `floor` (es un dato, no una frase -- la palabra "Piso"/"Floor"/"Andar"
      * la pone la app sola según el idioma, ver UiText.floorLabel). Solo `title` e `images` (con al
-     * menos una foto) son obligatorios; el resto es opcional. Un JSON inválido o incompleto hace
-     * que ese widget se descarte entero (null), no que rompa nada.
+     * menos una foto) son obligatorios; el resto es opcional. Un elemento que no sea un objeto, o
+     * al que le falte algo obligatorio, se descarta (null) sin afectar al resto del array.
      */
-    private fun parseWidget(raw: String?, language: String): HomeWidget? {
-        val obj = raw?.let { runCatching { Json.parseToJsonElement(it).jsonObject }.getOrNull() } ?: return null
+    private fun parseWidget(obj: JsonObject, language: String): HomeWidget? {
         val title = localizedText(obj["title"]).resolve(language)?.takeIf { it.isNotBlank() } ?: return null
         val images = (obj["images"] as? JsonArray)?.mapNotNull { text(it) }.orEmpty()
         val imageUrl = images.firstOrNull() ?: return null
@@ -147,8 +152,6 @@ data class OperatorConfig(
         this[language] ?: this["es"] ?: this["en"] ?: values.firstOrNull()
 
     companion object {
-        private const val MAX_WIDGETS = 4
-
         fun parse(rawJson: String): OperatorConfig {
             val answer = CasEnvelope.answer(rawJson) as? JsonObject
             val weather = weather(answer)

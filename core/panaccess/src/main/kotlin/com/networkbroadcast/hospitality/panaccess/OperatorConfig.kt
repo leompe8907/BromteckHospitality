@@ -111,9 +111,22 @@ data class OperatorConfig(
     // adentro (campo de Panaccess con límite de caracteres) -- esa resolución pasa antes de
     // llegar acá, en PanaccessSession.resolveWidgetsUrl, para que esta función siga siendo pura.
     fun widgets(language: String): List<HomeWidget> {
-        val raw = param("X_APP_WIDGETS") ?: return emptyList()
-        val array = runCatching { Json.parseToJsonElement(raw) as? JsonArray }.getOrNull() ?: return emptyList()
-        return array.mapNotNull { element -> (element as? JsonObject)?.let { parseWidget(it, language) } }
+        val raw = param("X_APP_WIDGETS")
+        runCatching {
+            Log.d(
+                "Hospitality.Session",
+                "widgets crudo: presente=${raw != null}, largo=${raw?.length ?: 0}, preview=${raw?.take(200)}",
+            )
+        }
+        if (raw == null) return emptyList()
+        val array = runCatching { Json.parseToJsonElement(raw) as? JsonArray }.getOrNull()
+        if (array == null) {
+            runCatching { Log.w("Hospitality.Session", "widgets: X_APP_WIDGETS no es un array JSON válido") }
+            return emptyList()
+        }
+        val parsed = array.mapNotNull { element -> (element as? JsonObject)?.let { parseWidget(it, language) } }
+        runCatching { Log.d("Hospitality.Session", "widgets: ${array.size} elemento(s) en el array, ${parsed.size} válido(s)") }
+        return parsed
     }
 
     /**

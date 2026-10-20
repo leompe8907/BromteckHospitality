@@ -31,6 +31,7 @@ import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import com.networkbroadcast.hospitality.designsystem.FocusCard
 import com.networkbroadcast.hospitality.designsystem.HospitalityTheme
+import com.networkbroadcast.hospitality.designsystem.OperatorCardColors
 import com.networkbroadcast.hospitality.designsystem.SectionTitle
 import com.networkbroadcast.hospitality.entertainment.Channel
 import com.networkbroadcast.hospitality.entertainment.ChannelGroup
@@ -97,11 +98,24 @@ private fun ChannelCard(channel: Channel, modifier: Modifier, onClick: () -> Uni
 
 /** Películas y series: una fila por categoría, con pósters. OK abre la ficha. */
 @Composable
-fun VodScreen(vod: VodResult?, text: UiText, focusOn: String?, placeholderImageUrl: String? = null, onOpen: (VodItem) -> Unit) {
-    val colors = HospitalityTheme.colors
+fun VodScreen(
+    vod: VodResult?,
+    text: UiText,
+    focusOn: String?,
+    placeholderImageUrl: String? = null,
+    /** "#163F42", color de card configurado por Delancer (OperatorConfig.cardColorHex); mismo
+     *  criterio que en la home (HomeScreen.cardColorHex) -- null = el de la marca. */
+    cardColorHex: String? = null,
+    /** Ídem para el color de letra (OperatorConfig.textColorHex); null = el que surge del
+     *  contraste de [cardColorHex], o el de la marca. */
+    textColorHex: String? = null,
+    onOpen: (VodItem) -> Unit,
+) {
     val result = vod ?: return CenteredMessage(text.loading)
     val shelves = result.shelves.filter { it.items.isNotEmpty() }
     if (shelves.isEmpty()) return CenteredMessage(result.failure?.let { "${text.noVod} ($it)" } ?: text.noVod)
+    OperatorCardColors(cardColorHex, textColorHex) {
+    val colors = HospitalityTheme.colors
     val target = focusOn?.takeIf { id -> shelves.any { s -> s.items.any { it.id == id } } } ?: shelves.first().items.first().id
     val targetRow = shelves.indexOfFirst { s -> s.items.any { it.id == target } }
     val first = rememberInitialFocus(target)
@@ -141,6 +155,7 @@ fun VodScreen(vod: VodResult?, text: UiText, focusOn: String?, placeholderImageU
                 }
             }
         }
+    }
     }
 }
 

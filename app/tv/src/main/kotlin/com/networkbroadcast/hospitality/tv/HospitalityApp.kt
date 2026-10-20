@@ -446,12 +446,18 @@ fun HospitalityApp(app: HospitalityApplication, showLogin: Boolean = false) {
                 onWatchCatchup = { program ->
                     program.catchupId?.let { media = MediaRequest(Playable.Catchup(it), program.title); open(Screen.MediaPlayer) }
                 },
+                // Mismo color que las tarjetas de la home (OperatorConfig.cardColorHex/textColorHex).
+                cardColorHex = panaccess.operatorConfig?.cardColorHex,
+                textColorHex = panaccess.operatorConfig?.textColorHex,
             )
             Screen.Vod -> VodScreen(
                 vod = vod,
                 text = text,
                 focusOn = selectedVod?.id,
                 placeholderImageUrl = panaccess.operatorConfig?.placeholderImageUrl,
+                // Mismo color que las tarjetas de la home (OperatorConfig.cardColorHex/textColorHex).
+                cardColorHex = panaccess.operatorConfig?.cardColorHex,
+                textColorHex = panaccess.operatorConfig?.textColorHex,
                 onOpen = { selectedVod = it; open(Screen.VodDetail) },
             )
             Screen.VodDetail -> selectedVod?.let { item ->

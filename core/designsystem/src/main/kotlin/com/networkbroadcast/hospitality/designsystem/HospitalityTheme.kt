@@ -59,6 +59,22 @@ object HospitalityTheme {
         @Composable get() = LocalHospitalityTypography.current
 }
 
+/**
+ * Envuelve [content] con el color de card/letra que mandó el operador (X_APP_CARD_COLOR /
+ * X_APP_TEXT_COLOR, ver OperatorConfig.cardColorHex/textColorHex), igual que las tarjetas de la
+ * home -- si el operador no configuró ninguno, deja el tema ambiente de [HospitalityTheme.colors]
+ * sin tocar (el valor por defecto de la marca).
+ */
+@Composable
+fun OperatorCardColors(cardColorHex: String?, textColorHex: String?, content: @Composable () -> Unit) {
+    val base = HospitalityTheme.colors
+    val custom = cardColorHex?.let { base.withCustomCardColor(it) }
+        ?.let { c -> textColorHex?.let(c::withCustomTextColor) ?: c }
+        ?: textColorHex?.let(base::withCustomTextColor)
+    if (custom != null) CompositionLocalProvider(LocalHospitalityColors provides custom, content = content)
+    else content()
+}
+
 @Composable
 fun HospitalityTheme(
     colors: HospitalityColors = HospitalityColors.Resort,

@@ -37,6 +37,7 @@ import coil3.compose.AsyncImage
 import com.networkbroadcast.hospitality.brand.imageModel
 import com.networkbroadcast.hospitality.designsystem.FocusCard
 import com.networkbroadcast.hospitality.designsystem.HospitalityTheme
+import com.networkbroadcast.hospitality.designsystem.OperatorCardColors
 import com.networkbroadcast.hospitality.entertainment.Channel
 import com.networkbroadcast.hospitality.entertainment.EntertainmentSource
 import com.networkbroadcast.hospitality.entertainment.Program
@@ -72,9 +73,16 @@ fun GuideScreen(
     onChannelFocused: (String) -> Unit,
     onWatchLive: (channelId: String) -> Unit,
     onWatchCatchup: (Program) -> Unit,
+    /** "#163F42", color de card configurado por Delancer (OperatorConfig.cardColorHex); mismo
+     *  criterio que en la home (HomeScreen.cardColorHex) -- null = el de la marca. */
+    cardColorHex: String? = null,
+    /** Ídem para el color de letra (OperatorConfig.textColorHex); null = el que surge del
+     *  contraste de [cardColorHex], o el de la marca. */
+    textColorHex: String? = null,
 ) {
-    val colors = HospitalityTheme.colors
     if (channels.isEmpty()) return CenteredMessage(text.noChannels)
+    OperatorCardColors(cardColorHex, textColorHex) {
+    val colors = HospitalityTheme.colors
     var selected by remember { mutableStateOf(focusChannel?.takeIf { id -> channels.any { it.id == id } } ?: channels.first().id) }
     var schedule by remember { mutableStateOf<List<Program>?>(null) }
     // Pedido de "llevá el foco a lo que se emite ahora" cuando cargue la programación.
@@ -143,6 +151,7 @@ fun GuideScreen(
                 }
             }
         }
+    }
     }
 }
 

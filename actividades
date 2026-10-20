@@ -1,0 +1,23 @@
+ [
+  {
+    "title": {"es": "Bar", "en": "Bar", "pt": "Bar"},
+    "description": {"es": "Música en vivo los viernes", "en": "Live music on Fridays", "pt": "Música ao vivo às sextas-feiras"},
+    "hours": {"es": "Abierto de 19 a 02am", "en": "Open 7pm–2am", "pt": "Aberto das 19h às 2h"},
+    "floor": "5",
+    "images": ["https://images.pexels.com/photos/30691575/pexels-photo-30691575.jpeg", "https://images.pexels.com/photos/35831956/pexels-photo-35831956.jpeg"]
+  },
+  {
+    "title": {"es": "Pileta", "en": "Pool", "pt": "Piscina"},
+    "description": {"es": "Pileta climatizada con solárium y reposeras", "en": "Heated pool with sundeck and loungers", "pt": "Piscina aquecida com solário e espreguiçadeiras"},
+    "hours": {"es": "Abierta de 9 a 21", "en": "Open 9am–9pm", "pt": "Aberta das 9h às 21h"},
+    "floor": "1",
+    "images": ["https://images.pexels.com/photos/261102/pexels-photo-261102.jpeg", "https://images.pexels.com/photos/338504/pexels-photo-338504.jpeg"]
+  },
+  {
+    "title": {"es": "Restaurante", "en": "Restaurant", "pt": "Restaurante"},
+    "description": {"es": "Cocina internacional con ingredientes de estación", "en": "International cuisine with seasonal ingredients", "pt": "Cozinha internacional com ingredientes da estação"},
+    "hours": {"es": "Abierto de 12 a 16 y de 20 a 24", "en": "Open 12pm–4pm and 8pm–12am", "pt": "Aberto das 12h às 16h e das 20h às 24h"},
+    "floor": "1",
+    "images": ["https://images.pexels.com/photos/262978/pexels-photo-262978.jpeg", "https://images.pexels.com/photos/67468/pexels-photo-67468.jpeg"]
+  }
+]

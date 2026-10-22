@@ -5,6 +5,7 @@ import com.networkbroadcast.hospitality.tv.R
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.draw.clip
+import androidx.compose.foundation.layout.offset
 import androidx.compose.material3.Icon
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.shape.CircleShape
@@ -124,10 +125,12 @@ fun HomeScreen(
         if (brand.features.liveTv) add(HomeAction.LiveTv to text.liveNow)
         if (brand.features.liveTv && brand.features.guide) add(HomeAction.Guide to text.guide)
         // El flag de marca es un tope ("nunca mostrar esto para esta marca"), no una garantía de que
-        // la cuenta de Panaccess tenga contenido real -- ver HOSP bug "caja de películas en vez de
-        // catchup". Sin VOD real, si la cuenta sí tiene canales con catchup, esa caja ocupa el lugar.
+        // la cuenta de Panaccess tenga contenido real. VOD y catchup son contenidos distintos (uno
+        // es películas/series, el otro es volver a ver algo que ya se emitió en vivo) -- antes eran
+        // excluyentes (VOD tapaba a catchup) porque se pensó como "si no hay VOD real, mostrar
+        // catchup en su lugar", pero no hay motivo para ocultar uno si la cuenta tiene los dos.
         if (brand.features.vod && vodHasContent) add(HomeAction.Vod to text.moviesAndSeries)
-        else if (brand.features.guide && catchUpAvailable) add(HomeAction.CatchUp to text.catchUp)
+        if (brand.features.guide && catchUpAvailable) add(HomeAction.CatchUp to text.catchUp)
     }
     val serviceActions = if (services != null) listOf(HomeAction.Services, HomeAction.MyOrders) else emptyList()
     val all = entertainment.map { it.first } + serviceActions + quickActions
@@ -193,12 +196,25 @@ fun HomeScreen(
             if (entertainment.isNotEmpty()) {
                 SectionTitle(text.entertainment)
                 CardRow(customCardColors) {
-                Row(horizontalArrangement = Arrangement.spacedBy(16.dp), modifier = Modifier.fillMaxWidth()) {
-                    entertainment.forEachIndexed { index, (action, label) ->
+                // LazyRow con ancho proporcional al ancho de la fila (fillParentMaxWidth), no un Row
+                // con weight(): con 3 tarjetas (como antes) las proporciones sigue dando exactamente
+                // 100% del ancho -- entran igual que siempre, sin scroll. Ahora que VOD y catchup
+                // pueden aparecer juntos (hasta 4 tarjetas), ahí sí suman más del 100% y recién
+                // entonces aparece el scroll -- mismo criterio que "Destacados", pero solo entra a
+                // tallar cuando realmente hace falta.
+                // FocusListPadding deja 12dp para que el crecimiento de foco no se recorte; mover
+                // el viewport esos 12dp hace que el borde de la tarjeta quede alineado con el título,
+                // el saludo y el logo.
+                LazyRow(
+                    modifier = Modifier.offset(x = (-12).dp),
+                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+                    contentPadding = FocusListPadding,
+                ) {
+                    items(entertainment, key = { it.first }) { (action, label) ->
                         FocusCard(
                             onClick = { onAction(action) },
                             modifier = Modifier.height(150.dp)
-                                .weight(if (index == 0) 2f else 1f)
+                                .fillParentMaxWidth(if (action == HomeAction.LiveTv) 0.5f else 0.25f)
                                 .then(if (action == target) Modifier.focusRequester(first) else Modifier),
                         ) {
                             val cardColors2 = HospitalityTheme.colors
@@ -235,7 +251,11 @@ fun HomeScreen(
                 // tarjeta queda fijo y la fila se desplaza -- mismo patrón que las estanterías de
                 // VOD/canales, navegación de ida y vuelta con el control remoto (LazyRow + FocusCard
                 // ya traen eso solo, nada especial para "volver a la izquierda").
-                LazyRow(horizontalArrangement = Arrangement.spacedBy(16.dp), contentPadding = FocusListPadding) {
+                LazyRow(
+                    modifier = Modifier.offset(x = (-12).dp),
+                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+                    contentPadding = FocusListPadding,
+                ) {
                     items(widgets, key = { it.title }) { widget ->
                         FocusCard(
                             onClick = { onOpenWidget(widget) },

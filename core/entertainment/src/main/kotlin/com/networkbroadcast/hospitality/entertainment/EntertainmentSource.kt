@@ -12,6 +12,12 @@ interface EntertainmentSource {
     /** Programación de un canal (ayer → próximos días), ordenada por inicio. */
     suspend fun schedule(channelId: String): List<Program>
 
+    /** Grupos y eventos realmente disponibles para ver en diferido. */
+    suspend fun catchupCatalog(): CatchupCatalog = CatchupCatalog(emptyList(), emptyMap())
+
+    /** Último snapshot de catchup local, si la implementación mantiene caché persistida. */
+    suspend fun cachedCatchupCatalog(): CatchupCatalog? = null
+
     /** Catálogo de películas y series, en filas. */
     suspend fun vodShelves(): VodResult
 
@@ -38,6 +44,14 @@ sealed interface Playable {
 data class ChannelsResult(
     val channels: List<Channel>,
     val groups: List<ChannelGroup> = emptyList(),
+    val failure: String? = null,
+)
+
+data class CatchupCatalog(
+    /** Solo canales que devolvieron al menos un evento válido de catchup. */
+    val channels: List<Channel>,
+    /** Eventos indexados por el id de canal que usa la app. */
+    val programsByChannel: Map<String, List<Program>>,
     val failure: String? = null,
 )
 

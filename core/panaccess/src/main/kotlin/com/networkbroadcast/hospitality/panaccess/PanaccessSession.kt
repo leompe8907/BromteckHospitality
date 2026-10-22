@@ -197,9 +197,12 @@ class PanaccessSession(context: Context, val client: PanaccessClient) {
                 "cdn guía=${operatorConfig?.epgCdnUrls?.size}, clima=${operatorConfig?.weatherText ?: "sin dato"} " +
                 "(campo weather presente=${operatorConfig?.hasWeatherField})",
         )
-        // Sólo los parámetros de marca/hotel (nunca datos del abonado).
+        // Sólo los parámetros de marca/hotel (nunca datos del abonado). X_DESIGN_* acá incluye
+        // también los "buckets" de diseño de la app de streaming hermana (X_DESIGN_LAYOUT_SERVICE,
+        // X_DESIGN_EPG_LAYOUT_TV, etc.) -- Hospitality no los lee todavía, esto es sólo para ver si
+        // esta cuenta ya los tiene cargados.
         operatorConfig?.parameters
-            ?.filterKeys { it.startsWith("X_HOTEL") || it.startsWith("X_DEFAULT_LANG") || it == "X_DESIGN_SHOW_HOTEL_ROOM_NUMBER" }
+            ?.filterKeys { it.startsWith("X_HOTEL") || it.startsWith("X_DEFAULT_LANG") || it.startsWith("X_DESIGN") }
             ?.let { Log.i(TAG, "marca desde el operador: $it") }
         return SessionOutcome.Ok
     }

@@ -369,6 +369,8 @@ fun HospitalityApp(app: HospitalityApplication, showLogin: Boolean = false) {
                 roomNumber = panaccess.license?.licenseName?.takeIf { panaccess.operatorConfig?.showRoomNumber != false },
                 // Clima: ya resuelto por Panaccess (ver OperatorConfig.weatherText), null si el hotel no lo tiene configurado.
                 weatherText = panaccess.operatorConfig?.weatherText,
+                // Nombre del abonado que manda Panaccess en getClientConfig; null si la cuenta no lo trae.
+                subscriberName = panaccess.operatorConfig?.subscriberName,
                 // Color de las tarjetas configurable por Delancer, null = el de la marca de siempre.
                 cardColorHex = panaccess.operatorConfig?.cardColorHex,
                 // Color de letra (e íconos que acompañan texto) configurable por Delancer, null =
@@ -486,8 +488,10 @@ fun HospitalityApp(app: HospitalityApplication, showLogin: Boolean = false) {
         if (showingWelcome && backStack.last() == Screen.Home) {
             WelcomeDialog(
                 text = text,
-                // Nombre y habitación: de la estadía cuando exista el backend; hoy, los de demo de la marca.
-                guestName = brand.welcome.demoGuestName,
+                // Nombre: el que manda Panaccess (getClientConfig); si la cuenta no lo trae, sin nombre
+                // (WelcomeDialog ya tiene un título de respaldo para ese caso) -- nunca el de demo de la
+                // marca, para no mostrarle un nombre inventado al huésped real.
+                guestName = panaccess.operatorConfig?.subscriberName,
                 hotelName = brand.displayName,
                 room = panaccess.license?.licenseName ?: brand.welcome.demoRoom,
                 message = brand.welcome.message.let { it[current] ?: it[brand.defaultLanguage] ?: it["en"] },
@@ -506,7 +510,7 @@ fun HospitalityApp(app: HospitalityApplication, showLogin: Boolean = false) {
                 text = ServicesText.of(current),
                 language = current,
                 roomNumber = roomNumber,
-                guestName = brand.welcome.demoGuestName,
+                guestName = panaccess.operatorConfig?.subscriberName,
                 onViewOrders = { selectedService = null; open(Screen.MyOrders) },
                 onDismiss = { selectedService = null },
             )

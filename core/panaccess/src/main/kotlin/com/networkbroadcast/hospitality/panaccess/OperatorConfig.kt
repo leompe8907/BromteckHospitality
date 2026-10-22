@@ -186,8 +186,13 @@ data class OperatorConfig(
             )
         }
 
-        private fun text(element: kotlinx.serialization.json.JsonElement?): String? =
-            runCatching { element?.jsonPrimitive?.content }.getOrNull()?.trim()?.ifEmpty { null }
+        // JsonNull.content es el texto "null" (es un JsonPrimitive válido) -- sin este chequeo, un
+        // campo que viene con valor JSON null (no ausente) se leería como el texto "null" en vez de
+        // Kotlin null (p. ej. "Buenos días, null" si Panaccess manda firstName:null).
+        private fun text(element: kotlinx.serialization.json.JsonElement?): String? {
+            if (element == null || element is JsonNull) return null
+            return runCatching { element.jsonPrimitive.content }.getOrNull()?.trim()?.ifEmpty { null }
+        }
 
         private fun parameters(answer: JsonObject?): Map<String, String> {
             val params = runCatching { answer?.get("device")?.jsonObject?.get("parameters")?.jsonObject }.getOrNull()

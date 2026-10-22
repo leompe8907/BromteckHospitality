@@ -22,6 +22,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
@@ -96,6 +98,8 @@ fun HomeScreen(
     widgets: List<HomeWidget> = emptyList(),
     /** Abre la ficha de un widget (instalación del hotel: bar, restaurant, etc.). */
     onOpenWidget: (HomeWidget) -> Unit = {},
+    /** Nombre del abonado que manda Panaccess en getClientConfig (OperatorConfig.subscriberName); null = no vino. */
+    subscriberName: String? = null,
     /** Tarjeta que recibe el foco: la que abrió la pantalla de la que se vuelve, o la primera. */
     focusOn: HomeAction?,
     onAction: (HomeAction) -> Unit,
@@ -106,7 +110,7 @@ fun HomeScreen(
         in 5..11 -> text.goodMorning
         in 12..19 -> text.goodAfternoon
         else -> text.goodEvening
-    }
+    } + (subscriberName?.takeIf { it.isNotBlank() }?.let { ", $it" } ?: "")
     // Fecha y hora: locales al dispositivo, no dependen de Panaccess ni de ningún backend. El
     // clima sí viene de Panaccess (null si el hotel no lo tiene configurado -- no se oculta nada
     // más por eso, la píldora simplemente queda con un elemento menos). Se actualiza cada 30s --
@@ -142,16 +146,16 @@ fun HomeScreen(
         ?: textColorHex?.let(cardColors::withCustomTextColor)
     CompositionLocalProvider(LocalHospitalityColors provides cardColors) {
     Row(Modifier.fillMaxSize()) {
-        // Desplazable: en 960x540 dp (TV 1080p) las dos filas no entran juntas. El foco hace scroll
-        // solo: al pasar a "Acciones rápidas", la columna sube lo necesario para mostrarla.
         Column(
-            modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState())
-                .padding(horizontal = 48.dp, vertical = 32.dp),
+            modifier = Modifier.fillMaxSize().padding(ScreenPadding),
             verticalArrangement = Arrangement.spacedBy(20.dp),
         ) {
             // Logo del hotel (Delancer) y fecha/hora en el mismo eje horizontal -- ambos arriba de
             // todo, a la misma altura (antes la hora quedaba en la fila del saludo, un escalón más
-            // abajo que el logo, y se veía un espacio vacío encima de la hora).
+            // abajo que el logo, y se veía un espacio vacío encima de la hora). Este encabezado
+            // queda fuera del Column desplazable de más abajo a propósito: el scroll automático por
+            // foco (ver comentario ahí) también lo movía a él, y el logo/hora terminaban pegados
+            // contra el borde de arriba, por encima incluso del ScreenPadding.
             Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
                 logoUrl?.let {
                     AsyncImage(
@@ -179,6 +183,13 @@ fun HomeScreen(
             }
             if (context.isNotEmpty()) InfoPill(context.joinToString(" · "))
 
+            // Desplazable: en 960x540 dp (TV 1080p) las filas de tarjetas no entran todas juntas.
+            // El foco hace scroll solo acá adentro (ya no en todo el encabezado de arriba) al pasar
+            // a "Acciones rápidas".
+            Column(
+                modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(20.dp),
+            ) {
             if (entertainment.isNotEmpty()) {
                 SectionTitle(text.entertainment)
                 CardRow(customCardColors) {
@@ -219,11 +230,16 @@ fun HomeScreen(
             if (widgets.isNotEmpty()) {
                 SectionTitle(text.highlights)
                 CardRow(customCardColors) {
-                Row(horizontalArrangement = Arrangement.spacedBy(16.dp), modifier = Modifier.fillMaxWidth()) {
-                    widgets.forEach { widget ->
+                // LazyRow en vez de un Row fijo: antes, al agregar más widgets, las tarjetas se
+                // achicaban todas para entrar juntas en una sola fila (sin tope). Acá el tamaño de
+                // tarjeta queda fijo y la fila se desplaza -- mismo patrón que las estanterías de
+                // VOD/canales, navegación de ida y vuelta con el control remoto (LazyRow + FocusCard
+                // ya traen eso solo, nada especial para "volver a la izquierda").
+                LazyRow(horizontalArrangement = Arrangement.spacedBy(16.dp), contentPadding = FocusListPadding) {
+                    items(widgets, key = { it.title }) { widget ->
                         FocusCard(
                             onClick = { onOpenWidget(widget) },
-                            modifier = Modifier.height(150.dp).weight(1f),
+                            modifier = Modifier.size(width = 260.dp, height = 150.dp),
                         ) {
                             val cardColors2 = HospitalityTheme.colors
                             AsyncImage(model = imageModel(widget.imageUrl), contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
@@ -318,6 +334,7 @@ fun HomeScreen(
                     }
                 }
                 }
+            }
             }
         }
     }

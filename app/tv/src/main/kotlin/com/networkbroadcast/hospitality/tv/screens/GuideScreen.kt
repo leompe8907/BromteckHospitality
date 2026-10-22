@@ -69,6 +69,9 @@ fun GuideScreen(
     /** "Guía" o "Eventos anteriores": según cuál de las dos tarjetas de la home abrió esta misma
      *  pantalla (HomeAction.Guide vs HomeAction.CatchUp comparten Screen.Guide). */
     title: String = text.guide,
+    /** Cuando no es null, muestra estos eventos de catchup en vez del EPG normal. */
+    catchupProgramsByChannel: Map<String, List<Program>>? = null,
+    emptyChannelsMessage: String? = null,
     focusChannel: String?,
     onChannelFocused: (String) -> Unit,
     onWatchLive: (channelId: String) -> Unit,
@@ -80,7 +83,7 @@ fun GuideScreen(
      *  contraste de [cardColorHex], o el de la marca. */
     textColorHex: String? = null,
 ) {
-    if (channels.isEmpty()) return CenteredMessage(text.noChannels)
+    if (channels.isEmpty()) return CenteredMessage(emptyChannelsMessage ?: text.noChannels)
     OperatorCardColors(cardColorHex, textColorHex) {
     val colors = HospitalityTheme.colors
     var selected by remember { mutableStateOf(focusChannel?.takeIf { id -> channels.any { it.id == id } } ?: channels.first().id) }
@@ -94,10 +97,14 @@ fun GuideScreen(
 
     // Se espera un instante antes de pedir la guía: recorriendo canales con el control no tiene
     // sentido bajar la de cada uno por el que se pasa.
-    LaunchedEffect(selected) {
+    LaunchedEffect(selected, catchupProgramsByChannel) {
         schedule = null
         delay(250)
-        schedule = source.schedule(selected)
+        schedule = if (catchupProgramsByChannel != null) {
+            catchupProgramsByChannel[selected].orEmpty()
+        } else {
+            source.schedule(selected)
+        }
     }
 
     Row(Modifier.fillMaxSize().padding(horizontal = 40.dp, vertical = 32.dp), horizontalArrangement = Arrangement.spacedBy(24.dp)) {
@@ -130,7 +137,7 @@ fun GuideScreen(
             programs.isEmpty() -> CenteredMessage(text.noSchedule)
             else -> {
                 val now = System.currentTimeMillis() / 1000
-                val nowIndex = programs.indexOfFirst { it.isLive(now) }.coerceAtLeast(0)
+                val nowIndex = if (catchupProgramsByChannel != null) 0 else programs.indexOfFirst { it.isLive(now) }.coerceAtLeast(0)
                 val state = rememberLazyListState(initialFirstVisibleItemIndex = nowIndex)
                 LaunchedEffect(programs, jumpToPrograms) {
                     if (!jumpToPrograms) return@LaunchedEffect
@@ -141,8 +148,15 @@ fun GuideScreen(
                 }
                 LazyColumn(state = state, contentPadding = PaddingValues(top = 52.dp, bottom = 12.dp, start = 12.dp, end = 12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     itemsIndexed(programs) { index, program ->
-                        ProgramRow(program, now, text, if (index == nowIndex) Modifier.focusRequester(nowFocus) else Modifier) {
+                        ProgramRow(
+                            program,
+                            now,
+                            text,
+                            if (index == nowIndex) Modifier.focusRequester(nowFocus) else Modifier,
+                            catchupOnly = catchupProgramsByChannel != null,
+                        ) {
                             when {
+                                catchupProgramsByChannel != null && program.catchupId != null -> onWatchCatchup(program)
                                 program.isLive(now) -> onWatchLive(selected)
                                 program.isPast(now) && program.catchupId != null -> onWatchCatchup(program)
                             }
@@ -183,13 +197,13 @@ private fun ChannelLogo(logoUrl: String?, modifier: Modifier = Modifier) {
 }
 
 @Composable
-private fun ProgramRow(program: Program, now: Long, text: UiText, modifier: Modifier, onClick: () -> Unit) {
+private fun ProgramRow(program: Program, now: Long, text: UiText, modifier: Modifier, catchupOnly: Boolean = false, onClick: () -> Unit) {
     val colors = HospitalityTheme.colors
     val live = program.isLive(now)
-    val canWatchAgain = program.isPast(now) && program.catchupId != null
+    val canWatchAgain = catchupOnly || (program.isPast(now) && program.catchupId != null)
     val badge = when {
-        live -> text.nowLabel
         canWatchAgain -> text.watchAgain
+        live -> text.nowLabel
         else -> null
     }
     FocusCard(onClick = onClick, modifier = modifier.fillMaxWidth().height(76.dp)) {

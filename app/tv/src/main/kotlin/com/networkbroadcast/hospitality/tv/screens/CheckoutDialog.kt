@@ -18,6 +18,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.networkbroadcast.hospitality.designsystem.FocusCard
+import com.networkbroadcast.hospitality.designsystem.HospitalityColors
 import com.networkbroadcast.hospitality.designsystem.HospitalityTheme
 import com.networkbroadcast.hospitality.brand.UiText
 
@@ -26,18 +27,29 @@ import com.networkbroadcast.hospitality.brand.UiText
  * El "check-out express" del deck (avisar a recepción) necesita el backend propio.
  */
 @Composable
-fun CheckoutDialog(text: UiText, onConfirm: () -> Unit, onDismiss: () -> Unit) {
+fun CheckoutDialog(
+    text: UiText,
+    cardColorHex: String? = null,
+    textColorHex: String? = null,
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit,
+) {
     val colors = HospitalityTheme.colors
+    val customCard = HospitalityColors.parseHex(cardColorHex)
+    val cardBackground = customCard ?: colors.background
+    val cardText = HospitalityColors.parseHex(textColorHex)
+        ?: customCard?.let { HospitalityColors.readableTextColor(it) }
+        ?: colors.textPrimary
     // usePlatformDefaultWidth = false: el ancho por defecto de Android aplastaba los botones.
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
         // El foco arranca en "Cancelar": un OK accidental del control no debe borrar la sesión.
         val cancelFocus = rememberInitialFocus()
         Column(
-            modifier = Modifier.width(560.dp).clip(RoundedCornerShape(18.dp)).background(colors.background).padding(32.dp),
+            modifier = Modifier.width(560.dp).clip(RoundedCornerShape(18.dp)).background(cardBackground).padding(32.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            Text(text.checkoutQuestion, style = HospitalityTheme.typography.title, color = colors.textPrimary)
-            Text(text.checkoutDetail, style = HospitalityTheme.typography.body, color = colors.textSecondary)
+            Text(text.checkoutQuestion, style = HospitalityTheme.typography.title, color = cardText)
+            Text(text.checkoutDetail, style = HospitalityTheme.typography.body, color = cardText.copy(alpha = 0.75f))
             Row(horizontalArrangement = Arrangement.spacedBy(16.dp), modifier = Modifier.padding(top = 8.dp)) {
                 FocusCard(onClick = onDismiss, modifier = Modifier.size(width = 200.dp, height = 64.dp).focusRequester(cancelFocus)) {
                     Text(text.cancel, style = HospitalityTheme.typography.label, color = colors.textPrimary, modifier = Modifier.align(Alignment.Center))

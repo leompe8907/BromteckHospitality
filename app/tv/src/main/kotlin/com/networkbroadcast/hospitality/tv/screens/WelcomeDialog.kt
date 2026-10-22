@@ -24,6 +24,7 @@ import coil3.compose.AsyncImage
 import com.networkbroadcast.hospitality.brand.UiText
 import com.networkbroadcast.hospitality.brand.imageModel
 import com.networkbroadcast.hospitality.designsystem.FocusCard
+import com.networkbroadcast.hospitality.designsystem.HospitalityColors
 import com.networkbroadcast.hospitality.designsystem.HospitalityTheme
 import com.networkbroadcast.hospitality.designsystem.InfoPill
 
@@ -39,12 +40,19 @@ fun WelcomeDialog(
     room: String?,
     message: String?,
     imageUrl: String?,
+    cardColorHex: String? = null,
+    textColorHex: String? = null,
     onDismiss: () -> Unit,
 ) {
     val colors = HospitalityTheme.colors
+    val customCard = HospitalityColors.parseHex(cardColorHex)
+    val cardBackground = customCard ?: colors.background
+    val cardText = HospitalityColors.parseHex(textColorHex)
+        ?: customCard?.let { HospitalityColors.readableTextColor(it) }
+        ?: colors.textPrimary
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
         val focus = rememberInitialFocus()
-        Column(Modifier.width(720.dp).clip(RoundedCornerShape(22.dp)).background(colors.background)) {
+        Column(Modifier.width(720.dp).clip(RoundedCornerShape(22.dp)).background(cardBackground)) {
             imageUrl?.let {
                 Box(Modifier.fillMaxWidth().height(220.dp)) {
                     AsyncImage(model = imageModel(it), contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxWidth().height(220.dp))
@@ -54,10 +62,10 @@ fun WelcomeDialog(
             Column(Modifier.padding(horizontal = 36.dp, vertical = 28.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
                 Text(
                     guestName?.let { text.welcomeTitle.format(it) } ?: text.welcomeTitleNoName,
-                    style = HospitalityTheme.typography.display, color = colors.textPrimary,
+                    style = HospitalityTheme.typography.display, color = cardText,
                 )
                 InfoPill(listOfNotNull(hotelName, room?.let { "${text.room} $it" }).joinToString(" · "))
-                message?.let { Text(it, style = HospitalityTheme.typography.body, color = colors.textSecondary) }
+                message?.let { Text(it, style = HospitalityTheme.typography.body, color = cardText.copy(alpha = 0.75f)) }
                 FocusCard(onClick = onDismiss, modifier = Modifier.padding(top = 6.dp).size(width = 220.dp, height = 60.dp).focusRequester(focus)) {
                     Text(text.start, style = HospitalityTheme.typography.label, color = colors.textPrimary, modifier = Modifier.align(Alignment.Center))
                 }

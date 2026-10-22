@@ -76,6 +76,10 @@ data class OperatorConfig(
     // configurado, se cae al fondo genérico de la marca (ver HospitalityApp.kt).
     val hotelBackgroundUrl: String? get() = param("X_APP_LOGO_BACKGROUND")
 
+    // Foto independiente para el diálogo de bienvenida. Si no se configura, HospitalityApp usa
+    // la primera imagen del fondo activo (fondo del operador o fondo predeterminado de la marca).
+    val welcomeImageUrl: String? get() = param("X_APP_WELCOME_IMAGE")
+
     // Logo de marca configurable por Delancer. Nombre propuesto, análogo a X_APP_LOGO_BACKGROUND
     // — a confirmar/pedir a Cableatlántico igual que se hizo con el fondo. Si no está configurado,
     // se cae al logo estático de la marca (ver LanguageScreen.kt).
@@ -85,6 +89,9 @@ data class OperatorConfig(
     // hex (ej. "#163F42"). Sin X_APP_TEXT_COLOR, el color de texto sobre la tarjeta se calcula
     // solo según este valor (ver HospitalityColors.readableTextColor).
     val cardColorHex: String? get() = param("X_APP_CARD_COLOR")
+
+    // Color compartido del botón Reproducir y del riel de progreso de películas/series.
+    val playerControlColorHex: String? get() = param("X_APP_PLAYER_CONTROL_COLOR")
 
     // Color de letra (e íconos que acompañan texto, ej. Acciones rápidas) configurable por
     // Delancer, en hex. Pisa el cálculo automático de contraste de X_APP_CARD_COLOR cuando el

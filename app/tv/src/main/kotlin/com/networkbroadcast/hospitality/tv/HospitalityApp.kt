@@ -340,9 +340,10 @@ fun HospitalityApp(app: HospitalityApplication, showLogin: Boolean = false) {
         // placeholder de HotelBackdrop/LanguageScreen cubre el hueco) — mismo espíritu que la
         // precarga del catálogo de más arriba, para que no se vea el salto de color sólido a foto.
         val context = LocalContext.current
-        LaunchedEffect(backgrounds, logoUrl) {
+        val welcomeImageUrl = panaccess.operatorConfig?.welcomeImageUrl ?: backgrounds.firstOrNull()
+        LaunchedEffect(backgrounds, logoUrl, welcomeImageUrl) {
             val imageLoader = SingletonImageLoader.get(context)
-            listOfNotNull(backgrounds.firstOrNull(), logoUrl).forEach { url ->
+            listOfNotNull(backgrounds.firstOrNull(), logoUrl, welcomeImageUrl).distinct().forEach { url ->
                 Log.i("Hospitality.Catalog", "precarga: pidiendo imagen de marca ($url)")
                 runCatching { imageLoader.execute(ImageRequest.Builder(context).data(imageModel(url)).build()) }
             }
@@ -476,10 +477,13 @@ fun HospitalityApp(app: HospitalityApplication, showLogin: Boolean = false) {
                 onOpen = { selectedVod = it; open(Screen.VodDetail) },
             )
             Screen.VodDetail -> selectedVod?.let { item ->
-                VodDetailScreen(item, text) { media = MediaRequest(Playable.Vod(item.id), item.title); open(Screen.MediaPlayer) }
+                VodDetailScreen(item, text, panaccess.operatorConfig?.playerControlColorHex) {
+                    media = MediaRequest(Playable.Vod(item.id), item.title)
+                    open(Screen.MediaPlayer)
+                }
             }
             Screen.WidgetDetail -> selectedWidget?.let { WidgetDetailScreen(it, text) }
-            Screen.MediaPlayer -> media?.let { MediaPlayerScreen(entertainment, it, text) }
+            Screen.MediaPlayer -> media?.let { MediaPlayerScreen(entertainment, it, text, panaccess.operatorConfig?.playerControlColorHex) }
             Screen.Services -> guestServices?.let { services ->
                 ServicesScreen(
                     services = services,
@@ -501,6 +505,8 @@ fun HospitalityApp(app: HospitalityApplication, showLogin: Boolean = false) {
         if (showingWelcome && backStack.last() == Screen.Home) {
             WelcomeDialog(
                 text = text,
+                cardColorHex = panaccess.operatorConfig?.cardColorHex,
+                textColorHex = panaccess.operatorConfig?.textColorHex,
                 // Nombre: el que manda Panaccess (getClientConfig); si la cuenta no lo trae, sin nombre
                 // (WelcomeDialog ya tiene un título de respaldo para ese caso) -- nunca el de demo de la
                 // marca, para no mostrarle un nombre inventado al huésped real.
@@ -508,7 +514,7 @@ fun HospitalityApp(app: HospitalityApplication, showLogin: Boolean = false) {
                 hotelName = brand.displayName,
                 room = panaccess.license?.licenseName ?: brand.welcome.demoRoom,
                 message = brand.welcome.message.let { it[current] ?: it[brand.defaultLanguage] ?: it["en"] },
-                imageUrl = backgrounds.firstOrNull(),
+                imageUrl = welcomeImageUrl,
                 onDismiss = { session.welcomed = true; showingWelcome = false },
             )
         }
@@ -533,6 +539,8 @@ fun HospitalityApp(app: HospitalityApplication, showLogin: Boolean = false) {
         if (confirmingCheckout) {
             CheckoutDialog(
                 text = text,
+                cardColorHex = panaccess.operatorConfig?.cardColorHex,
+                textColorHex = panaccess.operatorConfig?.textColorHex,
                 onConfirm = {
                     // Check-out del huésped: borra su sesión y desempareja sus celulares. La de
                     // Panaccess (la TV) queda.

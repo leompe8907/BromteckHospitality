@@ -47,6 +47,7 @@ import androidx.media3.exoplayer.hls.HlsMediaSource
 import com.panaccess.android.exoplayer.PanHlsExtractorFactory
 import androidx.media3.ui.PlayerView
 import com.networkbroadcast.hospitality.panaccess.CopyProtection
+import com.networkbroadcast.hospitality.designsystem.HospitalityColors
 import com.networkbroadcast.hospitality.designsystem.HospitalityTheme
 import com.networkbroadcast.hospitality.entertainment.Channel
 import com.networkbroadcast.hospitality.entertainment.EntertainmentSource
@@ -225,7 +226,7 @@ private fun ProgramLine(label: String, program: Program, highlight: Boolean) {
 
 /** Catchup y VOD: OK pausa/reanuda, izquierda/derecha retroceden/avanzan 10 s, atrás vuelve. */
 @Composable
-fun MediaPlayerScreen(source: EntertainmentSource, request: MediaRequest, text: UiText) {
+fun MediaPlayerScreen(source: EntertainmentSource, request: MediaRequest, text: UiText, playerControlColorHex: String? = null) {
     var error by remember { mutableStateOf<String?>(null) }
     var showInfo by remember { mutableStateOf(true) }
     var position by remember { mutableLongStateOf(0L) }
@@ -268,9 +269,10 @@ fun MediaPlayerScreen(source: EntertainmentSource, request: MediaRequest, text: 
             LaunchedEffect(player) { playerRef = player }
             if (showInfo || error != null) InfoPanel {
                 val colors = HospitalityTheme.colors
+                val progressTrackColor = HospitalityColors.parseHex(playerControlColorHex) ?: colors.surfaceBorder
                 Text(request.title, style = HospitalityTheme.typography.title, color = colors.textPrimary, maxLines = 2, overflow = TextOverflow.Ellipsis)
                 if (duration > 0) {
-                    Box(Modifier.padding(top = 12.dp).fillMaxWidth().height(6.dp).clip(RoundedCornerShape(3.dp)).background(colors.surfaceBorder)) {
+                    Box(Modifier.padding(top = 12.dp).fillMaxWidth().height(6.dp).clip(RoundedCornerShape(3.dp)).background(progressTrackColor)) {
                         Box(Modifier.fillMaxWidth((position.toFloat() / duration).coerceIn(0f, 1f)).height(6.dp).background(colors.accent))
                     }
                     Text("${clock(position)} / ${clock(duration)}", style = HospitalityTheme.typography.body, color = colors.textSecondary, modifier = Modifier.padding(top = 6.dp))

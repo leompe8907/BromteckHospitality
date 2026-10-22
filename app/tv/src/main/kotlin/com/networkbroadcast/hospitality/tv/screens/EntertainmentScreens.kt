@@ -21,6 +21,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -36,6 +37,7 @@ import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import com.networkbroadcast.hospitality.designsystem.FocusCard
 import com.networkbroadcast.hospitality.designsystem.HospitalityTheme
+import com.networkbroadcast.hospitality.designsystem.LocalHospitalityColors
 import com.networkbroadcast.hospitality.designsystem.OperatorCardColors
 import com.networkbroadcast.hospitality.designsystem.SectionTitle
 import com.networkbroadcast.hospitality.entertainment.Channel
@@ -252,8 +254,9 @@ fun VodScreen(
 
 /** Ficha de un título: imagen, sinopsis y "Reproducir". */
 @Composable
-fun VodDetailScreen(item: VodItem, text: UiText, onPlay: () -> Unit) {
+fun VodDetailScreen(item: VodItem, text: UiText, playerControlColorHex: String? = null, onPlay: () -> Unit) {
     val colors = HospitalityTheme.colors
+    val playerColors = playerControlColorHex?.let(colors::withCustomCardColor) ?: colors
     val first = rememberInitialFocus()
     Box(Modifier.fillMaxSize()) {
         (item.backdropUrl ?: item.posterUrl)?.let {
@@ -276,8 +279,10 @@ fun VodDetailScreen(item: VodItem, text: UiText, onPlay: () -> Unit) {
                 )
             }
             Spacer(Modifier.height(8.dp))
-            FocusCard(onClick = onPlay, modifier = Modifier.size(width = 220.dp, height = 60.dp).focusRequester(first)) {
-                Text(text.play, style = HospitalityTheme.typography.label, color = colors.textPrimary, modifier = Modifier.align(Alignment.Center))
+            CompositionLocalProvider(LocalHospitalityColors provides playerColors) {
+                FocusCard(onClick = onPlay, modifier = Modifier.size(width = 220.dp, height = 60.dp).focusRequester(first)) {
+                    Text(text.play, style = HospitalityTheme.typography.label, color = playerColors.textPrimary, modifier = Modifier.align(Alignment.Center))
+                }
             }
         }
     }

@@ -24,6 +24,7 @@ import com.networkbroadcast.hospitality.brand.UiText
 import com.networkbroadcast.hospitality.brand.imageModel
 import com.networkbroadcast.hospitality.designsystem.HospitalityTheme
 import com.networkbroadcast.hospitality.entertainment.ChannelsResult
+import com.networkbroadcast.hospitality.entertainment.CatchupCatalog
 import com.networkbroadcast.hospitality.entertainment.Playable
 import com.networkbroadcast.hospitality.entertainment.VodItem
 import com.networkbroadcast.hospitality.entertainment.VodResult
@@ -181,6 +182,7 @@ fun HospitalityApp(app: HospitalityApplication, showLogin: Boolean = false) {
 
     // Catálogo: se pide una vez por sesión y lo comparten las pantallas (zapping, guía, VOD).
     var channels by remember { mutableStateOf<ChannelsResult?>(null) }
+    var catchups by remember { mutableStateOf<CatchupCatalog?>(null) }
     var vod by remember { mutableStateOf<VodResult?>(null) }
     var playingChannel by remember { mutableStateOf<String?>(null) }
     var guideChannel by remember { mutableStateOf<String?>(null) }
@@ -217,6 +219,15 @@ fun HospitalityApp(app: HospitalityApplication, showLogin: Boolean = false) {
         if (brand.features.vod && vod == null) {
             Log.i("Hospitality.Catalog", "precarga: pidiendo vod (home lista para mostrarlo)")
             launch { vod = entertainment.vodShelves() }
+        }
+        if (brand.features.guide && catchups == null) {
+            Log.i("Hospitality.Catalog", "precarga: leyendo caché y refrescando grupos/eventos reales de catchup")
+            launch {
+                entertainment.cachedCatchupCatalog()?.let { cached ->
+                    if (catchups == null) catchups = cached
+                }
+                catchups = entertainment.catchupCatalog()
+            }
         }
     }
     // Vía rápida para el canal que el huésped tiene enfocado en la Guía en este momento: cupo propio
@@ -379,11 +390,10 @@ fun HospitalityApp(app: HospitalityApplication, showLogin: Boolean = false) {
                 // Segundo logo del hotel: tvModel de la licencia (MainFragment.onLicensesChanged del base).
                 secondLogoUrl = panaccess.license?.tvModel?.takeIf { it.startsWith("http") },
                 quickActions = brand.quickActions(app.showsHotelInfo),
-                // brand.features.vod es un tope por marca, no una garantía de que esta cuenta tenga
-                // contenido real (ver HomeScreen.entertainment): sin VOD real, si hay canales con
-                // catchup se ofrece esa caja en su lugar.
+                // La presencia de catchup se determina con los grupos/eventos reales del CAS,
+                // no con el flag catchupDays del catálogo de streams.
                 vodHasContent = vod?.shelves?.any { it.items.isNotEmpty() } == true,
-                catchUpAvailable = channelList.any { it.hasCatchup },
+                catchUpAvailable = catchups?.channels?.isNotEmpty() == true,
                 services = guestServices?.let {
                     val servicesText = ServicesText.of(current)
                     HomeServices(
@@ -434,24 +444,26 @@ fun HospitalityApp(app: HospitalityApplication, showLogin: Boolean = false) {
                 text = text,
                 onChannelChanged = { playingChannel = it },
             )
-            Screen.Guide -> GuideScreen(
-                source = entertainment,
-                channels = channelList,
-                text = text,
-                // "Guía" y "Eventos anteriores" comparten esta pantalla (HomeAction.Guide y
-                // HomeAction.CatchUp, ver quickActions arriba): antes siempre decía "Guía", aunque
-                // se haya entrado desde "Eventos anteriores".
-                title = if (lastHomeAction == HomeAction.CatchUp) text.catchUp else text.guide,
-                focusChannel = guideChannel,
-                onChannelFocused = { guideChannel = it },
-                onWatchLive = { playingChannel = it; open(Screen.Player) },
-                onWatchCatchup = { program ->
-                    program.catchupId?.let { media = MediaRequest(Playable.Catchup(it), program.title); open(Screen.MediaPlayer) }
-                },
-                // Mismo color que las tarjetas de la home (OperatorConfig.cardColorHex/textColorHex).
-                cardColorHex = panaccess.operatorConfig?.cardColorHex,
-                textColorHex = panaccess.operatorConfig?.textColorHex,
-            )
+            Screen.Guide -> when {
+                lastHomeAction == HomeAction.CatchUp && catchups == null -> CenteredMessage(text.loading)
+                else -> GuideScreen(
+                    source = entertainment,
+                    channels = if (lastHomeAction == HomeAction.CatchUp) catchups?.channels.orEmpty() else channelList,
+                    text = text,
+                    title = if (lastHomeAction == HomeAction.CatchUp) text.catchUp else text.guide,
+                    catchupProgramsByChannel = if (lastHomeAction == HomeAction.CatchUp) catchups?.programsByChannel else null,
+                    emptyChannelsMessage = if (lastHomeAction == HomeAction.CatchUp) catchups?.failure?.let { "${text.noChannels} ($it)" } else null,
+                    focusChannel = guideChannel,
+                    onChannelFocused = { guideChannel = it },
+                    onWatchLive = { playingChannel = it; open(Screen.Player) },
+                    onWatchCatchup = { program ->
+                        program.catchupId?.let { media = MediaRequest(Playable.Catchup(it), program.title); open(Screen.MediaPlayer) }
+                    },
+                    // Mismo color que las tarjetas de la home (OperatorConfig.cardColorHex/textColorHex).
+                    cardColorHex = panaccess.operatorConfig?.cardColorHex,
+                    textColorHex = panaccess.operatorConfig?.textColorHex,
+                )
+            }
             Screen.Vod -> VodScreen(
                 vod = vod,
                 text = text,

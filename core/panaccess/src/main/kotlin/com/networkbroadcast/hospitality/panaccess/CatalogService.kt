@@ -3,6 +3,8 @@ package com.networkbroadcast.hospitality.panaccess
 import android.util.Log
 import com.panaccess.android.streaming.shared.cas.CasEnvelope
 import com.panaccess.android.streaming.shared.domain.model.Bouquet
+import com.panaccess.android.streaming.shared.domain.model.Catchup
+import com.panaccess.android.streaming.shared.domain.model.CatchupGroup
 import com.panaccess.android.streaming.shared.domain.model.Stream
 
 /**
@@ -12,6 +14,7 @@ import com.panaccess.android.streaming.shared.domain.model.Stream
 class CatalogService(private val client: PanaccessClient) {
 
     data class Channels(val streams: List<Stream>, val bouquets: List<Bouquet>, val failure: String?)
+    data class Items<T>(val items: List<T>, val failure: String?)
 
     suspend fun channels(): Channels {
         val streams = when (val r = client.call("getAvailableStreams", timeoutMs = TIMEOUT)) {
@@ -31,17 +34,26 @@ class CatalogService(private val client: PanaccessClient) {
     }
 
     /** Grupos de catchup (un grupo por canal con programas grabados). */
-    suspend fun catchupGroups(): List<com.panaccess.android.streaming.shared.domain.model.CatchupGroup> =
-        (client.call("getCatchupGroups") as? CasResult.Success)
-            ?.let { CasEnvelope.answerList<com.panaccess.android.streaming.shared.domain.model.CatchupGroup>(it.rawJson) }
-            .orEmpty()
-            .also { Log.i("Hospitality.Catalog", "grupos de catchup=${it.size}") }
+    suspend fun catchupGroups(): Items<CatchupGroup> = when (val result = client.call("getCatchupGroups", timeoutMs = TIMEOUT)) {
+        is CasResult.Success -> CasEnvelope.answerList<CatchupGroup>(result.rawJson)
+            .let { Items(it, null) }
+            .also { Log.i("Hospitality.Catalog", "grupos de catchup=${it.items.size}") }
+        is CasResult.Failure -> Items(emptyList(), result.message ?: result.code ?: "getCatchupGroups falló")
+        CasResult.Timeout -> Items(emptyList(), "timeout en getCatchupGroups")
+    }
 
     /** Programas grabados de un canal, por su epgStreamId. */
-    suspend fun catchupEvents(epgStreamId: Int): List<com.panaccess.android.streaming.shared.domain.model.Catchup> =
-        (client.call("getCatchupEvents", mapOf("epgStreamId" to "$epgStreamId", "separateDescMode" to "true")) as? CasResult.Success)
-            ?.let { CasEnvelope.answerList<com.panaccess.android.streaming.shared.domain.model.Catchup>(it.rawJson) }
-            .orEmpty()
+    suspend fun catchupEvents(epgStreamId: Int): Items<Catchup> = when (
+        val result = client.call(
+            "getCatchupEvents",
+            mapOf("epgStreamId" to "$epgStreamId", "separateDescMode" to "true"),
+            timeoutMs = TIMEOUT,
+        )
+    ) {
+        is CasResult.Success -> Items(CasEnvelope.answerList(result.rawJson), null)
+        is CasResult.Failure -> Items(emptyList(), result.message ?: result.code ?: "getCatchupEvents falló")
+        CasResult.Timeout -> Items(emptyList(), "timeout en getCatchupEvents")
+    }
 
     private fun describe(r: CasResult) = when (r) {
         is CasResult.Success -> "ok"

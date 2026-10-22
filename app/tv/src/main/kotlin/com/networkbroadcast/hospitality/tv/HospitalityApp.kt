@@ -433,6 +433,7 @@ fun HospitalityApp(app: HospitalityApplication, showLogin: Boolean = false) {
             Screen.AboutHotel -> AboutHotelScreen(app.hotelRepository(), current, brand.defaultLanguage, text)
             Screen.LiveTv -> LiveTvScreen(
                 channels = channels,
+                source = entertainment,
                 text = text,
                 focusOn = playingChannel,
                 onPlay = { playingChannel = it; open(Screen.Player) },

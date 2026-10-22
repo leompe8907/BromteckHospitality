@@ -60,7 +60,15 @@ class PanaccessEntertainmentSource(
         val groups = result.bouquets.mapNotNull { bouquet ->
             val members = result.streams.filter { bouquet.bouquetId in it.bouquetIds && it.streamId in ids }
             if (members.isEmpty() || bouquet.name.isBlank()) null
-            else ChannelGroup(bouquet.name, members.map { it.streamId.toString() })
+            else {
+                val layout = BouquetServiceLayoutConfig.parse(bouquet.customData)
+                android.util.Log.i(
+                    "Hospitality.Catalog",
+                    "bouquet='${bouquet.name}' customData=${!bouquet.customData.isNullOrBlank()} " +
+                        "layout=${layout.type}/${layout.rows}x${layout.columns}/${layout.cardDesign}",
+                )
+                ChannelGroup(bouquet.name, members.map { it.streamId.toString() }, layout)
+            }
         }
         ChannelsResult(
             channels = result.streams.map { Channel(it.streamId.toString(), it.channelNumber, it.name, it.imageUrl, it.hasCatchup) },

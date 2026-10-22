@@ -21,6 +21,11 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.focusRequester
@@ -35,7 +40,10 @@ import com.networkbroadcast.hospitality.designsystem.OperatorCardColors
 import com.networkbroadcast.hospitality.designsystem.SectionTitle
 import com.networkbroadcast.hospitality.entertainment.Channel
 import com.networkbroadcast.hospitality.entertainment.ChannelGroup
+import com.networkbroadcast.hospitality.entertainment.ChannelGroupLayout
 import com.networkbroadcast.hospitality.entertainment.ChannelsResult
+import com.networkbroadcast.hospitality.entertainment.EntertainmentSource
+import com.networkbroadcast.hospitality.entertainment.Program
 import com.networkbroadcast.hospitality.entertainment.VodItem
 import com.networkbroadcast.hospitality.entertainment.VodResult
 import com.networkbroadcast.hospitality.brand.UiText
@@ -47,28 +55,66 @@ internal val ScreenPadding = PaddingValues(horizontal = 52.dp, vertical = 36.dp)
  * sola fila con todos los canales. OK abre el player en ese canal.
  */
 @Composable
-fun LiveTvScreen(channels: ChannelsResult?, text: UiText, focusOn: String?, onPlay: (channelId: String) -> Unit) {
+fun LiveTvScreen(
+    channels: ChannelsResult?,
+    source: EntertainmentSource,
+    text: UiText,
+    focusOn: String?,
+    onPlay: (channelId: String) -> Unit,
+) {
     val colors = HospitalityTheme.colors
     val result = channels ?: return CenteredMessage(text.loading)
     if (result.channels.isEmpty()) return CenteredMessage(result.failure?.let { "${text.noChannels} ($it)" } ?: text.noChannels)
     val byId = result.channels.associateBy { it.id }
     val rows = result.groups.ifEmpty { listOf(ChannelGroup(text.liveTv, result.channels.map { it.id })) }
-        .map { group -> group.name to group.channelIds.mapNotNull(byId::get) }
+        .map { group -> Triple(group.name, group.channelIds.mapNotNull(byId::get), group.layout) }
         .filter { it.second.isNotEmpty() }
     val target = focusOn?.takeIf { it in byId } ?: rows.first().second.first().id
     // El mismo canal puede estar en varios bouquets: el foco va a su primera aparición.
-    val targetRow = rows.indexOfFirst { (_, members) -> members.any { it.id == target } }
+    val targetRow = rows.indexOfFirst { (_, members, _) -> members.any { it.id == target } }
     val first = rememberInitialFocus(target)
 
     LazyColumn(Modifier.fillMaxSize(), contentPadding = ScreenPadding, verticalArrangement = Arrangement.spacedBy(18.dp)) {
         item { Text(text.liveTv, style = HospitalityTheme.typography.title, color = colors.textPrimary) }
-        itemsIndexed(rows) { rowIndex, (name, members) ->
+        itemsIndexed(rows) { rowIndex, (name, members, layout) ->
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 SectionTitle(name, Modifier.padding(start = 12.dp))
-                LazyRow(horizontalArrangement = Arrangement.spacedBy(14.dp), contentPadding = FocusListPadding) {
-                    items(members, key = { it.id }) { channel ->
-                        val isTarget = rowIndex == targetRow && channel.id == target
-                        ChannelCard(channel, if (isTarget) Modifier.focusRequester(first) else Modifier) { onPlay(channel.id) }
+                when (layout.type) {
+                    "vertical_grid" -> Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        members.chunked(layout.columns).forEach { gridRow ->
+                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+                                gridRow.forEach { channel ->
+                                    val isTarget = rowIndex == targetRow && channel.id == target
+                                    ChannelCard(
+                                        channel = channel,
+                                        layout = layout,
+                                        source = source,
+                                        modifier = Modifier.weight(1f).then(if (isTarget) Modifier.focusRequester(first) else Modifier),
+                                        fillWidth = true,
+                                        onClick = { onPlay(channel.id) },
+                                    )
+                                }
+                                repeat((layout.columns - gridRow.size).coerceAtLeast(0)) { Spacer(Modifier.weight(1f)) }
+                            }
+                        }
+                    }
+                    else -> LazyRow(horizontalArrangement = Arrangement.spacedBy(14.dp), contentPadding = FocusListPadding) {
+                        val stackedRows = layout.rows.coerceAtLeast(1)
+                        val columns = if (stackedRows == 1) members.map { listOf(it) } else members.chunked(stackedRows)
+                        items(columns, key = { it.first().id }) { column ->
+                            if (stackedRows > 1) {
+                                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                                    column.forEach { channel ->
+                                        val isTarget = rowIndex == targetRow && channel.id == target
+                                        ChannelCard(channel, layout, source, if (isTarget) Modifier.focusRequester(first) else Modifier) { onPlay(channel.id) }
+                                    }
+                                }
+                            } else {
+                                val channel = column.first()
+                                val isTarget = rowIndex == targetRow && channel.id == target
+                                ChannelCard(channel, layout, source, if (isTarget) Modifier.focusRequester(first) else Modifier) { onPlay(channel.id) }
+                            }
+                        }
                     }
                 }
             }
@@ -77,21 +123,66 @@ fun LiveTvScreen(channels: ChannelsResult?, text: UiText, focusOn: String?, onPl
 }
 
 @Composable
-private fun ChannelCard(channel: Channel, modifier: Modifier, onClick: () -> Unit) {
+private fun ChannelCard(
+    channel: Channel,
+    layout: ChannelGroupLayout,
+    source: EntertainmentSource,
+    modifier: Modifier = Modifier,
+    fillWidth: Boolean = false,
+    onClick: () -> Unit,
+) {
     val colors = HospitalityTheme.colors
-    FocusCard(onClick = onClick, modifier = modifier.size(width = 200.dp, height = 120.dp)) {
-        if (channel.logoUrl != null) {
+    val design = layout.cardDesign
+    val needsProgram = design.startsWith("event_") || design == "event_normal" || design == "event_big" || design == "channel_full_info"
+    var currentProgram by remember(channel.id, needsProgram) { mutableStateOf<Program?>(null) }
+    var programRequested by remember(channel.id, needsProgram) { mutableStateOf(false) }
+    val isBig = design == "logo_big" || design == "event_big" || design == "event_and_logo" ||
+        design == "event_and_logo_in_top" || design == "event_and_logo_in_bottom"
+    val isFullInfo = design == "channel_full_info" || design == "event_line"
+    val cardWidth = when { isFullInfo -> 420.dp; isBig -> 260.dp; else -> 200.dp }
+    val cardHeight = when { isFullInfo -> 88.dp; isBig -> 160.dp; else -> 120.dp }
+    val cardModifier = if (fillWidth) modifier.fillMaxWidth().height(cardHeight) else modifier.size(width = cardWidth, height = cardHeight)
+    val usesEventImage = needsProgram && currentProgram?.imageUrl != null
+    FocusCard(onClick = onClick, modifier = cardModifier) { focused ->
+        LaunchedEffect(channel.id, needsProgram, focused) {
+            // Solo el canal enfocado pide EPG. En vertical_grid se componen muchas tarjetas a la
+            // vez; pedir todas las guías al entrar saturaría el CDN y retrasaría el primer foco.
+            if (focused && needsProgram && !programRequested) {
+                val now = System.currentTimeMillis() / 1000
+                currentProgram = source.schedule(channel.id).firstOrNull { it.isLive(now) }
+                programRequested = true
+            }
+        }
+        if (usesEventImage) {
+            AsyncImage(model = currentProgram?.imageUrl, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
+            Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.55f)))
+        } else if (channel.logoUrl != null) {
             AsyncImage(
                 model = channel.logoUrl, contentDescription = channel.name, contentScale = ContentScale.Fit,
-                modifier = Modifier.align(Alignment.Center).padding(bottom = 26.dp).size(width = 130.dp, height = 60.dp),
+                modifier = Modifier.align(Alignment.Center).padding(bottom = 26.dp).size(width = if (isBig) 170.dp else 130.dp, height = if (isBig) 88.dp else 60.dp),
             )
+        }
+        if (design == "event_and_logo" || design == "event_and_logo_in_top" || design == "event_and_logo_in_bottom") {
+            channel.logoUrl?.let {
+                AsyncImage(
+                    model = it, contentDescription = channel.name, contentScale = ContentScale.Fit,
+                    modifier = Modifier.align(if (design == "event_and_logo_in_bottom") Alignment.BottomStart else Alignment.TopStart)
+                        .padding(10.dp).size(width = 74.dp, height = 38.dp),
+                )
+            }
         }
         Row(
             Modifier.align(Alignment.BottomStart).fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text("${channel.number}", style = HospitalityTheme.typography.label, color = colors.textPrimary, modifier = Modifier.padding(end = 8.dp))
-            Text(channel.name, style = HospitalityTheme.typography.label, color = colors.textPrimary, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Column(Modifier.weight(1f)) {
+                Text("${channel.number} · ${channel.name}", style = HospitalityTheme.typography.label, color = colors.textPrimary, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                if (needsProgram) {
+                    currentProgram?.let { program ->
+                        Text("${program.timeRange()} · ${program.title}", style = HospitalityTheme.typography.body, color = colors.textSecondary, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    }
+                }
+            }
         }
     }
 }

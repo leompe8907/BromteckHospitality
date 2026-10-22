@@ -64,8 +64,21 @@ data class Channel(
     val hasCatchup: Boolean = false,
 )
 
-/** Un bouquet con sus canales, en el orden del operador. */
-data class ChannelGroup(val name: String, val channelIds: List<String>)
+/** Diseño de una fila de canales según el customData del bouquet de Panaccess. */
+data class ChannelGroupLayout(
+    val type: String = "horizontal_grid",
+    val rows: Int = 1,
+    val columns: Int = 1,
+    val cardDesign: String = "logo_normal",
+    val logoIndex: Int = 1,
+)
+
+/** Un bouquet con sus canales y su diseño, en el orden del operador. */
+data class ChannelGroup(
+    val name: String,
+    val channelIds: List<String>,
+    val layout: ChannelGroupLayout = ChannelGroupLayout(),
+)
 
 data class Program(
     val title: String,

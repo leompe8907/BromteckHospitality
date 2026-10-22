@@ -22,10 +22,13 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
 import java.io.File
 import java.security.MessageDigest
+import java.util.concurrent.ConcurrentHashMap
 import com.networkbroadcast.hospitality.entertainment.VodItem as DomainVodItem
 import com.panaccess.android.streaming.shared.domain.model.VodItem as PanaccessVodItem
 
@@ -37,10 +40,13 @@ class PanaccessEntertainmentSource(
 ) : EntertainmentSource {
 
     private val catchupCacheDirectory = File(context.filesDir, "catchup")
+    private val catalogCache = EntertainmentCatalogCache(context) { session.license?.key }
     private val catalog = CatalogService(session.client)
     private val vod = VodService(session.client)
     private val epg = EpgService(context, epgCredentials)
     private val lock = Mutex()
+    private val vodLock = Mutex()
+    private val scheduleLocks = ConcurrentHashMap<String, Mutex>()
     private val catchupLock = Mutex()
     private var streams: List<Stream> = emptyList()
     private var cachedChannels: ChannelsResult? = null
@@ -50,10 +56,26 @@ class PanaccessEntertainmentSource(
 
     override suspend fun channels(): ChannelsResult = lock.withLock {
         cachedChannels?.let { return it }
+        loadChannelsLocked()
+    }
+
+    override suspend fun cachedChannels(): ChannelsResult? = lock.withLock {
+        cachedChannels?.let { return it }
+        withContext(Dispatchers.IO) { catalogCache.readChannels() }.also { cachedChannels = it }
+    }
+
+    override suspend fun refreshChannels(): ChannelsResult = lock.withLock { loadChannelsLocked() }
+
+    private suspend fun loadChannelsLocked(): ChannelsResult {
         // Lista vacía o error: el base lo trata como sesión caída (PriorityCasFunctionCaller).
         val result = catalog.channels().let { first ->
             if (first.streams.isEmpty() && session.recover()) catalog.channels() else first
         }
+        if (result.failure != null) {
+            return cachedChannels?.copy(failure = result.failure) ?: ChannelsResult(emptyList(), failure = result.failure)
+        }
+        // No reemplazar un snapshot utilizable por una respuesta vacía de sesión/licencia dudosa.
+        if (result.streams.isEmpty() && cachedChannels?.channels?.isNotEmpty() == true) return cachedChannels!!
         streams = result.streams
         val ids = result.streams.map { it.streamId }.toSet()
         // Filas por bouquet, por prioridad; los que no tienen canales de esta TV no aparecen.
@@ -70,15 +92,28 @@ class PanaccessEntertainmentSource(
                 ChannelGroup(bouquet.name, members.map { it.streamId.toString() }, layout)
             }
         }
-        ChannelsResult(
+        val mapped = ChannelsResult(
             channels = result.streams.map { Channel(it.streamId.toString(), it.channelNumber, it.name, it.imageUrl, it.hasCatchup) },
             groups = groups,
-            failure = result.failure,
-        ).also { if (it.failure == null) cachedChannels = it }
+        )
+        cachedChannels = mapped
+        withContext(Dispatchers.IO) { catalogCache.writeChannels(mapped) }
+        return mapped
     }
 
-    override suspend fun schedule(channelId: String): List<Program> {
-        val stream = lock.withLock { streams }.firstOrNull { it.streamId.toString() == channelId } ?: return emptyList()
+    override suspend fun schedule(channelId: String): List<Program> = scheduleLocks
+        .getOrPut(channelId) { Mutex() }
+        .withLock { loadSchedule(channelId) }
+
+    private suspend fun loadSchedule(channelId: String): List<Program> {
+        var stream = lock.withLock { streams }.firstOrNull { it.streamId.toString() == channelId }
+        // Un snapshot de canales basta para Home, pero no contiene los objetos Stream necesarios
+        // para resolver el EPG. Si la guía llega antes que el refresco remoto, hidratar el catálogo.
+        if (stream == null) {
+            refreshChannels()
+            stream = lock.withLock { streams }.firstOrNull { it.streamId.toString() == channelId }
+        }
+        stream ?: return emptyList()
         val config = session.operatorConfig ?: return emptyList()
         return epg.events(config, stream.epgStreamId).mapNotNull { e ->
             val start = EpgSchedule.parse(e.start)?.epochSeconds ?: return@mapNotNull null
@@ -112,7 +147,11 @@ class PanaccessEntertainmentSource(
         val now = System.currentTimeMillis()
         cachedCatchup?.takeIf { now - cachedCatchupAtMillis < CATCHUP_CACHE_MILLIS }?.let { return it }
 
-        val channelResult = channels()
+        var channelResult = channels()
+        // channels() puede devolver el snapshot local, que aún no tiene Stream/epgStreamId asociado.
+        if (channelResult.channels.isNotEmpty() && lock.withLock { streams.isEmpty() }) {
+            channelResult = refreshChannels()
+        }
         if (channelResult.failure != null) {
             return cachedCatchup?.copy(failure = channelResult.failure)
                 ?: CatchupCatalog(emptyList(), emptyMap(), channelResult.failure)
@@ -189,9 +228,24 @@ class PanaccessEntertainmentSource(
         }
     }
 
-    override suspend fun vodShelves(): VodResult = lock.withLock {
+    override suspend fun vodShelves(): VodResult = vodLock.withLock {
         cachedVod?.let { return it }
+        loadVodLocked()
+    }
+
+    override suspend fun cachedVodShelves(): VodResult? = vodLock.withLock {
+        cachedVod?.let { return it }
+        withContext(Dispatchers.IO) { catalogCache.readVod() }.also { cachedVod = it }
+    }
+
+    override suspend fun refreshVodShelves(): VodResult = vodLock.withLock { loadVodLocked() }
+
+    private suspend fun loadVodLocked(): VodResult {
         val result = vod.catalog()
+        if (result.failure != null) {
+            return cachedVod?.copy(failure = result.failure) ?: VodResult(emptyList(), result.failure)
+        }
+        if (result.items.isEmpty() && cachedVod?.shelves?.any { it.items.isNotEmpty() } == true) return cachedVod!!
         val server = session.client.responsibleServer()
         fun map(item: PanaccessVodItem) = DomainVodItem(
             id = item.vodId.toString(),
@@ -204,7 +258,10 @@ class PanaccessEntertainmentSource(
         val shelves = VodShelves.all(result.groups, result.items).map { s -> VodShelf(s.category.name, s.items.map(::map)) }
             // Sin categorías utilizables: una sola fila con todo, para no dejar el catálogo vacío.
             .ifEmpty { if (result.items.isEmpty()) emptyList() else listOf(VodShelf("", result.items.map(::map))) }
-        VodResult(shelves, result.failure).also { if (it.failure == null) cachedVod = it }
+        val mapped = VodResult(shelves)
+        cachedVod = mapped
+        withContext(Dispatchers.IO) { catalogCache.writeVod(mapped) }
+        return mapped
     }
 
     override suspend fun playbackUrl(target: Playable): String? = when (target) {
@@ -226,7 +283,9 @@ class PanaccessEntertainmentSource(
     /** Al cerrar la sesión o cambiar de cuenta. */
     suspend fun clear() {
         catchupLock.withLock { cachedCatchup = null; cachedCatchupAtMillis = 0L }
-        lock.withLock { cachedChannels = null; cachedVod = null; streams = emptyList(); epg.clear() }
+        lock.withLock { cachedChannels = null; streams = emptyList(); epg.clear() }
+        vodLock.withLock { cachedVod = null }
+        scheduleLocks.clear()
     }
 
 

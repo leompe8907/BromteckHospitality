@@ -9,6 +9,12 @@ interface EntertainmentSource {
     /** Canales que el huésped puede ver, ordenados por número, y sus agrupaciones (bouquets). */
     suspend fun channels(): ChannelsResult
 
+    /** Snapshot local de canales/bouquets, si el proveedor lo persiste. */
+    suspend fun cachedChannels(): ChannelsResult? = null
+
+    /** Fuerza el refresco remoto aun cuando haya un snapshot local cargado. */
+    suspend fun refreshChannels(): ChannelsResult = channels()
+
     /** Programación de un canal (ayer → próximos días), ordenada por inicio. */
     suspend fun schedule(channelId: String): List<Program>
 
@@ -20,6 +26,12 @@ interface EntertainmentSource {
 
     /** Catálogo de películas y series, en filas. */
     suspend fun vodShelves(): VodResult
+
+    /** Snapshot local de películas/series, si el proveedor lo persiste. */
+    suspend fun cachedVodShelves(): VodResult? = null
+
+    /** Fuerza el refresco remoto aun cuando haya un snapshot local cargado. */
+    suspend fun refreshVodShelves(): VodResult = vodShelves()
 
     /**
      * URL lista para el player. Se pide en cada reproducción y en cada reintento: en Panaccess va

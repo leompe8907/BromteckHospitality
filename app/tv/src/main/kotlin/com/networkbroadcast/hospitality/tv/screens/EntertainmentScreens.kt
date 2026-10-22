@@ -32,6 +32,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
@@ -49,8 +50,15 @@ import com.networkbroadcast.hospitality.entertainment.Program
 import com.networkbroadcast.hospitality.entertainment.VodItem
 import com.networkbroadcast.hospitality.entertainment.VodResult
 import com.networkbroadcast.hospitality.brand.UiText
+import com.networkbroadcast.hospitality.tv.preloadImages
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withPermit
 
 internal val ScreenPadding = PaddingValues(horizontal = 52.dp, vertical = 36.dp)
+private const val LIVE_TV_INITIAL_PRELOAD_COUNT = 12
 
 /**
  * TV en vivo: una fila por bouquet, como la home del base. Si el operador no tiene bouquets, una
@@ -75,6 +83,39 @@ fun LiveTvScreen(
     // El mismo canal puede estar en varios bouquets: el foco va a su primera aparición.
     val targetRow = rows.indexOfFirst { (_, members, _) -> members.any { it.id == target } }
     val first = rememberInitialFocus(target)
+    // Bromteckotlin precalienta las imágenes de streams al recibir el catálogo. Acá también
+    // esperamos el arte del programa actual de las primeras tarjetas visibles según su card_design.
+    val initialCards = rows.flatMap { (_, members, layout) -> members.map { it to layout } }
+        .distinctBy { it.first.id }
+        .take(LIVE_TV_INITIAL_PRELOAD_COUNT)
+    val preloadKey = initialCards.map { (channel, layout) -> channel.id to layout.cardDesign }
+    var initialPrograms by remember(preloadKey) { mutableStateOf<Map<String, Program?>>(emptyMap()) }
+    var initialImagesReady by remember(preloadKey) { mutableStateOf(false) }
+    val context = LocalContext.current
+    LaunchedEffect(preloadKey) {
+        val slots = Semaphore(5)
+        initialPrograms = coroutineScope {
+            initialCards.map { (channel, layout) ->
+                async {
+                    slots.withPermit {
+                        runCatching { preloadImages(context, listOf(channel.logoUrl)) }
+                        val design = layout.cardDesign
+                        val needsProgram = design.startsWith("event_") || design == "channel_full_info" || design == "event_line"
+                        val current = if (needsProgram) {
+                            runCatching {
+                                val now = System.currentTimeMillis() / 1000
+                                source.schedule(channel.id).firstOrNull { it.isLive(now) }
+                            }.getOrNull()
+                        } else null
+                        runCatching { preloadImages(context, listOf(current?.imageUrl)) }
+                        channel.id to current
+                    }
+                }
+            }.awaitAll().toMap()
+        }
+        initialImagesReady = true
+    }
+    if (!initialImagesReady) return CenteredMessage(text.loading)
 
     LazyColumn(Modifier.fillMaxSize(), contentPadding = ScreenPadding, verticalArrangement = Arrangement.spacedBy(18.dp)) {
         item { Text(text.liveTv, style = HospitalityTheme.typography.title, color = colors.textPrimary) }
@@ -93,6 +134,8 @@ fun LiveTvScreen(
                                         source = source,
                                         modifier = Modifier.weight(1f).then(if (isTarget) Modifier.focusRequester(first) else Modifier),
                                         fillWidth = true,
+                                        preloadedProgram = initialPrograms[channel.id],
+                                        programWasPreloaded = channel.id in initialPrograms,
                                         onClick = { onPlay(channel.id) },
                                     )
                                 }
@@ -108,13 +151,23 @@ fun LiveTvScreen(
                                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                                     column.forEach { channel ->
                                         val isTarget = rowIndex == targetRow && channel.id == target
-                                        ChannelCard(channel, layout, source, if (isTarget) Modifier.focusRequester(first) else Modifier) { onPlay(channel.id) }
+                                        ChannelCard(
+                                            channel, layout, source,
+                                            if (isTarget) Modifier.focusRequester(first) else Modifier,
+                                            preloadedProgram = initialPrograms[channel.id],
+                                            programWasPreloaded = channel.id in initialPrograms,
+                                        ) { onPlay(channel.id) }
                                     }
                                 }
                             } else {
                                 val channel = column.first()
                                 val isTarget = rowIndex == targetRow && channel.id == target
-                                ChannelCard(channel, layout, source, if (isTarget) Modifier.focusRequester(first) else Modifier) { onPlay(channel.id) }
+                                ChannelCard(
+                                    channel, layout, source,
+                                    if (isTarget) Modifier.focusRequester(first) else Modifier,
+                                    preloadedProgram = initialPrograms[channel.id],
+                                    programWasPreloaded = channel.id in initialPrograms,
+                                ) { onPlay(channel.id) }
                             }
                         }
                     }
@@ -131,13 +184,15 @@ private fun ChannelCard(
     source: EntertainmentSource,
     modifier: Modifier = Modifier,
     fillWidth: Boolean = false,
+    preloadedProgram: Program? = null,
+    programWasPreloaded: Boolean = false,
     onClick: () -> Unit,
 ) {
     val colors = HospitalityTheme.colors
     val design = layout.cardDesign
     val needsProgram = design.startsWith("event_") || design == "event_normal" || design == "event_big" || design == "channel_full_info"
-    var currentProgram by remember(channel.id, needsProgram) { mutableStateOf<Program?>(null) }
-    var programRequested by remember(channel.id, needsProgram) { mutableStateOf(false) }
+    var currentProgram by remember(channel.id, needsProgram, programWasPreloaded) { mutableStateOf(preloadedProgram) }
+    var programRequested by remember(channel.id, needsProgram, programWasPreloaded) { mutableStateOf(programWasPreloaded) }
     val isBig = design == "logo_big" || design == "event_big" || design == "event_and_logo" ||
         design == "event_and_logo_in_top" || design == "event_and_logo_in_bottom"
     val isFullInfo = design == "channel_full_info" || design == "event_line"
@@ -145,6 +200,7 @@ private fun ChannelCard(
     val cardHeight = when { isFullInfo -> 88.dp; isBig -> 160.dp; else -> 120.dp }
     val cardModifier = if (fillWidth) modifier.fillMaxWidth().height(cardHeight) else modifier.size(width = cardWidth, height = cardHeight)
     val usesEventImage = needsProgram && currentProgram?.imageUrl != null
+    val usesChannelImageAsEventFallback = needsProgram && !usesEventImage && !channel.logoUrl.isNullOrBlank()
     FocusCard(onClick = onClick, modifier = cardModifier) { focused ->
         LaunchedEffect(channel.id, needsProgram, focused) {
             // Solo el canal enfocado pide EPG. En vertical_grid se componen muchas tarjetas a la
@@ -158,6 +214,16 @@ private fun ChannelCard(
         if (usesEventImage) {
             AsyncImage(model = currentProgram?.imageUrl, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
             Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.55f)))
+        } else if (usesChannelImageAsEventFallback) {
+            // Sin imagen de evento, usar el logo como fondo de la tarjeta completa en vez de
+            // dejarlo flotando pequeño en el centro. Crop llena el formato de cada card_design.
+            AsyncImage(
+                model = channel.logoUrl,
+                contentDescription = channel.name,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize(),
+            )
+            Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.6f)))
         } else if (channel.logoUrl != null) {
             AsyncImage(
                 model = channel.logoUrl, contentDescription = channel.name, contentScale = ContentScale.Fit,

@@ -21,6 +21,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
@@ -87,7 +88,10 @@ fun GuideScreen(
     OperatorCardColors(cardColorHex, textColorHex) {
     val colors = HospitalityTheme.colors
     var selected by remember { mutableStateOf(focusChannel?.takeIf { id -> channels.any { it.id == id } } ?: channels.first().id) }
-    var schedule by remember { mutableStateOf<List<Program>?>(null) }
+    // Mantener las guías ya visitadas en memoria mientras esta pantalla siga abierta. Antes cada
+    // cambio de canal borraba la lista actual y, al volver, la pedía de nuevo aunque ya estuviera
+    // precargada en disco.
+    val schedulesByChannel = remember { mutableStateMapOf<String, List<Program>>() }
     // Pedido de "llevá el foco a lo que se emite ahora" cuando cargue la programación.
     var jumpToPrograms by remember { mutableStateOf(false) }
     val nowFocus = remember { FocusRequester() }
@@ -95,15 +99,16 @@ fun GuideScreen(
     val startIndex = channels.indexOfFirst { it.id == selected }.coerceAtLeast(0)
     val channelListState = rememberLazyListState(initialFirstVisibleItemIndex = startIndex)
 
-    // Se espera un instante antes de pedir la guía: recorriendo canales con el control no tiene
-    // sentido bajar la de cada uno por el que se pasa.
+    // Priorizar el canal seleccionado y conservar los demás en la caché local de esta pantalla.
+    // Catch Up ya llega como catálogo completo desde Panaccess.
     LaunchedEffect(selected, catchupProgramsByChannel) {
-        schedule = null
-        delay(250)
-        schedule = if (catchupProgramsByChannel != null) {
-            catchupProgramsByChannel[selected].orEmpty()
-        } else {
-            source.schedule(selected)
+        if (catchupProgramsByChannel != null) {
+            schedulesByChannel[selected] = catchupProgramsByChannel[selected].orEmpty()
+        } else if (selected !in schedulesByChannel) {
+            delay(150)
+            if (selected !in schedulesByChannel) {
+                schedulesByChannel[selected] = source.schedule(selected)
+            }
         }
     }
 
@@ -131,7 +136,7 @@ fun GuideScreen(
             }
         }
 
-        val programs = schedule
+        val programs = schedulesByChannel[selected]
         when {
             programs == null -> CenteredMessage(text.loading)
             programs.isEmpty() -> CenteredMessage(text.noSchedule)

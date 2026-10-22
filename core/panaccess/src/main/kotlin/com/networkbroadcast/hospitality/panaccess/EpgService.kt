@@ -35,7 +35,10 @@ class EpgService(context: Context, private val credentials: EpgApiCredentials) {
         if (epgStreamId <= 0) return emptyList()
         val operator = config.operator ?: return emptyList()
         val cdn = config.epgCdnUrls.firstOrNull()?.trimEnd('/') ?: return emptyList()
-        cache.read(epgStreamId, pastDays, EpgCache.DEFAULT_MAX_AGE_MILLIS)?.let { return parse(it) }
+        cache.read(epgStreamId, pastDays, EpgCache.DEFAULT_MAX_AGE_MILLIS)?.let {
+            Log.i(TAG, "EPG $epgStreamId desde caché local")
+            return parse(it)
+        }
         val json = gate.withPermit {
             withContext(Dispatchers.IO) {
                 runCatching { download(EpgUrlBuilder.downloadUrl(cdn, credentials, operator, epgStreamId, pastDays)) }
@@ -44,6 +47,7 @@ class EpgService(context: Context, private val credentials: EpgApiCredentials) {
             }
         } ?: return emptyList()
         cache.write(epgStreamId, pastDays, json)
+        Log.i(TAG, "EPG $epgStreamId descargado y guardado")
         return parse(json)
     }
 

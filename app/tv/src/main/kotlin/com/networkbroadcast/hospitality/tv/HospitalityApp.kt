@@ -65,6 +65,8 @@ import com.networkbroadcast.hospitality.tv.screens.OrderStatusBanner
 import com.networkbroadcast.hospitality.tv.screens.ServiceOrderDialog
 import com.networkbroadcast.hospitality.tv.screens.ServicesScreen
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Semaphore
@@ -184,51 +186,91 @@ fun HospitalityApp(app: HospitalityApplication, showLogin: Boolean = false) {
     var channels by remember { mutableStateOf<ChannelsResult?>(null) }
     var catchups by remember { mutableStateOf<CatchupCatalog?>(null) }
     var vod by remember { mutableStateOf<VodResult?>(null) }
+    var homeCatalogReady by remember { mutableStateOf(false) }
+    var channelCatalogReady by remember { mutableStateOf(false) }
+    val context = LocalContext.current
     var playingChannel by remember { mutableStateOf<String?>(null) }
     var guideChannel by remember { mutableStateOf<String?>(null) }
     var selectedVod by remember { mutableStateOf<VodItem?>(null) }
     var selectedWidget by remember { mutableStateOf<HomeWidget?>(null) }
     var media by remember { mutableStateOf<MediaRequest?>(null) }
-    // Canales y VOD se piden en paralelo apenas la sesión está lista, no cuando el huésped entra a
-    // "TV en vivo" / "Películas y series": antes iban uno detrás del otro en esta misma corrutina, y
-    // un catálogo grande (canales con recuperación de sesión, VOD paginado) dejaba a VOD esperando a
-    // que canales terminara, con la home vacía varios minutos. Cada `launch` corre su propio pedido;
-    // si el huésped ya navegó a la pantalla, usa el mismo resultado (el estado es compartido y
-    // PanaccessEntertainmentSource cachea/deduplica por su cuenta).
+    suspend fun warmHomeImages(channelResult: ChannelsResult?, vodResult: VodResult?) {
+        val operator = panaccess.operatorConfig
+        val backgrounds = operator?.hotelBackgroundUrl?.let { listOf(it) } ?: brand.backgrounds
+        val currentLanguage = language ?: brand.defaultLanguage
+        val imageUrls = buildList {
+            addAll(backgrounds)
+            add(brand.backgrounds.firstOrNull())
+            add(operator?.hotelLogoUrl)
+            add(operator?.welcomeImageUrl)
+            addAll(operator?.widgets(currentLanguage).orEmpty().map { it.imageUrl })
+            addAll(channelResult?.channels.orEmpty().take(12).map { it.logoUrl })
+            addAll(vodResult?.shelves.orEmpty().flatMap { shelf ->
+                shelf.items.take(12).map { it.backdropUrl ?: it.posterUrl }
+            })
+        }
+        preloadImages(context, imageUrls)
+    }
+
+    // Usa snapshots por licencia para preparar Home, refresca catálogos y espera el EPG inicial
+    // antes de mostrarla para que los primeros canales ya estén precargados.
     LaunchedEffect(auth) {
         if (auth != Auth.Ready) return@LaunchedEffect
-        if (channels == null) {
-            Log.i("Hospitality.Catalog", "precarga: pidiendo canales (home lista para mostrarlos)")
-            launch {
-                val result = entertainment.channels()
-                channels = result
-                // Precarga de la guía de TODOS los canales en segundo plano, no solo el primero:
-                // en "Eventos anteriores"/"Guía" cada canal que el huésped tocaba (no solo el
-                // primero) mostraba "cargando" porque su guía todavía no se había pedido -- cada
-                // una es una descarga aparte (ver EpgCache). No bloquea nada: si el huésped navega
-                // antes de que termine, esa pantalla la pide igual, solo que no sale de caché
-                // todavía. Mismo límite de descargas simultáneas que ya documenta EpgCache
-                // (MAX_CONCURRENT_DOWNLOADS=5, igual que el EPGDownloader del base).
-                Log.i("Hospitality.Catalog", "precarga: pidiendo guía de ${result.channels.size} canales (máx. 5 a la vez)")
-                val guideSlots = Semaphore(5)
-                result.channels.forEach { channel ->
-                    launch { guideSlots.withPermit { runCatching { entertainment.schedule(channel.id) } } }
+        homeCatalogReady = false
+        channelCatalogReady = false
+
+        val channelSnapshot = channels ?: entertainment.cachedChannels()
+        val vodSnapshot = vod ?: if (brand.features.vod) entertainment.cachedVodShelves() else null
+        val catchupSnapshot = catchups ?: if (brand.features.guide) entertainment.cachedCatchupCatalog() else null
+        channels = channelSnapshot
+        if (brand.features.vod) vod = vodSnapshot
+        if (brand.features.guide) catchups = catchupSnapshot
+
+        val hasCompleteSnapshot = channelSnapshot != null &&
+            (!brand.features.vod || vodSnapshot != null) &&
+            (!brand.features.guide || catchupSnapshot != null)
+        if (hasCompleteSnapshot) {
+            Log.i("Hospitality.Catalog", "precarga: preparando Home con snapshots locales")
+            warmHomeImages(channelSnapshot, vodSnapshot)
+        }
+
+        // Catch Up usa los Streams/EPG de la respuesta fresca, no alcanza con leer el snapshot
+        // de Channel que sirve para dibujar Home. Completar canales primero evita esa carrera.
+        val freshChannels = entertainment.refreshChannels()
+        val (freshVod, freshCatchups) = coroutineScope {
+            val vodRequest = if (brand.features.vod) async { entertainment.refreshVodShelves() } else null
+            val catchupRequest = if (brand.features.guide) async { entertainment.catchupCatalog() } else null
+            Pair(vodRequest?.await(), catchupRequest?.await())
+        }
+        channels = freshChannels
+        channelCatalogReady = true
+        if (brand.features.vod) vod = freshVod ?: VodResult(emptyList())
+        if (brand.features.guide) catchups = freshCatchups ?: CatchupCatalog(emptyList(), emptyMap())
+
+        if (!hasCompleteSnapshot) {
+            warmHomeImages(freshChannels, freshVod)
+        }
+
+        // Calentar logos y la programación inicial antes de mostrar Home: sus primeros canales ya
+        // podrán abrir Guía con el EPG leído del cache. Limitar a 12 evita bloquear Home por todo
+        // el catálogo; los demás canales se precargan al seleccionarlos y quedan en cache.
+        scope.launch { preloadImages(context, freshChannels.channels.map { it.logoUrl }) }
+
+        val initialGuideChannels = freshChannels.channels.take(12)
+        Log.i("Hospitality.Catalog", "precarga: esperando guía de ${initialGuideChannels.size} canales iniciales (máx. 5 a la vez)")
+        val guideSlots = Semaphore(5)
+        coroutineScope {
+            initialGuideChannels.map { channel ->
+                async {
+                    guideSlots.withPermit {
+                        runCatching { entertainment.schedule(channel.id) }
+                    }
                 }
             }
+                .forEach { it.await() }
         }
-        if (brand.features.vod && vod == null) {
-            Log.i("Hospitality.Catalog", "precarga: pidiendo vod (home lista para mostrarlo)")
-            launch { vod = entertainment.vodShelves() }
-        }
-        if (brand.features.guide && catchups == null) {
-            Log.i("Hospitality.Catalog", "precarga: leyendo caché y refrescando grupos/eventos reales de catchup")
-            launch {
-                entertainment.cachedCatchupCatalog()?.let { cached ->
-                    if (catchups == null) catchups = cached
-                }
-                catchups = entertainment.catchupCatalog()
-            }
-        }
+        Log.i("Hospitality.Catalog", "precarga: EPG inicial completo (${initialGuideChannels.size} canales)")
+        homeCatalogReady = true
     }
     // Vía rápida para el canal que el huésped tiene enfocado en la Guía en este momento: cupo propio
     // de descargas simultáneas, separado de la precarga general de arriba -- así no tiene que
@@ -339,7 +381,6 @@ fun HospitalityApp(app: HospitalityApplication, showLogin: Boolean = false) {
         // Precarga del fondo/logo apenas se conocen (no bloquea nada: si no llegan a tiempo, el
         // placeholder de HotelBackdrop/LanguageScreen cubre el hueco) — mismo espíritu que la
         // precarga del catálogo de más arriba, para que no se vea el salto de color sólido a foto.
-        val context = LocalContext.current
         val welcomeImageUrl = panaccess.operatorConfig?.welcomeImageUrl ?: backgrounds.firstOrNull()
         LaunchedEffect(backgrounds, logoUrl, welcomeImageUrl) {
             val imageLoader = SingletonImageLoader.get(context)
@@ -365,12 +406,9 @@ fun HospitalityApp(app: HospitalityApplication, showLogin: Boolean = false) {
         }
 
         val text = UiText.of(current)
-        // Con el idioma elegido, la home no se muestra vacía: espera a que el catálogo (que ya se
-        // pidió en el LaunchedEffect de arriba apenas la sesión quedó lista) esté disponible, así el
-        // huésped no ve "TV en vivo"/"Películas y series" cargar en vivo ni, peor, un "no hay
-        // canales" que en realidad es "todavía no llegó la respuesta" (ver HOSP-S1-05/06).
-        val catalogReady = channels != null && (!brand.features.vod || vod != null)
-        if (!catalogReady) { CenteredMessage(text.loading); return@Box }
+        // La home espera a que haya snapshots completos o terminen las cargas iniciales para no
+        // insertar/quitar filas cuando VOD o Catch Up responden después.
+        if (!homeCatalogReady) { CenteredMessage(text.loading); return@Box }
         val channelList = channels?.channels.orEmpty()
         when (backStack.last()) {
             Screen.Home -> HomeScreen(
@@ -432,14 +470,14 @@ fun HospitalityApp(app: HospitalityApplication, showLogin: Boolean = false) {
                 },
             )
             Screen.AboutHotel -> AboutHotelScreen(app.hotelRepository(), current, brand.defaultLanguage, text)
-            Screen.LiveTv -> LiveTvScreen(
+            Screen.LiveTv -> if (!channelCatalogReady) CenteredMessage(text.loading) else LiveTvScreen(
                 channels = channels,
                 source = entertainment,
                 text = text,
                 focusOn = playingChannel,
                 onPlay = { playingChannel = it; open(Screen.Player) },
             )
-            Screen.Player -> PlayerScreen(
+            Screen.Player -> if (!channelCatalogReady) CenteredMessage(text.loading) else PlayerScreen(
                 source = entertainment,
                 channels = channelList,
                 startChannelId = playingChannel,
@@ -447,6 +485,7 @@ fun HospitalityApp(app: HospitalityApplication, showLogin: Boolean = false) {
                 onChannelChanged = { playingChannel = it },
             )
             Screen.Guide -> when {
+                !channelCatalogReady -> CenteredMessage(text.loading)
                 lastHomeAction == HomeAction.CatchUp && catchups == null -> CenteredMessage(text.loading)
                 else -> GuideScreen(
                     source = entertainment,

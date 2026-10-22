@@ -1,7 +1,12 @@
 package com.networkbroadcast.hospitality.tv
 
 import android.app.Application
+import android.content.Context
 import android.content.pm.ApplicationInfo
+import coil3.ImageLoader
+import coil3.SingletonImageLoader
+import coil3.disk.DiskCache
+import coil3.memory.MemoryCache
 import com.networkbroadcast.hospitality.brand.BrandConfig
 import com.networkbroadcast.hospitality.brand.BrandLoader
 import com.networkbroadcast.hospitality.companion.DemoTvPairing
@@ -23,13 +28,25 @@ import com.panaccess.android.streaming.shared.epg.EpgApiCredentials
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import okio.Path.Companion.toOkioPath
 
 /**
  * Dueña de lo que tiene que durar lo que dura el proceso: la sesión de Panaccess y el catálogo.
  * Si vivieran en la Activity, cada vez que Android la recrea (rotar, desbloquear) la TV volvía a
  * hacer el login completo con licencia.
  */
-class HospitalityApplication : Application() {
+class HospitalityApplication : Application(), SingletonImageLoader.Factory {
+
+    /** Persistir imágenes precargadas en disco entre pantallas y reinicios, como Bromteckotlin. */
+    override fun newImageLoader(context: Context): ImageLoader = ImageLoader.Builder(context)
+        .memoryCache { MemoryCache.Builder().maxSizePercent(context, 0.25).build() }
+        .diskCache {
+            DiskCache.Builder()
+                .directory(context.cacheDir.resolve("hospitality_image_cache").toOkioPath())
+                .maxSizePercent(0.20)
+                .build()
+        }
+        .build()
 
     val brand: BrandConfig by lazy { BrandLoader.load(this) }
 

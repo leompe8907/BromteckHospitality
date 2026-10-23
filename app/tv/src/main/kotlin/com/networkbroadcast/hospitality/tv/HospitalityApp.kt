@@ -339,8 +339,21 @@ fun HospitalityApp(app: HospitalityApplication, showLogin: Boolean = false) {
 
     Box(Modifier.fillMaxSize().background(HospitalityTheme.colors.background)) {
         when (auth) {
-            Auth.Provisioning -> { CenteredMessage(if (restoreFailed) setupText.reconnecting else setupText.provisioning); return@Box }
-            Auth.Checking -> { CenteredMessage(if (restoreFailed) setupText.reconnecting else setupText.connecting); return@Box }
+            // X_APP_SPLASH recién está disponible en operatorConfig después de un login/restore
+            // exitoso -- justo lo que todavía no terminó acá. Se usa el último valor que quedó
+            // cacheado de una sesión anterior (PanaccessSession.cachedSplashImageUrl); en el primer
+            // arranque de la TV no hay nada cacheado y esto no dibuja nada (igual que HotelBackdrop
+            // sin fotos).
+            Auth.Provisioning -> {
+                panaccess.cachedSplashImageUrl?.let { HotelBackdrop(listOf(it)) }
+                CenteredMessage(if (restoreFailed) setupText.reconnecting else setupText.provisioning)
+                return@Box
+            }
+            Auth.Checking -> {
+                panaccess.cachedSplashImageUrl?.let { HotelBackdrop(listOf(it)) }
+                CenteredMessage(if (restoreFailed) setupText.reconnecting else setupText.connecting)
+                return@Box
+            }
             Auth.NeedsLogin -> {
                 LoginScreen(
                     text = setupText,

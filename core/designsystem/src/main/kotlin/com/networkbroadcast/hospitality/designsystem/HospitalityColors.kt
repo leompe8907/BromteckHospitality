@@ -123,7 +123,7 @@ data class HospitalityColors(
     /**
      * Gris neutro para fotos que están cargando o fallaron (fondo del hotel, pósters de VOD):
      * mismo criterio en los dos lugares que lo usan, acá para no duplicarlo. El operador puede
-     * pisarlo con una imagen propia (X_APP_PLACEHOLDER_IMAGE, ver OperatorConfig/Common.kt); sin
+     * pisarlo con una imagen propia (X_APP_PLACEHOLDER, ver OperatorConfig/Common.kt); sin
      * eso, el gris fijo de siempre según el tema sea claro u oscuro.
      */
     fun placeholderPainter(): ColorPainter = ColorPainter(if (isDark) Color(0xFF2A2A2A) else Color(0xFFE2E2DE))

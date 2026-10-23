@@ -60,6 +60,12 @@ class PanaccessSession(context: Context, val client: PanaccessClient) {
     val username: String? get() = prefs.getString(KEY_USER, null)
     val hasSavedLogin: Boolean get() = username != null && prefs.getString(KEY_PASS_MD5, null) != null
 
+    /** Último X_APP_SPLASH que trajo getClientConfig, cacheado en disco -- operatorConfig recién
+     *  está disponible después de un login/restore exitoso, pero el splash hace falta justo antes
+     *  de eso (arranque de la app, Auth.Provisioning/Checking en HospitalityApp), así que esto
+     *  sirve el último valor conocido en vez de nada mientras se resuelve la sesión. */
+    val cachedSplashImageUrl: String? get() = prefs.getString(KEY_SPLASH_URL, null)
+
     init {
         client.recovery = ::recover
     }
@@ -141,6 +147,7 @@ class PanaccessSession(context: Context, val client: PanaccessClient) {
      */
     suspend fun refreshOperatorConfig() {
         operatorConfig = fetchOperatorConfig()
+        cacheSplashImageUrl(operatorConfig)
         // Mismo chequeo de clima que onLicenseEnabled, acá también: el checkout es la única otra
         // vía por la que se vuelve a pedir getClientConfig en una sesión larga, y queremos poder
         // ver si el clima empezó a llegar sin tener que forzar un re-login completo.
@@ -149,6 +156,13 @@ class PanaccessSession(context: Context, val client: PanaccessClient) {
             "config refrescada; clima=${operatorConfig?.weatherText ?: "sin dato"} " +
                 "(campo weather presente=${operatorConfig?.hasWeatherField})",
         )
+    }
+
+    // No se borra el valor cacheado cuando viene null (config no configurada o fetch fallido):
+    // mismo criterio que el catálogo cacheado -- se guarda el último bueno conocido, nunca se
+    // vacía por una respuesta vacía puntual.
+    private fun cacheSplashImageUrl(config: OperatorConfig?) {
+        config?.splashImageUrl?.let { prefs.edit().putString(KEY_SPLASH_URL, it).apply() }
     }
 
     private suspend fun fetchOperatorConfig(): OperatorConfig? =
@@ -191,6 +205,7 @@ class PanaccessSession(context: Context, val client: PanaccessClient) {
         }.onFailure { Log.w(TAG, "copyprotect: ${it.message}") }
         // La configuración del cliente no es requisito para ver TV: si falla, seguimos.
         operatorConfig = fetchOperatorConfig()
+        cacheSplashImageUrl(operatorConfig)
         Log.i(
             TAG,
             "sesión abierta; operador=${operatorConfig?.operator}, parámetros X_=${operatorConfig?.parameters?.size}, " +
@@ -210,5 +225,6 @@ class PanaccessSession(context: Context, val client: PanaccessClient) {
         const val KEY_USER = "user"
         const val KEY_PASS_MD5 = "pass_md5"
         const val KEY_LICENSE = "license_key"
+        const val KEY_SPLASH_URL = "splash_url"
     }
 }

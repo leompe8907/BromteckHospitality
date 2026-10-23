@@ -60,7 +60,7 @@ fun CenteredMessage(text: String) {
 
 /**
  * Placeholder para fotos que están cargando o fallaron (fondo del hotel, pósters de VOD): una
- * imagen configurada por Delancer (X_APP_PLACEHOLDER_IMAGE) si hay, si no el gris fijo de siempre.
+ * imagen configurada por Delancer (X_APP_PLACEHOLDER) si hay, si no el gris fijo de siempre.
  */
 @Composable
 fun rememberPlaceholderPainter(colors: HospitalityColors, imageUrl: String?): Painter {

@@ -81,9 +81,9 @@ class OperatorConfigTest {
     }
 
     @Test
-    fun `X_APP_PLACEHOLDER_IMAGE configurado se lee, sin el queda null (cae al gris fijo)`() {
+    fun `X_APP_PLACEHOLDER configurado se lee, sin el queda null (cae al gris fijo)`() {
         val conConfig = OperatorConfig.parse(
-            """{"success":true,"answer":{"device":{"parameters":{"X_APP_PLACEHOLDER_IMAGE":"https://i.imgur.com/placeholder.jpg"}}}}""",
+            """{"success":true,"answer":{"device":{"parameters":{"X_APP_PLACEHOLDER":"https://i.imgur.com/placeholder.jpg"}}}}""",
         )
         assertEquals("https://i.imgur.com/placeholder.jpg", conConfig.placeholderImageUrl)
         val sinConfig = OperatorConfig.parse("""{"success":true,"answer":{"device":{"parameters":{}}}}""")

@@ -108,8 +108,16 @@ data class OperatorConfig(
 
     // Imagen de placeholder (fondo del hotel, pósters de VOD mientras cargan o si fallan)
     // configurable por Delancer. Si no está configurada, se cae al gris fijo de siempre según el
-    // tema (ver screens/Common.kt#rememberPlaceholderPainter en app/tv).
-    val placeholderImageUrl: String? get() = param("X_APP_PLACEHOLDER_IMAGE")
+    // tema (ver screens/Common.kt#rememberPlaceholderPainter en app/tv). Clave confirmada contra
+    // el panel real de Panaccess: "App logo placeholder" = X_APP_PLACEHOLDER, sin "_IMAGE" -- con
+    // el nombre viejo esto nunca matcheaba nada que Cableatlántico configurara.
+    val placeholderImageUrl: String? get() = param("X_APP_PLACEHOLDER")
+
+    // Imagen de splash ("App Logo Splash" en el panel). Solo está disponible después de un login
+    // exitoso (como el resto de OperatorConfig), así que para mostrarla durante el arranque de la
+    // app (antes de terminar de restaurar la sesión) hay que haberla cacheado de una sesión
+    // anterior -- ver PanaccessSession.cachedSplashImageUrl.
+    val splashImageUrl: String? get() = param("X_APP_SPLASH")
 
     // Widgets personalizables (instalaciones del hotel: bar, restaurant, gimnasio, pileta...)
     // configurados por Delancer vía Panaccess -- no por el panel de staff propio (eso es para

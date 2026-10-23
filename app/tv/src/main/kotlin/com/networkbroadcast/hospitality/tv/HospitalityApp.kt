@@ -475,6 +475,9 @@ fun HospitalityApp(app: HospitalityApplication, showLogin: Boolean = false) {
                 source = entertainment,
                 text = text,
                 focusOn = playingChannel,
+                // Mismo color que las tarjetas de la home (OperatorConfig.cardColorHex/textColorHex).
+                cardColorHex = panaccess.operatorConfig?.cardColorHex,
+                textColorHex = panaccess.operatorConfig?.textColorHex,
                 onPlay = { playingChannel = it; open(Screen.Player) },
             )
             Screen.Player -> if (!channelCatalogReady) CenteredMessage(text.loading) else PlayerScreen(

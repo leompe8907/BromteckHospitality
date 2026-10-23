@@ -282,13 +282,15 @@ private fun ChannelCard(
     // dejar la tarjeta sin reintentar para siempre -- antes de agregar la precarga, cada tarjeta
     // pedía su evento al enfocarse y siempre terminaba cargando.
     var programRequested by remember(channel.id, needsProgram, preloadedProgram) { mutableStateOf(preloadedProgram != null) }
-    val isBig = isBigCardDesign(design)
-    val isFullInfo = isFullInfoCardDesign(design)
     val cardWidth = cardWidthFor(design)
     val cardHeight = cardHeightFor(design)
     val cardModifier = if (fillWidth) modifier.fillMaxWidth().height(cardHeight) else modifier.size(width = cardWidth, height = cardHeight)
     val usesEventImage = needsProgram && currentProgram?.imageUrl != null
-    val usesChannelImageAsEventFallback = needsProgram && !usesEventImage && !channel.logoUrl.isNullOrBlank()
+    // Sin imagen de evento (porque el diseño no necesita evento, o porque falló/no vino), el logo
+    // del canal ocupa toda la tarjeta en vez de quedar chico y centrado sobre el color de fondo
+    // de la marca -- antes eso dejaba ver un bloque sólido del color de card en los diseños sin
+    // evento (logo_big, etc.).
+    val usesLogoFill = !usesEventImage && !channel.logoUrl.isNullOrBlank()
     FocusCard(onClick = onClick, modifier = cardModifier) { focused ->
         LaunchedEffect(channel.id, needsProgram, focused) {
             // Solo el canal enfocado pide EPG. En vertical_grid se componen muchas tarjetas a la
@@ -302,9 +304,7 @@ private fun ChannelCard(
         if (usesEventImage) {
             AsyncImage(model = currentProgram?.imageUrl, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
             Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.55f)))
-        } else if (usesChannelImageAsEventFallback) {
-            // Sin imagen de evento, usar el logo como fondo de la tarjeta completa en vez de
-            // dejarlo flotando pequeño en el centro. Crop llena el formato de cada card_design.
+        } else if (usesLogoFill) {
             AsyncImage(
                 model = channel.logoUrl,
                 contentDescription = channel.name,
@@ -312,11 +312,6 @@ private fun ChannelCard(
                 modifier = Modifier.fillMaxSize(),
             )
             Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.6f)))
-        } else if (channel.logoUrl != null) {
-            AsyncImage(
-                model = channel.logoUrl, contentDescription = channel.name, contentScale = ContentScale.Fit,
-                modifier = Modifier.align(Alignment.Center).padding(bottom = 26.dp).size(width = if (isBig) 170.dp else 130.dp, height = if (isBig) 88.dp else 60.dp),
-            )
         }
         if (design == "event_and_logo" || design == "event_and_logo_in_top" || design == "event_and_logo_in_bottom") {
             channel.logoUrl?.let {

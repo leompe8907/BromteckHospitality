@@ -115,20 +115,36 @@ class PanaccessEntertainmentSource(
             refreshChannels()
             stream = lock.withLock { streams }.firstOrNull { it.streamId.toString() == channelId }
         }
-        stream ?: return emptyList()
-        val config = session.operatorConfig ?: return emptyList()
-        return epg.events(config, stream.epgStreamId).mapNotNull { e ->
-            val start = EpgSchedule.parse(e.start)?.epochSeconds ?: return@mapNotNull null
-            val end = EpgSchedule.parse(e.end)?.epochSeconds ?: return@mapNotNull null
-            Program(
-                title = e.title,
-                startEpochSec = start,
-                endEpochSec = end,
-                description = e.shortDescription ?: e.extendedDescription,
-                catchupId = e.catchupId.takeIf { e.hasCatchup && stream.hasCatchup },
-                imageUrl = e.imageUrl,
-            )
-        }.sortedBy { it.startEpochSec }
+        if (stream == null) {
+            android.util.Log.w("Hospitality.Epg", "schedule($channelId): no se encontró el Stream ni tras refreshChannels()")
+            return emptyList()
+        }
+        val config = session.operatorConfig
+        if (config == null) {
+            android.util.Log.w("Hospitality.Epg", "schedule($channelId): operatorConfig es null, no se puede pedir EPG")
+            return emptyList()
+        }
+        // runCatching: un fallo acá (red, parseo) no debe tirar la LaunchedEffect de ChannelCard --
+        // antes una excepción sin capturar podía cancelar el efecto en silencio y la tarjeta se
+        // quedaba para siempre sin evento, sin ningún rastro en logcat de qué pasó.
+        return runCatching {
+            epg.events(config, stream.epgStreamId).mapNotNull { e ->
+                val start = EpgSchedule.parse(e.start)?.epochSeconds ?: return@mapNotNull null
+                val end = EpgSchedule.parse(e.end)?.epochSeconds ?: return@mapNotNull null
+                Program(
+                    title = e.title,
+                    startEpochSec = start,
+                    endEpochSec = end,
+                    description = e.shortDescription ?: e.extendedDescription,
+                    catchupId = e.catchupId.takeIf { e.hasCatchup && stream.hasCatchup },
+                    imageUrl = e.imageUrl,
+                )
+            }.sortedBy { it.startEpochSec }
+        }.onSuccess {
+            android.util.Log.i("Hospitality.Epg", "schedule($channelId, epgStreamId=${stream.epgStreamId}): ${it.size} evento(s)")
+        }.onFailure {
+            android.util.Log.w("Hospitality.Epg", "schedule($channelId, epgStreamId=${stream.epgStreamId}) falló: ${it.message}")
+        }.getOrDefault(emptyList())
     }
 
     override suspend fun cachedCatchupCatalog(): CatchupCatalog? = catchupLock.withLock {

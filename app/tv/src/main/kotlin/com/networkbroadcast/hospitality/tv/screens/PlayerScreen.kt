@@ -145,11 +145,15 @@ private fun HlsPlayer(
 
 /** Recuadro inferior con la información de lo que se ve. */
 @Composable
-private fun BoxScope.InfoPanel(content: @Composable () -> Unit) {
+private fun BoxScope.InfoPanel(cardColorHex: String?, content: @Composable () -> Unit) {
     val colors = HospitalityTheme.colors
+    // Mismo color y mismo parámetro que el resto de las tarjetas (OperatorConfig.cardColorHex) --
+    // antes esto usaba colors.background (el verde/turquesa de la paleta Resort) sin pasar por
+    // ningún parámetro del operador, así que nunca podía dejar de verse verde.
+    val panelColor = HospitalityColors.parseHex(cardColorHex) ?: colors.surface
     Column(
         Modifier.align(Alignment.BottomStart).padding(40.dp).width(640.dp)
-            .clip(RoundedCornerShape(14.dp)).background(colors.background.copy(alpha = 0.88f)).padding(20.dp),
+            .clip(RoundedCornerShape(14.dp)).background(panelColor.copy(alpha = 0.88f)).padding(20.dp),
     ) { content() }
 }
 
@@ -160,6 +164,8 @@ fun PlayerScreen(
     channels: List<Channel>,
     startChannelId: String?,
     text: UiText,
+    // Mismo color que las tarjetas (OperatorConfig.cardColorHex); null = el de la marca.
+    cardColorHex: String? = null,
     onChannelChanged: (String) -> Unit,
 ) {
     if (channels.isEmpty()) return CenteredMessage(text.noChannels)
@@ -200,7 +206,7 @@ fun PlayerScreen(
             recover = source::recover,
             onError = { error = it?.let { text.playbackError } },
         ) {
-            if (showInfo || error != null) InfoPanel {
+            if (showInfo || error != null) InfoPanel(cardColorHex) {
                 val colors = HospitalityTheme.colors
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text("${channel.number}", style = HospitalityTheme.typography.title, color = colors.accent, modifier = Modifier.width(80.dp))
@@ -226,7 +232,14 @@ private fun ProgramLine(label: String, program: Program, highlight: Boolean) {
 
 /** Catchup y VOD: OK pausa/reanuda, izquierda/derecha retroceden/avanzan 10 s, atrás vuelve. */
 @Composable
-fun MediaPlayerScreen(source: EntertainmentSource, request: MediaRequest, text: UiText, playerControlColorHex: String? = null) {
+fun MediaPlayerScreen(
+    source: EntertainmentSource,
+    request: MediaRequest,
+    text: UiText,
+    playerControlColorHex: String? = null,
+    // Mismo color que las tarjetas (OperatorConfig.cardColorHex); null = el de la marca.
+    cardColorHex: String? = null,
+) {
     var error by remember { mutableStateOf<String?>(null) }
     var showInfo by remember { mutableStateOf(true) }
     var position by remember { mutableLongStateOf(0L) }
@@ -267,7 +280,7 @@ fun MediaPlayerScreen(source: EntertainmentSource, request: MediaRequest, text: 
             onError = { error = it?.let { text.playbackError } },
         ) { player ->
             LaunchedEffect(player) { playerRef = player }
-            if (showInfo || error != null) InfoPanel {
+            if (showInfo || error != null) InfoPanel(cardColorHex) {
                 val colors = HospitalityTheme.colors
                 val progressTrackColor = HospitalityColors.parseHex(playerControlColorHex) ?: colors.surfaceBorder
                 Text(request.title, style = HospitalityTheme.typography.title, color = colors.textPrimary, maxLines = 2, overflow = TextOverflow.Ellipsis)

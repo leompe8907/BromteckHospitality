@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.focusRequester
@@ -21,11 +22,21 @@ import com.networkbroadcast.hospitality.brand.BrandConfig
 import com.networkbroadcast.hospitality.brand.imageModel
 import com.networkbroadcast.hospitality.designsystem.FocusCard
 import com.networkbroadcast.hospitality.designsystem.HospitalityTheme
+import com.networkbroadcast.hospitality.designsystem.LocalHospitalityColors
 import com.networkbroadcast.hospitality.tv.R
 import com.networkbroadcast.hospitality.brand.UiText
 
 @Composable
-fun LanguageScreen(brand: BrandConfig, selected: String?, onSelected: (String) -> Unit, logoUrl: String? = null) {
+fun LanguageScreen(
+    brand: BrandConfig,
+    selected: String?,
+    onSelected: (String) -> Unit,
+    logoUrl: String? = null,
+    /** Mismo color que el botón Reproducir (OperatorConfig.playerControlColorHex): las tarjetas de
+     *  idioma son la única acción de esta pantalla -- si comparten el color de las cards comunes
+     *  (X_APP_CARD_COLOR) no se distinguen de cualquier otra tarjeta de contenido. Null = el de la marca. */
+    playerControlColorHex: String? = null,
+) {
     val colors = HospitalityTheme.colors
     val first = rememberInitialFocus()
     Column(
@@ -56,6 +67,8 @@ fun LanguageScreen(brand: BrandConfig, selected: String?, onSelected: (String) -
             modifier = Modifier.padding(top = 24.dp, bottom = 32.dp),
         )
         // Desplazable: con 5 o más idiomas la fila no entra en pantalla (RIU ofrece 8).
+        val tileColors = playerControlColorHex?.let(colors::withCustomCardColor) ?: colors
+        CompositionLocalProvider(LocalHospitalityColors provides tileColors) {
         LazyRow(horizontalArrangement = Arrangement.spacedBy(20.dp), contentPadding = FocusListPadding) {
             itemsIndexed(brand.languages) { index, code ->
                 val isFirst = if (selected != null) code == selected else index == 0
@@ -67,11 +80,12 @@ fun LanguageScreen(brand: BrandConfig, selected: String?, onSelected: (String) -
                     Text(
                         text = UiText.languageNames[code] ?: code.uppercase(),
                         style = HospitalityTheme.typography.label,
-                        color = colors.textPrimary,
+                        color = tileColors.textPrimary,
                         modifier = Modifier.align(Alignment.Center),
                     )
                 }
             }
+        }
         }
     }
 }

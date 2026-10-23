@@ -99,8 +99,14 @@ data class HospitalityColors(
     /** Variante con el color de card que mandó el operador (o esta misma instancia, si no hay). */
     fun withCustomCardColor(hex: String?): HospitalityColors {
         val custom = parseHex(hex) ?: return this
-        val text = readableTextColor(custom)
-        return copy(surface = custom, surfaceBorder = custom, textPrimary = text, textSecondary = text.copy(alpha = 0.75f))
+        return withCustomCardColor(custom)
+    }
+
+    /** Ídem, con el color ya resuelto -- para un default propio de la app (ej. [accent]) en vez de
+     *  un hex que mandó el operador. */
+    fun withCustomCardColor(color: Color): HospitalityColors {
+        val text = readableTextColor(color)
+        return copy(surface = color, surfaceBorder = color, textPrimary = text, textSecondary = text.copy(alpha = 0.75f))
     }
 
     /**

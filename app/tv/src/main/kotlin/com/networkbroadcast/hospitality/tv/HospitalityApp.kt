@@ -216,8 +216,6 @@ fun HospitalityApp(app: HospitalityApplication, showLogin: Boolean = false) {
     // antes de mostrarla para que los primeros canales ya estén precargados.
     LaunchedEffect(auth) {
         if (auth != Auth.Ready) return@LaunchedEffect
-        homeCatalogReady = false
-        channelCatalogReady = false
 
         val channelSnapshot = channels ?: entertainment.cachedChannels()
         val vodSnapshot = vod ?: if (brand.features.vod) entertainment.cachedVodShelves() else null
@@ -232,6 +230,17 @@ fun HospitalityApp(app: HospitalityApplication, showLogin: Boolean = false) {
         if (hasCompleteSnapshot) {
             Log.i("Hospitality.Catalog", "precarga: preparando Home con snapshots locales")
             warmHomeImages(channelSnapshot, vodSnapshot)
+            // Con snapshot completo (sesión que ya cargó el catálogo antes -- reabrir la app, volver
+            // de bloquear la TV, etc.), mostrar Home/TV en vivo de una sin esperar la red: el refresh
+            // de abajo actualiza todo en silencio cuando termine. Antes los dos flags se resetaban a
+            // false acá arriba sin excepción, así que cada apertura mostraba "Cargando" el tiempo
+            // entero del refresh + precarga de EPG aunque el catálogo en memoria ya fuera bueno
+            // (inspirado en cómo lo resuelve Bromteckotlin: cache primero, red en silencio después).
+            channelCatalogReady = true
+            homeCatalogReady = true
+        } else {
+            channelCatalogReady = false
+            homeCatalogReady = false
         }
 
         // Catch Up usa los Streams/EPG de la respuesta fresca, no alcanza con leer el snapshot
@@ -400,6 +409,8 @@ fun HospitalityApp(app: HospitalityApplication, showLogin: Boolean = false) {
                     choosingLanguage = false
                 },
                 logoUrl = logoUrl,
+                // Mismo color que el botón Reproducir: para que se distingan de una card común.
+                playerControlColorHex = panaccess.operatorConfig?.playerControlColorHex,
             )
             if (choosingLanguage) BackHandler { choosingLanguage = false }
             return@Box
@@ -485,6 +496,7 @@ fun HospitalityApp(app: HospitalityApplication, showLogin: Boolean = false) {
                 channels = channelList,
                 startChannelId = playingChannel,
                 text = text,
+                cardColorHex = panaccess.operatorConfig?.cardColorHex,
                 onChannelChanged = { playingChannel = it },
             )
             Screen.Guide -> when {
@@ -525,7 +537,13 @@ fun HospitalityApp(app: HospitalityApplication, showLogin: Boolean = false) {
                 }
             }
             Screen.WidgetDetail -> selectedWidget?.let { WidgetDetailScreen(it, text) }
-            Screen.MediaPlayer -> media?.let { MediaPlayerScreen(entertainment, it, text, panaccess.operatorConfig?.playerControlColorHex) }
+            Screen.MediaPlayer -> media?.let {
+                MediaPlayerScreen(
+                    entertainment, it, text,
+                    playerControlColorHex = panaccess.operatorConfig?.playerControlColorHex,
+                    cardColorHex = panaccess.operatorConfig?.cardColorHex,
+                )
+            }
             Screen.Services -> guestServices?.let { services ->
                 ServicesScreen(
                     services = services,
@@ -549,6 +567,9 @@ fun HospitalityApp(app: HospitalityApplication, showLogin: Boolean = false) {
                 text = text,
                 cardColorHex = panaccess.operatorConfig?.cardColorHex,
                 textColorHex = panaccess.operatorConfig?.textColorHex,
+                // Mismo color que "Confirmar" en el checkout: "Comenzar" y el pill del hotel son
+                // la única acción de esta bienvenida.
+                confirmColorHex = panaccess.operatorConfig?.confirmColorHex,
                 // Nombre: el que manda Panaccess (getClientConfig); si la cuenta no lo trae, sin nombre
                 // (WelcomeDialog ya tiene un título de respaldo para ese caso) -- nunca el de demo de la
                 // marca, para no mostrarle un nombre inventado al huésped real.
@@ -583,6 +604,8 @@ fun HospitalityApp(app: HospitalityApplication, showLogin: Boolean = false) {
                 text = text,
                 cardColorHex = panaccess.operatorConfig?.cardColorHex,
                 textColorHex = panaccess.operatorConfig?.textColorHex,
+                confirmColorHex = panaccess.operatorConfig?.confirmColorHex,
+                cancelColorHex = panaccess.operatorConfig?.cancelColorHex,
                 onConfirm = {
                     // Check-out del huésped: borra su sesión y desempareja sus celulares. La de
                     // Panaccess (la TV) queda.

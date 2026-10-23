@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -27,6 +28,7 @@ import com.networkbroadcast.hospitality.designsystem.FocusCard
 import com.networkbroadcast.hospitality.designsystem.HospitalityColors
 import com.networkbroadcast.hospitality.designsystem.HospitalityTheme
 import com.networkbroadcast.hospitality.designsystem.InfoPill
+import com.networkbroadcast.hospitality.designsystem.LocalHospitalityColors
 
 /**
  * Bienvenida al entrar a la habitación: una vez por estadía (el check-out la vuelve a habilitar).
@@ -42,6 +44,10 @@ fun WelcomeDialog(
     imageUrl: String?,
     cardColorHex: String? = null,
     textColorHex: String? = null,
+    /** Color del botón Confirmar (OperatorConfig.confirmColorHex), mismo criterio que el
+     *  "Confirmar" de CheckoutDialog: "Comenzar" y el pill con el nombre del hotel son la única
+     *  acción de esta bienvenida -- null = el color de card de siempre de la marca. */
+    confirmColorHex: String? = null,
     onDismiss: () -> Unit,
 ) {
     val colors = HospitalityTheme.colors
@@ -50,6 +56,7 @@ fun WelcomeDialog(
     val cardText = HospitalityColors.parseHex(textColorHex)
         ?: customCard?.let { HospitalityColors.readableTextColor(it) }
         ?: colors.textPrimary
+    val actionColors = confirmColorHex?.let { colors.withCustomCardColor(it) } ?: colors
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
         val focus = rememberInitialFocus()
         Column(Modifier.width(720.dp).clip(RoundedCornerShape(22.dp)).background(cardBackground)) {
@@ -64,10 +71,14 @@ fun WelcomeDialog(
                     guestName?.let { text.welcomeTitle.format(it) } ?: text.welcomeTitleNoName,
                     style = HospitalityTheme.typography.display, color = cardText,
                 )
-                InfoPill(listOfNotNull(hotelName, room?.let { "${text.room} $it" }).joinToString(" · "))
+                CompositionLocalProvider(LocalHospitalityColors provides actionColors) {
+                    InfoPill(listOfNotNull(hotelName, room?.let { "${text.room} $it" }).joinToString(" · "))
+                }
                 message?.let { Text(it, style = HospitalityTheme.typography.body, color = cardText.copy(alpha = 0.75f)) }
-                FocusCard(onClick = onDismiss, modifier = Modifier.padding(top = 6.dp).size(width = 220.dp, height = 60.dp).focusRequester(focus)) {
-                    Text(text.start, style = HospitalityTheme.typography.label, color = colors.textPrimary, modifier = Modifier.align(Alignment.Center))
+                CompositionLocalProvider(LocalHospitalityColors provides actionColors) {
+                    FocusCard(onClick = onDismiss, modifier = Modifier.padding(top = 6.dp).size(width = 220.dp, height = 60.dp).focusRequester(focus)) {
+                        Text(text.start, style = HospitalityTheme.typography.label, color = actionColors.textPrimary, modifier = Modifier.align(Alignment.Center))
+                    }
                 }
             }
         }

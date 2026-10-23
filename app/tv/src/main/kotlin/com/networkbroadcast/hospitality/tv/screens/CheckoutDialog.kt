@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -20,6 +21,7 @@ import androidx.compose.ui.window.DialogProperties
 import com.networkbroadcast.hospitality.designsystem.FocusCard
 import com.networkbroadcast.hospitality.designsystem.HospitalityColors
 import com.networkbroadcast.hospitality.designsystem.HospitalityTheme
+import com.networkbroadcast.hospitality.designsystem.LocalHospitalityColors
 import com.networkbroadcast.hospitality.brand.UiText
 
 /**
@@ -31,6 +33,12 @@ fun CheckoutDialog(
     text: UiText,
     cardColorHex: String? = null,
     textColorHex: String? = null,
+    /** Color del botón Confirmar (OperatorConfig.confirmColorHex) -- null = el color de card de
+     *  siempre de la marca (el verde/turquesa de Resort). */
+    confirmColorHex: String? = null,
+    /** Color del botón Cancelar (OperatorConfig.cancelColorHex), propio para que se distinga de
+     *  Confirmar -- null = el accent de la marca (el naranja de Resort). */
+    cancelColorHex: String? = null,
     onConfirm: () -> Unit,
     onDismiss: () -> Unit,
 ) {
@@ -40,6 +48,8 @@ fun CheckoutDialog(
     val cardText = HospitalityColors.parseHex(textColorHex)
         ?: customCard?.let { HospitalityColors.readableTextColor(it) }
         ?: colors.textPrimary
+    val confirmColors = confirmColorHex?.let { colors.withCustomCardColor(it) } ?: colors
+    val cancelColors = cancelColorHex?.let { colors.withCustomCardColor(it) } ?: colors.withCustomCardColor(colors.accent)
     // usePlatformDefaultWidth = false: el ancho por defecto de Android aplastaba los botones.
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
         // El foco arranca en "Cancelar": un OK accidental del control no debe borrar la sesión.
@@ -51,11 +61,15 @@ fun CheckoutDialog(
             Text(text.checkoutQuestion, style = HospitalityTheme.typography.title, color = cardText)
             Text(text.checkoutDetail, style = HospitalityTheme.typography.body, color = cardText.copy(alpha = 0.75f))
             Row(horizontalArrangement = Arrangement.spacedBy(16.dp), modifier = Modifier.padding(top = 8.dp)) {
-                FocusCard(onClick = onDismiss, modifier = Modifier.size(width = 200.dp, height = 64.dp).focusRequester(cancelFocus)) {
-                    Text(text.cancel, style = HospitalityTheme.typography.label, color = colors.textPrimary, modifier = Modifier.align(Alignment.Center))
+                CompositionLocalProvider(LocalHospitalityColors provides cancelColors) {
+                    FocusCard(onClick = onDismiss, modifier = Modifier.size(width = 200.dp, height = 64.dp).focusRequester(cancelFocus)) {
+                        Text(text.cancel, style = HospitalityTheme.typography.label, color = cancelColors.textPrimary, modifier = Modifier.align(Alignment.Center))
+                    }
                 }
-                FocusCard(onClick = onConfirm, modifier = Modifier.size(width = 200.dp, height = 64.dp)) {
-                    Text(text.confirm, style = HospitalityTheme.typography.label, color = colors.accent, modifier = Modifier.align(Alignment.Center))
+                CompositionLocalProvider(LocalHospitalityColors provides confirmColors) {
+                    FocusCard(onClick = onConfirm, modifier = Modifier.size(width = 200.dp, height = 64.dp)) {
+                        Text(text.confirm, style = HospitalityTheme.typography.label, color = confirmColors.textPrimary, modifier = Modifier.align(Alignment.Center))
+                    }
                 }
             }
         }

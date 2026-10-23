@@ -93,6 +93,14 @@ data class OperatorConfig(
     // Color compartido del botón Reproducir y del riel de progreso de películas/series.
     val playerControlColorHex: String? get() = param("X_APP_PLAYER_CONTROL_COLOR")
 
+    // Color del botón "Confirmar" en diálogos de dos acciones (hoy, check-out). Sin configurar,
+    // queda el color de card de siempre de la marca (ver CheckoutDialog).
+    val confirmColorHex: String? get() = param("X_APP_CONFIRM_COLOR")
+
+    // Ídem para "Cancelar" -- un color propio en vez de compartir el de Confirmar, para que ambos
+    // botones se distingan entre sí. Sin configurar, naranja/accent de la marca (ver CheckoutDialog).
+    val cancelColorHex: String? get() = param("X_APP_CANCEL_COLOR")
+
     // Color de letra (e íconos que acompañan texto, ej. Acciones rápidas) configurable por
     // Delancer, en hex. Pisa el cálculo automático de contraste de X_APP_CARD_COLOR cuando el
     // operador quiere un color de letra puntual en vez de ese cálculo.

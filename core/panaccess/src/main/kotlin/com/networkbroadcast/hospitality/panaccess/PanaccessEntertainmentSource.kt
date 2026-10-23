@@ -37,6 +37,7 @@ class PanaccessEntertainmentSource(
     context: Context,
     private val session: PanaccessSession,
     epgCredentials: EpgApiCredentials,
+    private val showEmptyBouquetsForPreview: Boolean = false,
 ) : EntertainmentSource {
 
     private val catchupCacheDirectory = File(context.filesDir, "catchup")
@@ -81,7 +82,8 @@ class PanaccessEntertainmentSource(
         // Filas por bouquet, por prioridad; los que no tienen canales de esta TV no aparecen.
         val groups = result.bouquets.mapNotNull { bouquet ->
             val members = result.streams.filter { bouquet.bouquetId in it.bouquetIds && it.streamId in ids }
-            if (members.isEmpty() || bouquet.name.isBlank()) null
+            val includeEmptyForPreview = showEmptyBouquetsForPreview && result.streams.isEmpty()
+            if ((members.isEmpty() && !includeEmptyForPreview) || bouquet.name.isBlank()) null
             else {
                 val layout = BouquetServiceLayoutConfig.parse(bouquet.customData)
                 android.util.Log.i(

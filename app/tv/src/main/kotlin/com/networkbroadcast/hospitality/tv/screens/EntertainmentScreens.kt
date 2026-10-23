@@ -34,6 +34,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import com.networkbroadcast.hospitality.designsystem.FocusCard
@@ -70,11 +71,21 @@ fun LiveTvScreen(
     source: EntertainmentSource,
     text: UiText,
     focusOn: String?,
+    /** "#163F42", color de card configurado por Delancer (OperatorConfig.cardColorHex); mismo
+     *  criterio que en la home (HomeScreen.cardColorHex) -- null = el de la marca. */
+    cardColorHex: String? = null,
+    /** Ídem para el color de letra (OperatorConfig.textColorHex); null = el que surge del
+     *  contraste de [cardColorHex], o el de la marca. */
+    textColorHex: String? = null,
     onPlay: (channelId: String) -> Unit,
 ) {
-    val colors = HospitalityTheme.colors
     val result = channels ?: return CenteredMessage(text.loading)
-    if (result.channels.isEmpty()) return CenteredMessage(result.failure?.let { "${text.noChannels} ($it)" } ?: text.noChannels)
+    if (result.channels.isEmpty()) {
+        if (result.groups.isEmpty()) {
+            return CenteredMessage(result.failure?.let { "${text.noChannels} ($it)" } ?: text.noChannels)
+        }
+        return EmptyBouquetLayoutPreview(result.groups)
+    }
     val byId = result.channels.associateBy { it.id }
     val rows = result.groups.ifEmpty { listOf(ChannelGroup(text.liveTv, result.channels.map { it.id })) }
         .map { group -> Triple(group.name, group.channelIds.mapNotNull(byId::get), group.layout) }
@@ -117,6 +128,8 @@ fun LiveTvScreen(
     }
     if (!initialImagesReady) return CenteredMessage(text.loading)
 
+    OperatorCardColors(cardColorHex, textColorHex) {
+    val colors = HospitalityTheme.colors
     LazyColumn(Modifier.fillMaxSize(), contentPadding = ScreenPadding, verticalArrangement = Arrangement.spacedBy(18.dp)) {
         item { Text(text.liveTv, style = HospitalityTheme.typography.title, color = colors.textPrimary) }
         itemsIndexed(rows) { rowIndex, (name, members, layout) ->
@@ -135,7 +148,6 @@ fun LiveTvScreen(
                                         modifier = Modifier.weight(1f).then(if (isTarget) Modifier.focusRequester(first) else Modifier),
                                         fillWidth = true,
                                         preloadedProgram = initialPrograms[channel.id],
-                                        programWasPreloaded = channel.id in initialPrograms,
                                         onClick = { onPlay(channel.id) },
                                     )
                                 }
@@ -155,7 +167,6 @@ fun LiveTvScreen(
                                             channel, layout, source,
                                             if (isTarget) Modifier.focusRequester(first) else Modifier,
                                             preloadedProgram = initialPrograms[channel.id],
-                                            programWasPreloaded = channel.id in initialPrograms,
                                         ) { onPlay(channel.id) }
                                     }
                                 }
@@ -166,8 +177,59 @@ fun LiveTvScreen(
                                     channel, layout, source,
                                     if (isTarget) Modifier.focusRequester(first) else Modifier,
                                     preloadedProgram = initialPrograms[channel.id],
-                                    programWasPreloaded = channel.id in initialPrograms,
                                 ) { onPlay(channel.id) }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    }
+}
+
+/** Vista temporal de QA: permite revisar los bouquets/layouts que devolvió Panaccess sin canales. */
+@Composable
+private fun EmptyBouquetLayoutPreview(groups: List<ChannelGroup>) {
+    val colors = HospitalityTheme.colors
+    LazyColumn(Modifier.fillMaxSize(), contentPadding = ScreenPadding, verticalArrangement = Arrangement.spacedBy(20.dp)) {
+        item {
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Text("Vista previa de bouquets", style = HospitalityTheme.typography.title, color = colors.textPrimary)
+                Text("La cuenta no tiene canales asignados; las tarjetas son de muestra.", style = HospitalityTheme.typography.body, color = colors.textSecondary)
+            }
+        }
+        items(groups) { group ->
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                SectionTitle(group.name, Modifier.padding(start = 12.dp))
+                Text(
+                    "${group.layout.type} · filas ${group.layout.rows} · columnas ${group.layout.columns} · ${group.layout.cardDesign} · logo ${group.layout.logoIndex}",
+                    style = HospitalityTheme.typography.body,
+                    color = colors.textSecondary,
+                    modifier = Modifier.padding(start = 12.dp),
+                )
+                val height = cardHeightFor(group.layout.cardDesign)
+                if (group.layout.type == "vertical_grid") {
+                    val columns = group.layout.columns.coerceIn(1, 8)
+                    repeat(2) { row ->
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                            repeat(columns) { column ->
+                                BouquetPreviewCard(
+                                    label = "Canal de muestra ${row * columns + column + 1}",
+                                    height = height,
+                                    modifier = Modifier.weight(1f),
+                                )
+                            }
+                        }
+                    }
+                } else {
+                    val rows = group.layout.rows.coerceIn(1, 5)
+                    LazyRow(horizontalArrangement = Arrangement.spacedBy(14.dp), contentPadding = FocusListPadding) {
+                        items(2) { column ->
+                            Column(Modifier.width(200.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                repeat(rows) { row ->
+                                    BouquetPreviewCard("Canal de muestra ${column * rows + row + 1}", height, Modifier.width(200.dp))
+                                }
                             }
                         }
                     }
@@ -178,6 +240,30 @@ fun LiveTvScreen(
 }
 
 @Composable
+private fun BouquetPreviewCard(label: String, height: androidx.compose.ui.unit.Dp, modifier: Modifier = Modifier) {
+    val colors = HospitalityTheme.colors
+    Box(
+        modifier.height(height).background(colors.surface).padding(14.dp),
+        contentAlignment = Alignment.CenterStart,
+    ) {
+        Text(label, style = HospitalityTheme.typography.label, color = colors.textPrimary, maxLines = 1, overflow = TextOverflow.Ellipsis)
+    }
+}
+
+private fun isBigCardDesign(design: String): Boolean =
+    design == "logo_big" || design == "event_big" || design == "event_and_logo" ||
+        design == "event_and_logo_in_top" || design == "event_and_logo_in_bottom"
+
+private fun isFullInfoCardDesign(design: String): Boolean =
+    design == "channel_full_info" || design == "event_line"
+
+private fun cardWidthFor(design: String): Dp =
+    when { isFullInfoCardDesign(design) -> 420.dp; isBigCardDesign(design) -> 260.dp; else -> 200.dp }
+
+private fun cardHeightFor(design: String): Dp =
+    when { isFullInfoCardDesign(design) -> 88.dp; isBigCardDesign(design) -> 160.dp; else -> 120.dp }
+
+@Composable
 private fun ChannelCard(
     channel: Channel,
     layout: ChannelGroupLayout,
@@ -185,19 +271,21 @@ private fun ChannelCard(
     modifier: Modifier = Modifier,
     fillWidth: Boolean = false,
     preloadedProgram: Program? = null,
-    programWasPreloaded: Boolean = false,
     onClick: () -> Unit,
 ) {
     val colors = HospitalityTheme.colors
     val design = layout.cardDesign
     val needsProgram = design.startsWith("event_") || design == "event_normal" || design == "event_big" || design == "channel_full_info"
-    var currentProgram by remember(channel.id, needsProgram, programWasPreloaded) { mutableStateOf(preloadedProgram) }
-    var programRequested by remember(channel.id, needsProgram, programWasPreloaded) { mutableStateOf(programWasPreloaded) }
-    val isBig = design == "logo_big" || design == "event_big" || design == "event_and_logo" ||
-        design == "event_and_logo_in_top" || design == "event_and_logo_in_bottom"
-    val isFullInfo = design == "channel_full_info" || design == "event_line"
-    val cardWidth = when { isFullInfo -> 420.dp; isBig -> 260.dp; else -> 200.dp }
-    val cardHeight = when { isFullInfo -> 88.dp; isBig -> 160.dp; else -> 120.dp }
+    var currentProgram by remember(channel.id, needsProgram, preloadedProgram) { mutableStateOf(preloadedProgram) }
+    // Solo se marca "ya pedido" si la precarga trajo un programa real: si falló o corrió antes de
+    // que el EPG estuviera listo (ver initialPrograms en LiveTvScreen), !preloadedProgram no debe
+    // dejar la tarjeta sin reintentar para siempre -- antes de agregar la precarga, cada tarjeta
+    // pedía su evento al enfocarse y siempre terminaba cargando.
+    var programRequested by remember(channel.id, needsProgram, preloadedProgram) { mutableStateOf(preloadedProgram != null) }
+    val isBig = isBigCardDesign(design)
+    val isFullInfo = isFullInfoCardDesign(design)
+    val cardWidth = cardWidthFor(design)
+    val cardHeight = cardHeightFor(design)
     val cardModifier = if (fillWidth) modifier.fillMaxWidth().height(cardHeight) else modifier.size(width = cardWidth, height = cardHeight)
     val usesEventImage = needsProgram && currentProgram?.imageUrl != null
     val usesChannelImageAsEventFallback = needsProgram && !usesEventImage && !channel.logoUrl.isNullOrBlank()

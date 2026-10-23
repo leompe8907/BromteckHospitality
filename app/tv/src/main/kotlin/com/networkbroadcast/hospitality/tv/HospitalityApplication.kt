@@ -86,7 +86,12 @@ class HospitalityApplication : Application(), SingletonImageLoader.Factory {
     val osm: OsmWatcher by lazy { OsmWatcher(this) }
 
     val entertainment: PanaccessEntertainmentSource by lazy {
-        PanaccessEntertainmentSource(this, panaccess, EpgApiCredentials(brand.panaccess.epgApiToken, brand.panaccess.epgApiKey))
+        PanaccessEntertainmentSource(
+            this,
+            panaccess,
+            EpgApiCredentials(brand.panaccess.epgApiToken, brand.panaccess.epgApiKey),
+            showEmptyBouquetsForPreview = applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE != 0,
+        )
     }
 
     /**

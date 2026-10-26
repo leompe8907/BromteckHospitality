@@ -411,7 +411,16 @@ fun HospitalityApp(app: HospitalityApplication, showLogin: Boolean = false) {
                 runCatching { imageLoader.execute(ImageRequest.Builder(context).data(imageModel(url)).build()) }
             }
         }
-        if (showsHotelBackdrop) HotelBackdrop(backgrounds, placeholderImageUrl = panaccess.operatorConfig?.placeholderImageUrl)
+        // Mientras el catálogo todavía carga se sostiene el mismo splash que venía mostrando la
+        // pantalla de conexión, en vez de pasar al fondo común: cambiar de imagen a mitad de la
+        // carga se lee como si la app se hubiera reiniciado sola. Recién al abrir Home aparece el
+        // fondo del hotel, que ahí sí es un cambio de pantalla y no un parpadeo.
+        val splashUrl = panaccess.cachedSplashImageUrl ?: panaccess.operatorConfig?.splashImageUrl
+        val holdingSplash = !homeCatalogReady && splashUrl != null
+        when {
+            holdingSplash -> HotelBackdrop(listOf(splashUrl!!))
+            showsHotelBackdrop -> HotelBackdrop(backgrounds, placeholderImageUrl = panaccess.operatorConfig?.placeholderImageUrl)
+        }
         if (current == null || choosingLanguage) {
             LanguageScreen(
                 brand = brand,
@@ -510,6 +519,8 @@ fun HospitalityApp(app: HospitalityApplication, showLogin: Boolean = false) {
                 startChannelId = playingChannel,
                 text = text,
                 cardColorHex = panaccess.operatorConfig?.cardColorHex,
+                playerControlColorHex = panaccess.operatorConfig?.playerControlColorHex,
+                confirmColorHex = panaccess.operatorConfig?.confirmColorHex,
                 onChannelChanged = { playingChannel = it },
             )
             Screen.Guide -> when {
@@ -555,6 +566,7 @@ fun HospitalityApp(app: HospitalityApplication, showLogin: Boolean = false) {
                     entertainment, it, text,
                     playerControlColorHex = panaccess.operatorConfig?.playerControlColorHex,
                     cardColorHex = panaccess.operatorConfig?.cardColorHex,
+                    confirmColorHex = panaccess.operatorConfig?.confirmColorHex,
                 )
             }
             Screen.Services -> guestServices?.let { services ->

@@ -166,7 +166,26 @@ class PanaccessSession(context: Context, val client: PanaccessClient) {
     }
 
     private suspend fun fetchOperatorConfig(): OperatorConfig? =
-        (client.call("getClientConfig") as? CasResult.Success)?.let { OperatorConfig.parse(it.rawJson) }?.let { resolveWidgetsUrl(it) }
+        (client.call("getClientConfig") as? CasResult.Success)?.let { OperatorConfig.parse(it.rawJson) }
+            ?.let { resolveWidgetsUrl(it) }
+            ?.also { logColorParams(it) }
+
+    /**
+     * Los parámetros de color tal cual los manda Cableatlántico, crudos. Sin esto no hay forma de
+     * distinguir "el hotel no lo configuró" de "lo configuró con un formato que no parsea": los
+     * dos casos terminan en el color por defecto de la marca, en silencio.
+     * [HospitalityColors.parseHex] avisa del segundo caso, pero del primero no puede avisar nadie.
+     */
+    private fun logColorParams(config: OperatorConfig) {
+        val colorKeys = listOf(
+            "X_APP_CARD_COLOR", "X_APP_TEXT_COLOR", "X_APP_PLAYER_CONTROL_COLOR",
+            "X_APP_CONFIRM_COLOR", "X_APP_CANCEL_COLOR",
+        )
+        val shown = colorKeys.joinToString(", ") { key ->
+            "$key=${config.param(key)?.let { "\"$it\"" } ?: "(sin configurar)"}"
+        }
+        Log.i(TAG, "colores del operador: $shown")
+    }
 
     /**
      * X_APP_WIDGETS puede venir como el JSON directo, o como una URL a un archivo con ese JSON

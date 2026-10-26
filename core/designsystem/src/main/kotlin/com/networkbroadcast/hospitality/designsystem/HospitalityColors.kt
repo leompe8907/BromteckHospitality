@@ -73,16 +73,48 @@ data class HospitalityColors(
             VisualDirection.MINIMAL -> Minimal
         }
 
-        /** "#163F42" o "#FF163F42" -> Color. null si no es un hex válido (ej. el operador no lo configuró). */
+        /**
+         * "#163F42", "163F42", "#FF163F42" o la forma corta de CSS "#DDD"/"#8ABC" -> Color. En los
+         * de 8 dígitos (y en la corta de 4) el alfa va primero, como los literales de Compose.
+         *
+         * null si el operador no configuró el parámetro, o si lo que cargó no es un hex. Ese
+         * segundo caso además se loguea: antes los dos casos eran indistinguibles y un valor mal
+         * escrito en el panel de Panaccess se ignoraba sin dejar ningún rastro -- con ~169
+         * parámetros `X_` eso significaba "lo configuré y no pasó nada" sin forma de diagnosticarlo.
+         */
         fun parseHex(hex: String?): Color? {
-            val clean = hex?.removePrefix("#") ?: return null
-            return runCatching {
-                when (clean.length) {
-                    6 -> Color(clean.toLong(16) or 0xFF000000)
-                    8 -> Color(clean.toLong(16))
-                    else -> null
-                }
-            }.getOrNull()
+            if (hex == null) return null
+            val clean = hex.trim().removePrefix("#").removePrefix("0x").removePrefix("0X")
+            // Se valida el contenido, no solo el largo: antes esto miraba `length` y nada más, así
+            // que " #D0D0D0" (con un espacio) medía 8, entraba por la rama de 8 dígitos y moría en
+            // el toLong(16), que el runCatching convertía en "no configurado".
+            if (clean.isEmpty() || !clean.all { it in '0'..'9' || it in 'a'..'f' || it in 'A'..'F' }) {
+                return warnUnparseable(hex)
+            }
+            val full = when (clean.length) {
+                3, 4 -> clean.map { "$it$it" }.joinToString("")
+                else -> clean
+            }
+            return when (full.length) {
+                6 -> Color(full.toLong(16) or 0xFF000000)
+                8 -> Color(full.toLong(16))
+                else -> warnUnparseable(hex)
+            }
+        }
+
+        /**
+         * runCatching porque android.util.Log no está mockeado en los tests unitarios de JVM puro y
+         * tira apenas se la llama -- mismo criterio que los logs de diagnóstico de OperatorConfig.
+         */
+        private fun warnUnparseable(raw: String): Color? {
+            runCatching {
+                android.util.Log.w(
+                    "Hospitality.Session",
+                    "color del operador ignorado: \"$raw\" no es un hex válido " +
+                        "(se espera #RGB, #RGBA, #RRGGBB o #AARRGGBB)",
+                )
+            }
+            return null
         }
 
         /**

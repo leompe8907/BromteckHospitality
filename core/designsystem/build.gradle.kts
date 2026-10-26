@@ -21,4 +21,5 @@ dependencies {
     // QR (emparejamiento de la TV, códigos de ubicación de la app del mesero).
     implementation(libs.zxing.core)
     debugImplementation(libs.compose.ui.tooling)
+    testImplementation(libs.junit)
 }

@@ -48,6 +48,7 @@ import com.networkbroadcast.hospitality.tv.screens.LoginScreen
 import com.networkbroadcast.hospitality.tv.screens.MediaPlayerScreen
 import com.networkbroadcast.hospitality.tv.screens.PairPhoneDialog
 import com.networkbroadcast.hospitality.tv.screens.PlayerScreen
+import com.networkbroadcast.hospitality.tv.screens.ResumePoint
 import com.networkbroadcast.hospitality.tv.screens.VodDetailScreen
 import com.networkbroadcast.hospitality.tv.screens.WidgetDetailScreen
 import com.networkbroadcast.hospitality.tv.screens.VodScreen
@@ -88,6 +89,17 @@ fun BrandConfig.quickActions(showsHotelInfo: Boolean): List<HomeAction> = buildL
 
 /** Lo que se reproduce en el player de catchup/VOD (el de TV en vivo tiene el suyo, con zapping). */
 data class MediaRequest(val target: Playable, val title: String)
+
+/**
+ * Clave estable con la que se guarda dónde quedó cada contenido (ver GuestSession). Lleva el tipo
+ * adelante para que un VOD y un evento de catchup que casualmente compartan id no se pisen.
+ */
+private fun Playable.resumeKey(): String? = when (this) {
+    is Playable.Vod -> "vod:$vodId"
+    is Playable.Catchup -> "catchup:$catchupId"
+    // En vivo no se retoma: no hay dónde volver.
+    is Playable.Live -> null
+}
 
 @Composable
 fun HospitalityApp(app: HospitalityApplication, showLogin: Boolean = false) {
@@ -518,8 +530,8 @@ fun HospitalityApp(app: HospitalityApplication, showLogin: Boolean = false) {
                 channels = channelList,
                 startChannelId = playingChannel,
                 text = text,
-                cardColorHex = panaccess.operatorConfig?.cardColorHex,
-                playerControlColorHex = panaccess.operatorConfig?.playerControlColorHex,
+                // El player dibuja sobre un degradado, no sobre una tarjeta: su único color
+                // parametrizado es el de "Confirmar" (barra de progreso y aro de foco).
                 confirmColorHex = panaccess.operatorConfig?.confirmColorHex,
                 onChannelChanged = { playingChannel = it },
             )
@@ -542,6 +554,8 @@ fun HospitalityApp(app: HospitalityApplication, showLogin: Boolean = false) {
                     // Mismo color que las tarjetas de la home (OperatorConfig.cardColorHex/textColorHex).
                     cardColorHex = panaccess.operatorConfig?.cardColorHex,
                     textColorHex = panaccess.operatorConfig?.textColorHex,
+                    // "Ver de nuevo"/"Ahora" y el horario al aire: mismo color que "Confirmar".
+                    confirmColorHex = panaccess.operatorConfig?.confirmColorHex,
                 )
             }
             Screen.Vod -> VodScreen(
@@ -564,9 +578,17 @@ fun HospitalityApp(app: HospitalityApplication, showLogin: Boolean = false) {
             Screen.MediaPlayer -> media?.let {
                 MediaPlayerScreen(
                     entertainment, it, text,
-                    playerControlColorHex = panaccess.operatorConfig?.playerControlColorHex,
-                    cardColorHex = panaccess.operatorConfig?.cardColorHex,
                     confirmColorHex = panaccess.operatorConfig?.confirmColorHex,
+                    // "Seguir viendo": guardado en la TV, en la sesión del huésped, así que el
+                    // check-out lo borra junto con el idioma.
+                    resume = it.target.resumeKey()?.let { key ->
+                        ResumePoint(
+                            startMs = session.resumePositionMs(key),
+                            onLeave = { positionMs, durationMs ->
+                                session.saveResumePosition(key, positionMs, durationMs)
+                            },
+                        )
+                    },
                 )
             }
             Screen.Services -> guestServices?.let { services ->

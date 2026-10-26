@@ -7,12 +7,12 @@ import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -25,9 +25,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.platform.LocalContext
@@ -49,7 +49,6 @@ import androidx.media3.ui.PlayerView
 import com.networkbroadcast.hospitality.panaccess.CopyProtection
 import com.networkbroadcast.hospitality.designsystem.HospitalityColors
 import com.networkbroadcast.hospitality.designsystem.HospitalityTheme
-import com.networkbroadcast.hospitality.designsystem.OperatorCardColors
 import com.networkbroadcast.hospitality.entertainment.Channel
 import com.networkbroadcast.hospitality.entertainment.EntertainmentSource
 import com.networkbroadcast.hospitality.entertainment.Playable
@@ -73,6 +72,9 @@ private fun playWhenReadyReason(reason: Int): String = when (reason) {
 private const val MAX_RETRIES = 3
 private const val SEEK_STEP_MS = 10_000L // PLAYER_SEEK_INCREMENT_MS del base
 
+/** Alto del desvanecido del degradado por encima del contenido del player (ver PlayerScrim). */
+private val SCRIM_FADE = 112.dp
+
 /**
  * Player HLS. Reproduce la URL que entrega el DRM con el HLS estándar de Media3, sin MediaDrm:
  * así lo hace también la app iOS del base. Si un stream no anda, el siguiente paso es el
@@ -88,6 +90,10 @@ private fun HlsPlayer(
     resolve: suspend () -> String?,
     recover: suspend () -> Boolean,
     onError: (String?) -> Unit,
+    /** Dónde arrancar, para retomar lo que el huésped dejó a medias (ver GuestSession). 0 = desde
+     *  el principio. Se aplica también en los reintentos: si falla a mitad, vuelve a donde estaba,
+     *  no al principio. */
+    startPositionMs: Long = 0L,
     content: @Composable BoxScope.(ExoPlayer) -> Unit,
 ) {
     val context = LocalContext.current
@@ -150,6 +156,9 @@ private fun HlsPlayer(
         } else {
             player.setMediaItem(item.build())
         }
+        // Antes de prepare(): ExoPlayer toma esto como posición de arranque y no se ve el salto
+        // que habría si se hiciera seekTo() una vez que ya empezó a reproducir.
+        if (startPositionMs > 0L) player.seekTo(startPositionMs)
         player.prepare()
     }
 
@@ -165,28 +174,44 @@ private fun HlsPlayer(
 }
 
 /**
- * Recuadro inferior con la información de lo que se ve. Ocupa casi todo el ancho y va centrado
- * abajo, como el mock: así la barra de progreso es larga y los dos tiempos quedan en los extremos,
- * en vez de un recuadro angosto en una esquina.
+ * Capa inferior del player: un degradado sobre el video, no una tarjeta. Es lo que hacen los
+ * players de TV de las OTT grandes, y acá además resuelve dos cosas concretas: la imagen nunca
+ * queda tapada por un rectángulo opaco, y el contenido de adentro puede usar una tinta fija
+ * ([PlayerInk]) en vez de depender de un color que mande el operador.
+ *
+ * Negro neutro, nunca `colors.background`: ése es el verde/turquesa de la paleta Resort y teñía
+ * toda la imagen -- el "filtro verde" que ya se sacó de la ficha de VOD y del fondo del hotel.
+ *
+ * El degradado mide lo que mide su contenido más [SCRIM_FADE] de desvanecido arriba, en vez de una
+ * fracción fija de la pantalla: con una fracción, el player en vivo (sólo texto) desperdiciaba
+ * medio cuadro, y el de películas (título + barra + botones) se quedaba corto y el texto caía
+ * sobre el video sin oscurecer. Así cada pantalla ocupa exactamente lo suyo.
  */
 @Composable
-private fun BoxScope.InfoPanel(cardColorHex: String?, content: @Composable () -> Unit) {
-    val colors = HospitalityTheme.colors
-    // Mismo color y mismo parámetro que el resto de las tarjetas (OperatorConfig.cardColorHex) --
-    // antes esto usaba colors.background (el verde/turquesa de la paleta Resort) sin pasar por
-    // ningún parámetro del operador, así que nunca podía dejar de verse verde.
-    val panelColor = HospitalityColors.parseHex(cardColorHex) ?: colors.surface
+private fun BoxScope.PlayerScrim(content: @Composable ColumnScope.() -> Unit) {
     Column(
-        Modifier.align(Alignment.BottomCenter).padding(horizontal = 48.dp, vertical = 40.dp).fillMaxWidth()
-            .clip(RoundedCornerShape(14.dp)).background(panelColor.copy(alpha = 0.88f)).padding(24.dp),
-        // Igual que las tarjetas de la home: con un color de panel claro, el texto y el riel de
-        // progreso de adentro se recalculan para que sigan leyéndose (readableTextColor).
-    ) { OperatorCardColors(cardColorHex, textColorHex = null) { content() } }
+        Modifier.align(Alignment.BottomStart).fillMaxWidth()
+            .background(
+                Brush.verticalGradient(
+                    0f to Color.Transparent,
+                    0.45f to Color(0xD9070D0F),
+                    1f to Color(0xF2070D0F),
+                ),
+            )
+            // Abajo, 36dp: por dentro del margen seguro de TV (~5%) pero bien pegado al borde, que
+            // es donde se esperan los controles. Arriba, el desvanecido.
+            .padding(start = 56.dp, end = 56.dp, top = SCRIM_FADE, bottom = 36.dp),
+        content = content,
+    )
 }
 
 /**
- * TV en vivo a pantalla completa. Arriba/abajo (o CH+/CH-) cambian de canal; OK muestra el panel
- * y, con el panel abierto, OK activa el botón que tenga el foco; atrás vuelve.
+ * TV en vivo a pantalla completa. Arriba/abajo (o CH+/CH-) cambian de canal; OK muestra y esconde
+ * la información del canal; atrás vuelve.
+ *
+ * Sin controles de reproducción, a propósito: un canal en vivo no se pausa ni se adelanta, así que
+ * acá sólo va qué se está viendo y qué viene después. Los controles son cosa de
+ * [MediaPlayerScreen] (películas y catchup), que es donde sirven.
  */
 @Composable
 fun PlayerScreen(
@@ -194,12 +219,10 @@ fun PlayerScreen(
     channels: List<Channel>,
     startChannelId: String?,
     text: UiText,
-    // Mismo color que las tarjetas (OperatorConfig.cardColorHex); null = el de la marca.
-    cardColorHex: String? = null,
-    // Color de los botones del panel (OperatorConfig.playerControlColorHex); null = el de la marca.
-    playerControlColorHex: String? = null,
-    // Aro del botón enfocado: el mismo color que "Confirmar" (OperatorConfig.confirmColorHex), que
-    // ya es el color de "la acción" en el resto de la app. null = el color de foco de la marca.
+    /**
+     * Único color parametrizado del player: X_APP_CONFIRM_COLOR (OperatorConfig.confirmColorHex).
+     * Acá pinta el número de canal y la etiqueta "Ahora". null = el color de foco de la marca.
+     */
     confirmColorHex: String? = null,
     onChannelChanged: (String) -> Unit,
 ) {
@@ -209,20 +232,10 @@ fun PlayerScreen(
     var showInfo by remember { mutableStateOf(true) }
     var nowNext by remember { mutableStateOf<Pair<Program?, Program?>>(null to null) }
     var playerRef by remember { mutableStateOf<ExoPlayer?>(null) }
-    var playing by remember { mutableStateOf(true) }
-    // Distinto de [playing] (que es la intención): esto es si realmente está saliendo video. El
-    // panel no se auto-esconde mientras no lo esté -- ni pausado ni buffereando, así el huésped
-    // ve el nombre del canal mientras carga en vez de quedarse mirando un negro sin datos.
+    // Si realmente está saliendo video: el panel no se auto-esconde mientras no lo esté, así el
+    // huésped ve el nombre del canal mientras carga en vez de quedarse mirando un negro sin datos.
     var rendering by remember { mutableStateOf(false) }
-    // Un canal en vivo sin ventana de DVR no se puede adelantar ni atrasar: ahí el panel muestra
-    // solo pausa/reproducir, para no ofrecer botones que no harían nada.
-    var seekable by remember { mutableStateOf(false) }
-    // Ídem con las pistas: el botón de audio/subtítulos solo aparece si el canal trae algo que elegir.
-    var hasTracks by remember { mutableStateOf(false) }
-    var showTracks by remember { mutableStateOf(false) }
-    // Cada acción sobre el panel reinicia el temporizador que lo esconde.
-    var activity by remember { mutableIntStateOf(0) }
-    val root = remember { FocusRequester() }
+    val focus = rememberInitialFocus()
     val channel = channels[index]
 
     LaunchedEffect(channel.id) {
@@ -232,50 +245,26 @@ fun PlayerScreen(
     }
     LaunchedEffect(playerRef) {
         while (true) {
-            playerRef?.let {
-                playing = it.wantsToPlay
-                rendering = it.isPlaying
-                seekable = it.isCurrentMediaItemSeekable
-                hasTracks = it.currentTracks.hasSelectableTracks()
-            }
+            playerRef?.let { rendering = it.isPlaying }
             delay(500)
         }
     }
-    // El selector de pistas se cierra solo al cambiar de canal: las del canal anterior ya no existen.
-    LaunchedEffect(channel.id) { showTracks = false }
-    // Mientras está pausado o cargando, o con el selector de pistas abierto, el panel se queda.
-    LaunchedEffect(index, showInfo, activity, rendering, showTracks) {
-        if (showInfo && rendering && !showTracks) { delay(5_000); showInfo = false }
+    LaunchedEffect(index, showInfo, rendering) {
+        if (showInfo && rendering) { delay(5_000); showInfo = false }
     }
-    // Al cerrarse el panel, el foco vuelve al contenedor: si no, queda en un botón que ya no está
-    // y el control remoto deja de zapear. Se mira el panel real (que también se abre solo cuando
-    // hay error), no showInfo: si no, al desaparecer un error el foco se quedaba en la nada.
-    val panelVisible = showInfo || error != null
-    LaunchedEffect(panelVisible) { if (!panelVisible) root.requestRetrying() }
 
-    fun zap(step: Int) { index = (index + step).mod(channels.size); showInfo = true; activity++ }
+    fun zap(step: Int) { index = (index + step).mod(channels.size); showInfo = true }
 
     Box(
         Modifier.fillMaxSize()
-            .focusRequester(root)
+            .focusRequester(focus)
             .onKeyEvent { event ->
-                val player = playerRef
                 if (event.nativeKeyEvent.action != KeyEvent.ACTION_DOWN) return@onKeyEvent false
                 when (event.nativeKeyEvent.keyCode) {
-                    // Con el selector de pistas abierto, arriba/abajo son para moverse entre las
-                    // listas de audio y subtítulos: ahí no se zapea (CH+/CH- siguen andando).
-                    KeyEvent.KEYCODE_DPAD_UP -> if (showTracks) false else { zap(+1); true }
-                    KeyEvent.KEYCODE_DPAD_DOWN -> if (showTracks) false else { zap(-1); true }
-                    KeyEvent.KEYCODE_CHANNEL_UP -> { zap(+1); true }
-                    KeyEvent.KEYCODE_CHANNEL_DOWN -> { zap(-1); true }
-                    // Las teclas de medios del control no pasan por el foco: andan siempre.
-                    KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE -> {
-                        if (player == null) false else { player.togglePlayPause(); playing = player.wantsToPlay; showInfo = true; activity++; true }
-                    }
-                    // Con el panel abierto, OK le llega al botón enfocado (no se consume acá);
-                    // cerrado, lo abre.
+                    KeyEvent.KEYCODE_DPAD_UP, KeyEvent.KEYCODE_CHANNEL_UP -> { zap(+1); true }
+                    KeyEvent.KEYCODE_DPAD_DOWN, KeyEvent.KEYCODE_CHANNEL_DOWN -> { zap(-1); true }
                     KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER, KeyEvent.KEYCODE_INFO -> {
-                        if (panelVisible) false else { showInfo = true; activity++; true }
+                        showInfo = !showInfo; true
                     }
                     else -> false
                 }
@@ -290,32 +279,30 @@ fun PlayerScreen(
             onError = { error = it?.let { text.playbackError } },
         ) { player ->
             LaunchedEffect(player) { playerRef = player }
-            if (panelVisible) InfoPanel(cardColorHex) {
-                val colors = HospitalityTheme.colors
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text("${channel.number}", style = HospitalityTheme.typography.title, color = colors.accent, modifier = Modifier.width(80.dp))
-                    Text(channel.name, style = HospitalityTheme.typography.title, color = colors.textPrimary, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            if (showInfo || error != null) PlayerScrim {
+                // Sin X_APP_CONFIRM_COLOR, el accent de la marca -- el mismo criterio que la guía.
+                // Antes caía a colors.focus, que es el amarillo de los campos de texto y no tiene
+                // nada que ver con el player: se veía como un color elegido a propósito cuando en
+                // realidad era "el operador no configuró esto".
+                val accentColor = HospitalityColors.parseHex(confirmColorHex) ?: HospitalityTheme.colors.accent
+                // Número y nombre del canal: lo primero que se lee al zapear, así que va al tamaño
+                // de título y con el número destacado en el color del operador.
+                Row(verticalAlignment = Alignment.Bottom) {
+                    Text(
+                        "${channel.number}", style = HospitalityTheme.typography.title, color = accentColor,
+                        modifier = Modifier.padding(end = 20.dp),
+                    )
+                    Text(
+                        channel.name, style = HospitalityTheme.typography.title, color = PlayerInk,
+                        maxLines = 1, overflow = TextOverflow.Ellipsis,
+                    )
                 }
-                nowNext.first?.let { ProgramLine(text.nowLabel, it, highlight = true) }
-                nowNext.second?.let { ProgramLine(text.nextLabel, it, highlight = false) }
-                error?.let { Text(it, style = HospitalityTheme.typography.body, color = colors.accent) }
-                val controlColor = HospitalityColors.parseHex(playerControlColorHex) ?: colors.accent
-                val focusColor = HospitalityColors.parseHex(confirmColorHex) ?: colors.focus
-                if (showTracks) {
-                    TrackSelector(player, text, controlColor) { showTracks = false; activity++ }
-                } else {
-                    PlayerControls(
-                        playing = playing,
-                        controlColor = controlColor,
-                        focusColor = focusColor,
-                        text = text,
-                        seekable = seekable,
-                        onPlayPause = { player.togglePlayPause(); playing = player.wantsToPlay; activity++ },
-                        onSeekBack = { player.seekBack(); activity++ },
-                        onSeekForward = { player.seekForward(); activity++ },
-                        onShowTracks = if (hasTracks) ({ showTracks = true; activity++ }) else null,
-                        // Acá arriba/abajo zapean: tienen que llegar al contenedor de la pantalla.
-                        confineVertical = false,
+                nowNext.first?.let { ProgramLine(text.nowLabel, it, accentColor, highlight = true) }
+                nowNext.second?.let { ProgramLine(text.nextLabel, it, accentColor, highlight = false) }
+                error?.let {
+                    Text(
+                        it, style = HospitalityTheme.typography.body, color = accentColor,
+                        modifier = Modifier.padding(top = 10.dp),
                     )
                 }
             }
@@ -324,14 +311,33 @@ fun PlayerScreen(
 }
 
 @Composable
-private fun ProgramLine(label: String, program: Program, highlight: Boolean) {
-    val colors = HospitalityTheme.colors
-    Row(Modifier.padding(top = 6.dp), verticalAlignment = Alignment.CenterVertically) {
-        Text(label, style = HospitalityTheme.typography.label, color = if (highlight) colors.accent else colors.textMuted, modifier = Modifier.width(110.dp))
-        Text(program.timeRange(), style = HospitalityTheme.typography.body, color = colors.textSecondary, modifier = Modifier.width(150.dp))
-        Text(program.title, style = HospitalityTheme.typography.body, color = colors.textPrimary, maxLines = 1, overflow = TextOverflow.Ellipsis)
+private fun ProgramLine(label: String, program: Program, accentColor: Color, highlight: Boolean) {
+    // Tinta fija del player, no los tokens del tema: esto va sobre el degradado, no sobre una
+    // tarjeta, así que el contraste no depende de ningún color que mande el operador.
+    Row(Modifier.padding(top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+        Text(
+            label, style = HospitalityTheme.typography.label,
+            color = if (highlight) accentColor else PlayerInk.copy(alpha = 0.55f),
+            modifier = Modifier.width(120.dp),
+        )
+        Text(
+            program.timeRange(), style = HospitalityTheme.typography.body,
+            color = PlayerInk.copy(alpha = 0.78f), modifier = Modifier.width(160.dp),
+        )
+        Text(
+            program.title, style = HospitalityTheme.typography.body,
+            color = if (highlight) PlayerInk else PlayerInk.copy(alpha = 0.78f),
+            maxLines = 1, overflow = TextOverflow.Ellipsis,
+        )
     }
 }
+
+/**
+ * "Seguir viendo" para una película, serie o evento de catchup: de dónde arranca y dónde se guarda
+ * al salir. La política de qué vale la pena guardar está en [GuestSession.saveResumePosition]; acá
+ * sólo se transporta.
+ */
+data class ResumePoint(val startMs: Long, val onLeave: (positionMs: Long, durationMs: Long) -> Unit)
 
 /**
  * Catchup y VOD: OK abre el panel de controles; con el panel abierto, izquierda/derecha mueven el
@@ -343,11 +349,13 @@ fun MediaPlayerScreen(
     source: EntertainmentSource,
     request: MediaRequest,
     text: UiText,
-    playerControlColorHex: String? = null,
-    // Mismo color que las tarjetas (OperatorConfig.cardColorHex); null = el de la marca.
-    cardColorHex: String? = null,
-    // Aro del elemento enfocado: el mismo color que "Confirmar" (OperatorConfig.confirmColorHex).
+    /** Único color parametrizado del player: X_APP_CONFIRM_COLOR. Ver [PlayerScreen]. */
     confirmColorHex: String? = null,
+    /**
+     * Dónde quedó este contenido la última vez, y dónde guardarlo al salir (ver GuestSession).
+     * Null = sin "seguir viendo": arranca de cero y no guarda nada.
+     */
+    resume: ResumePoint? = null,
 ) {
     var error by remember { mutableStateOf<String?>(null) }
     var showInfo by remember { mutableStateOf(true) }
@@ -390,6 +398,15 @@ fun MediaPlayerScreen(
     val panelVisible = showInfo || error != null
     LaunchedEffect(panelVisible) { if (!panelVisible) root.requestRetrying() }
 
+    // Guardar dónde quedó, al salir de la pantalla. Se usan los valores del sondeo (hasta 500 ms de
+    // atraso, irrelevante para retomar) y no el player: para cuando esto corre, HlsPlayer ya lo
+    // liberó en su propio onDispose.
+    if (resume != null) {
+        DisposableEffect(request.target) {
+            onDispose { resume.onLeave(position, duration) }
+        }
+    }
+
     Box(
         Modifier.fillMaxSize()
             .focusRequester(root)
@@ -423,20 +440,26 @@ fun MediaPlayerScreen(
             resolve = { source.playbackUrl(request.target) },
             recover = source::recover,
             onError = { error = it?.let { text.playbackError } },
+            startPositionMs = resume?.startMs ?: 0L,
         ) { player ->
             LaunchedEffect(player) { playerRef = player }
-            if (panelVisible) InfoPanel(cardColorHex) {
-                val colors = HospitalityTheme.colors
-                Text(request.title, style = HospitalityTheme.typography.title, color = colors.textPrimary, maxLines = 2, overflow = TextOverflow.Ellipsis)
-                val controlColor = HospitalityColors.parseHex(playerControlColorHex) ?: colors.accent
-                val focusColor = HospitalityColors.parseHex(confirmColorHex) ?: colors.focus
+            if (panelVisible) PlayerScrim {
+                // Sin X_APP_CONFIRM_COLOR, el accent de la marca -- el mismo criterio que la guía.
+                // Antes caía a colors.focus, que es el amarillo de los campos de texto y no tiene
+                // nada que ver con el player: se veía como un color elegido a propósito cuando en
+                // realidad era "el operador no configuró esto".
+                val accentColor = HospitalityColors.parseHex(confirmColorHex) ?: HospitalityTheme.colors.accent
+                Text(
+                    request.title, style = HospitalityTheme.typography.title, color = PlayerInk,
+                    maxLines = 2, overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.padding(bottom = 14.dp),
+                )
                 if (showTracks) {
-                    TrackSelector(player, text, controlColor) { showTracks = false; activity++ }
+                    TrackSelector(player, text, accentColor) { showTracks = false; activity++ }
                 } else {
                     PlayerControls(
                         playing = playing,
-                        controlColor = controlColor,
-                        focusColor = focusColor,
+                        accentColor = accentColor,
                         text = text,
                         seekable = seekable,
                         position = position,
@@ -446,9 +469,15 @@ fun MediaPlayerScreen(
                         onSeekForward = { player.seekForward(); activity++ },
                         onSeekTo = { player.seekTo(it); position = it; activity++ },
                         onShowTracks = if (hasTracks) ({ showTracks = true; activity++ }) else null,
+                        onInteraction = { activity++ },
                     )
                 }
-                error?.let { Text(it, style = HospitalityTheme.typography.body, color = colors.accent) }
+                error?.let {
+                    Text(
+                        it, style = HospitalityTheme.typography.body, color = accentColor,
+                        modifier = Modifier.padding(top = 10.dp),
+                    )
+                }
             }
         }
     }

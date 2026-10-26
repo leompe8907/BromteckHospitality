@@ -30,6 +30,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextOverflow
@@ -37,6 +38,7 @@ import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import com.networkbroadcast.hospitality.brand.imageModel
 import com.networkbroadcast.hospitality.designsystem.FocusCard
+import com.networkbroadcast.hospitality.designsystem.HospitalityColors
 import com.networkbroadcast.hospitality.designsystem.HospitalityTheme
 import com.networkbroadcast.hospitality.designsystem.OperatorCardColors
 import com.networkbroadcast.hospitality.entertainment.Channel
@@ -83,8 +85,12 @@ fun GuideScreen(
     /** Ídem para el color de letra (OperatorConfig.textColorHex); null = el que surge del
      *  contraste de [cardColorHex], o el de la marca. */
     textColorHex: String? = null,
+    /** X_APP_CONFIRM_COLOR (OperatorConfig.confirmColorHex): "Ver de nuevo", "Ahora" y el horario
+     *  del programa al aire -- los tres avisos de "esto se puede ver". Null = el de la marca. */
+    confirmColorHex: String? = null,
 ) {
     if (channels.isEmpty()) return CenteredMessage(emptyChannelsMessage ?: text.noChannels)
+    val accentColor = HospitalityColors.parseHex(confirmColorHex)
     OperatorCardColors(cardColorHex, textColorHex) {
     val colors = HospitalityTheme.colors
     var selected by remember { mutableStateOf(focusChannel?.takeIf { id -> channels.any { it.id == id } } ?: channels.first().id) }
@@ -158,7 +164,7 @@ fun GuideScreen(
                             now,
                             text,
                             if (index == nowIndex) Modifier.focusRequester(nowFocus) else Modifier,
-                            catchupOnly = catchupProgramsByChannel != null,
+                            accentColor = accentColor,
                         ) {
                             when {
                                 catchupProgramsByChannel != null && program.catchupId != null -> onWatchCatchup(program)
@@ -202,19 +208,33 @@ private fun ChannelLogo(logoUrl: String?, modifier: Modifier = Modifier) {
 }
 
 @Composable
-private fun ProgramRow(program: Program, now: Long, text: UiText, modifier: Modifier, catchupOnly: Boolean = false, onClick: () -> Unit) {
+private fun ProgramRow(
+    program: Program,
+    now: Long,
+    text: UiText,
+    modifier: Modifier,
+    /** X_APP_CONFIRM_COLOR: los dos avisos de acción de la fila ("Ver de nuevo", "Ahora") y el
+     *  horario del programa que está al aire. Null = el accent de la marca. */
+    accentColor: Color? = null,
+    onClick: () -> Unit,
+) {
     val colors = HospitalityTheme.colors
+    val highlight = accentColor ?: colors.accent
     val live = program.isLive(now)
-    val canWatchAgain = catchupOnly || (program.isPast(now) && program.catchupId != null)
+    // El cartel sale de lo que el programa realmente permite, no de qué pantalla lo abrió: con
+    // `catchupOnly ||` (ver 3694743) "Eventos anteriores" lo ponía en todas las filas por igual,
+    // así que dejaba de informar nada.
+    val canWatchAgain = program.isPast(now) && program.catchupId != null
+    // "Ahora" primero: lo que está al aire se avisa como tal aunque además tenga catchup.
     val badge = when {
-        canWatchAgain -> text.watchAgain
         live -> text.nowLabel
+        canWatchAgain -> text.watchAgain
         else -> null
     }
     FocusCard(onClick = onClick, modifier = modifier.fillMaxWidth().height(76.dp)) {
         Row(Modifier.fillMaxSize().padding(horizontal = 18.dp), verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.width(150.dp)) {
-                Text(program.timeRange(), style = HospitalityTheme.typography.label, color = if (live) colors.accent else colors.textSecondary)
+                Text(program.timeRange(), style = HospitalityTheme.typography.label, color = if (live) highlight else colors.textSecondary)
                 Text(dayFormat.format(Date(program.startEpochSec * 1000)), style = HospitalityTheme.typography.body, color = colors.textMuted)
             }
             Column(Modifier.weight(1f)) {
@@ -223,7 +243,7 @@ private fun ProgramRow(program: Program, now: Long, text: UiText, modifier: Modi
                     Text(it, style = HospitalityTheme.typography.body, color = colors.textMuted, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
             }
-            badge?.let { Text(it, style = HospitalityTheme.typography.label, color = colors.accent, modifier = Modifier.padding(start = 12.dp)) }
+            badge?.let { Text(it, style = HospitalityTheme.typography.label, color = highlight, modifier = Modifier.padding(start = 12.dp)) }
         }
     }
 }

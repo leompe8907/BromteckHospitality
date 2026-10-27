@@ -35,6 +35,24 @@ class OperatorConfigTest {
     }
 
     @Test
+    fun `el reuso de decoder viene prendido por defecto y la cuenta lo puede apagar`() {
+        assertEquals(true, OperatorConfig.parse(sample).playerDecoderReuse)
+        val apagado = OperatorConfig.parse(
+            """{"success":true,"answer":{"device":{"parameters":{"X_PLAYER_DECODER_REUSE_ENABLED":"false"}}}}"""
+        )
+        assertEquals(false, apagado.playerDecoderReuse)
+    }
+
+    @Test
+    fun `el arranque en el perfil mas bajo viene prendido por defecto y la cuenta lo puede apagar`() {
+        assertEquals(true, OperatorConfig.parse(sample).playerStartWithLowestProfile)
+        val apagado = OperatorConfig.parse(
+            """{"success":true,"answer":{"device":{"parameters":{"X_PLAYER_HLS_START_LOWEST_PROFILE":"false"}}}}"""
+        )
+        assertEquals(false, apagado.playerStartWithLowestProfile)
+    }
+
+    @Test
     fun `sin dato de clima en la respuesta, weatherText queda null`() {
         val config = OperatorConfig.parse("""{"success":true,"answer":{"device":{"parameters":{}}}}""")
         assertNull(config.weatherText)

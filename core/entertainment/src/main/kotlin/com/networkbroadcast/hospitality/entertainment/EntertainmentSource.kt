@@ -40,6 +40,15 @@ interface EntertainmentSource {
     suspend fun playbackUrl(target: Playable): String?
 
     /**
+     * Adelanta la resolución de [playbackUrl] para algo que el huésped todavía no abrió (p. ej. el
+     * evento que tiene enfocado en "Eventos anteriores"). La URL queda reservada para el primer
+     * [playbackUrl] de ese mismo target y se consume ahí: los reintentos del player siguen pidiendo
+     * una nueva, que es lo que hace falta cuando el problema fue la sesión del DRM.
+     * Por omisión no hace nada: resolver de más nunca es obligatorio.
+     */
+    suspend fun prefetchPlaybackUrl(target: Playable) = Unit
+
+    /**
      * Intenta recuperar la sesión con el proveedor (p. ej. después de varios errores del player).
      * true si quedó utilizable y conviene reintentar.
      */

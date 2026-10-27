@@ -54,6 +54,19 @@ class PanaccessEntertainmentSource(
     private var cachedVod: VodResult? = null
     private var cachedCatchup: CatchupCatalog? = null
     private var cachedCatchupAtMillis = 0L
+    /**
+     * Programación ya resuelta, por canal. EpgService guarda el JSON en disco 3 h, pero sin esto
+     * cada vuelta a TV en vivo o a la guía lo vuelve a leer y a parsear canal por canal (una docena
+     * de archivos de varios días de eventos), y la pantalla se queda en "Cargando" mientras tanto.
+     */
+    private val scheduleCache = ConcurrentHashMap<String, TimedSchedule>()
+    /** URL adelantada por [prefetchPlaybackUrl], para el primer [playbackUrl] de ese mismo target. */
+    private val prefetchLock = Mutex()
+    private var prefetched: PrefetchedUrl? = null
+
+    private class TimedSchedule(val atMillis: Long, val programs: List<Program>)
+
+    private class PrefetchedUrl(val target: Playable, val url: String, val atMillis: Long)
 
     override suspend fun channels(): ChannelsResult = lock.withLock {
         cachedChannels?.let { return it }
@@ -103,9 +116,19 @@ class PanaccessEntertainmentSource(
         return mapped
     }
 
-    override suspend fun schedule(channelId: String): List<Program> = scheduleLocks
-        .getOrPut(channelId) { Mutex() }
-        .withLock { loadSchedule(channelId) }
+    override suspend fun schedule(channelId: String): List<Program> {
+        cachedSchedule(channelId)?.let { return it }
+        return scheduleLocks.getOrPut(channelId) { Mutex() }.withLock {
+            // Otra corrutina pudo haberla cargado mientras ésta esperaba el lock del canal.
+            cachedSchedule(channelId) ?: loadSchedule(channelId).also {
+                if (it.isNotEmpty()) scheduleCache[channelId] = TimedSchedule(System.currentTimeMillis(), it)
+            }
+        }
+    }
+
+    private fun cachedSchedule(channelId: String): List<Program>? = scheduleCache[channelId]
+        ?.takeIf { System.currentTimeMillis() - it.atMillis < SCHEDULE_CACHE_MILLIS }
+        ?.programs
 
     private suspend fun loadSchedule(channelId: String): List<Program> {
         var stream = lock.withLock { streams }.firstOrNull { it.streamId.toString() == channelId }
@@ -282,7 +305,32 @@ class PanaccessEntertainmentSource(
         return mapped
     }
 
-    override suspend fun playbackUrl(target: Playable): String? = when (target) {
+    override suspend fun playbackUrl(target: Playable): String? {
+        takePrefetched(target)?.let { return it }
+        return resolvePlaybackUrl(target)
+    }
+
+    /**
+     * Adelanta la URL del DRM mientras el huésped todavía está mirando la ficha/el evento: es la
+     * parte lenta de abrir el player (una llamada al CAS), y así al apretar OK arranca directo.
+     * Si la resolución falla no se guarda nada: el player la pedirá como siempre.
+     */
+    override suspend fun prefetchPlaybackUrl(target: Playable) {
+        if (prefetchLock.withLock { prefetched?.takeIf { it.target == target && it.isFresh() } } != null) return
+        val url = resolvePlaybackUrl(target) ?: return
+        prefetchLock.withLock { prefetched = PrefetchedUrl(target, url, System.currentTimeMillis()) }
+    }
+
+    /** Consume la URL adelantada (si es de este target y sigue fresca): nunca se reusa dos veces. */
+    private suspend fun takePrefetched(target: Playable): String? = prefetchLock.withLock {
+        val candidate = prefetched ?: return@withLock null
+        prefetched = null
+        candidate.url.takeIf { candidate.target == target && candidate.isFresh() }
+    }
+
+    private fun PrefetchedUrl.isFresh() = System.currentTimeMillis() - atMillis < PREFETCH_URL_MILLIS
+
+    private suspend fun resolvePlaybackUrl(target: Playable): String? = when (target) {
         is Playable.Live -> {
             val stream = lock.withLock { streams }.firstOrNull { it.streamId.toString() == target.channelId }
             when {
@@ -304,6 +352,8 @@ class PanaccessEntertainmentSource(
         lock.withLock { cachedChannels = null; streams = emptyList(); epg.clear() }
         vodLock.withLock { cachedVod = null }
         scheduleLocks.clear()
+        scheduleCache.clear()
+        prefetchLock.withLock { prefetched = null }
     }
 
 
@@ -402,5 +452,9 @@ class PanaccessEntertainmentSource(
     private companion object {
         const val MAX_CATCHUP_REQUESTS = 5
         const val CATCHUP_CACHE_MILLIS = 10 * 60 * 1000L
+        /** La guía cambia de hora en hora; 10 min es suficiente para no releer disco al navegar. */
+        const val SCHEDULE_CACHE_MILLIS = 10 * 60 * 1000L
+        /** Las URLs del DRM son de un solo uso y de vida corta: pasado esto se pide una nueva. */
+        const val PREFETCH_URL_MILLIS = 60 * 1000L
     }
 }

@@ -79,6 +79,10 @@ fun GuideScreen(
     onChannelFocused: (String) -> Unit,
     onWatchLive: (channelId: String) -> Unit,
     onWatchCatchup: (Program) -> Unit,
+    /** El evento que el huésped tiene enfocado ahora, para adelantar lo que haga falta (la URL del
+     *  player en los eventos con catchup). Se llama en cada movimiento del foco: quien lo reciba
+     *  debe esperar un poco antes de hacer trabajo. */
+    onProgramFocused: (Program) -> Unit = {},
     /** "#163F42", color de card configurado por Delancer (OperatorConfig.cardColorHex); mismo
      *  criterio que en la home (HomeScreen.cardColorHex) -- null = el de la marca. */
     cardColorHex: String? = null,
@@ -163,7 +167,8 @@ fun GuideScreen(
                             program,
                             now,
                             text,
-                            if (index == nowIndex) Modifier.focusRequester(nowFocus) else Modifier,
+                            (if (index == nowIndex) Modifier.focusRequester(nowFocus) else Modifier)
+                                .onFocusChanged { if (it.isFocused) onProgramFocused(program) },
                             accentColor = accentColor,
                         ) {
                             when {

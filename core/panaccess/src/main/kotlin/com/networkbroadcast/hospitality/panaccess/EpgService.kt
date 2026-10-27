@@ -1,6 +1,7 @@
 package com.networkbroadcast.hospitality.panaccess
 
 import android.content.Context
+import android.os.Process
 import android.util.Log
 import com.panaccess.android.streaming.shared.cas.CasEnvelope
 import com.panaccess.android.streaming.shared.epg.EpgApiCredentials
@@ -53,8 +54,26 @@ class EpgService(context: Context, private val credentials: EpgApiCredentials) {
 
     fun clear() = cache.clear()
 
-    /** Baja el ZIP y devuelve el JSON de su primera entrada. */
+    /**
+     * Baja el ZIP y devuelve el JSON de su primera entrada.
+     *
+     * En prioridad de fondo: el EPG se baja de a 5 canales a la vez mientras el huésped está
+     * zapeando o recorriendo la guía, y en un Firestick esas descargas (más el parseo del JSON)
+     * le compiten la CPU al player y a la UI. El base hace lo mismo con el pool de EPGDownloader
+     * (`Thread(...).apply { priority = Thread.MIN_PRIORITY }`); acá el hilo sale de Dispatchers.IO
+     * y se comparte, así que se baja y se restaura alrededor de cada descarga.
+     */
     private fun download(url: String): String? {
+        val previousPriority = Process.getThreadPriority(Process.myTid())
+        Process.setThreadPriority(Process.THREAD_PRIORITY_BACKGROUND)
+        try {
+            return downloadInt(url)
+        } finally {
+            runCatching { Process.setThreadPriority(Process.myTid(), previousPriority) }
+        }
+    }
+
+    private fun downloadInt(url: String): String? {
         val connection = (URL(url).openConnection() as HttpURLConnection).apply {
             connectTimeout = 15_000
             readTimeout = 30_000

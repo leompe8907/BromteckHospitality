@@ -106,6 +106,21 @@ data class OperatorConfig(
     // operador quiere un color de letra puntual en vez de ese cálculo.
     val textColorHex: String? get() = param("X_APP_TEXT_COLOR")
 
+    // Reúso del decoder de video entre canales (Player.setForegroundMode): el códec no se tira y
+    // se vuelve a crear en cada zapeo, que es la parte más lenta de cambiar de canal en un
+    // Firestick. Mismo parámetro y mismo default que el base (ClientConfigSettings:336,
+    // X_PLAYER_DECODER_REUSE_ENABLED, BuildConfig.PLAYER_DECODER_REUSE_ENABLED = true): se deja
+    // apagar por cuenta para las TVs cuyo decoder no lo soporta bien.
+    val playerDecoderReuse: Boolean get() = flag("X_PLAYER_DECODER_REUSE_ENABLED") ?: true
+
+    // Arrancar cada reproducción en el perfil HLS más bajo (tope de 2,5 Mbps) y soltar el tope
+    // apenas sale el primer frame: el canal aparece bastante antes al zapear y la calidad sube
+    // sola en el primer segundo. En el base es un BuildConfig por cliente
+    // (PLAYER_HLS_ALWAYS_START_WITH_LOWEST_PROFILE, default false pero prendido en varios); acá
+    // se deja prendido por defecto -- en un Firestick de hotel el arranque pesa más que el primer
+    // segundo de calidad -- y la cuenta lo puede apagar.
+    val playerStartWithLowestProfile: Boolean get() = flag("X_PLAYER_HLS_START_LOWEST_PROFILE") ?: true
+
     // Imagen de placeholder (fondo del hotel, pósters de VOD mientras cargan o si fallan)
     // configurable por Delancer. Si no está configurada, se cae al gris fijo de siempre según el
     // tema (ver screens/Common.kt#rememberPlaceholderPainter en app/tv). Clave confirmada contra

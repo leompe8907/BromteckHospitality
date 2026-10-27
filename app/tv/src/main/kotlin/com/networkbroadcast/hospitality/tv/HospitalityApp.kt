@@ -44,6 +44,7 @@ import com.networkbroadcast.hospitality.tv.screens.LanguageScreen
 import com.networkbroadcast.hospitality.tv.screens.LicenseScreen
 import com.networkbroadcast.hospitality.tv.screens.OperatorMessageDialog
 import com.networkbroadcast.hospitality.tv.screens.LiveTvScreen
+import com.networkbroadcast.hospitality.tv.screens.LiveTvPreload
 import com.networkbroadcast.hospitality.tv.screens.LoginScreen
 import com.networkbroadcast.hospitality.tv.screens.MediaPlayerScreen
 import com.networkbroadcast.hospitality.tv.screens.PairPhoneDialog
@@ -102,7 +103,12 @@ private fun Playable.resumeKey(): String? = when (this) {
 }
 
 @Composable
-fun HospitalityApp(app: HospitalityApplication, showLogin: Boolean = false) {
+fun HospitalityApp(
+    app: HospitalityApplication,
+    showLogin: Boolean = false,
+    /** Pisadas de debug de los parámetros del player (ver MainActivity). */
+    playerOverrides: PlayerOverrides = PlayerOverrides(),
+) {
     val brand = app.brand
     val panaccess = app.panaccess
     val entertainment = app.entertainment
@@ -206,6 +212,18 @@ fun HospitalityApp(app: HospitalityApplication, showLogin: Boolean = false) {
     var selectedVod by remember { mutableStateOf<VodItem?>(null) }
     var selectedWidget by remember { mutableStateOf<HomeWidget?>(null) }
     var media by remember { mutableStateOf<MediaRequest?>(null) }
+    // Precarga de la grilla de TV en vivo: vive acá, no en LiveTvScreen, para que abrir el player y
+    // volver no la rehaga ni vuelva a mostrar "Cargando" (ver LiveTvPreload).
+    val liveTvPreload = remember { LiveTvPreload() }
+    // Evento con catchup enfocado en la guía / "Eventos anteriores": se adelanta su URL del DRM
+    // (lo lento de abrir el player) mientras el huésped todavía lo está mirando. El retardo evita
+    // pedirle una URL al CAS por cada fila que pasa de largo con el control.
+    var focusedCatchupId by remember { mutableStateOf<Int?>(null) }
+    LaunchedEffect(focusedCatchupId) {
+        val id = focusedCatchupId ?: return@LaunchedEffect
+        delay(400)
+        runCatching { entertainment.prefetchPlaybackUrl(Playable.Catchup(id)) }
+    }
     suspend fun warmHomeImages(channelResult: ChannelsResult?, vodResult: VodResult?) {
         val operator = panaccess.operatorConfig
         val backgrounds = operator?.hotelBackgroundUrl?.let { listOf(it) } ?: brand.backgrounds
@@ -523,6 +541,7 @@ fun HospitalityApp(app: HospitalityApplication, showLogin: Boolean = false) {
                 // Mismo color que las tarjetas de la home (OperatorConfig.cardColorHex/textColorHex).
                 cardColorHex = panaccess.operatorConfig?.cardColorHex,
                 textColorHex = panaccess.operatorConfig?.textColorHex,
+                preload = liveTvPreload,
                 onPlay = { playingChannel = it; open(Screen.Player) },
             )
             Screen.Player -> if (!channelCatalogReady) CenteredMessage(text.loading) else PlayerScreen(
@@ -533,6 +552,12 @@ fun HospitalityApp(app: HospitalityApplication, showLogin: Boolean = false) {
                 // El player dibuja sobre un degradado, no sobre una tarjeta: su único color
                 // parametrizado es el de "Confirmar" (barra de progreso y aro de foco).
                 confirmColorHex = panaccess.operatorConfig?.confirmColorHex,
+                // X_PLAYER_DECODER_REUSE_ENABLED (default on, como el base).
+                decoderReuse = playerOverrides.decoderReuse
+                    ?: (panaccess.operatorConfig?.playerDecoderReuse != false),
+                // X_PLAYER_HLS_START_LOWEST_PROFILE (default on): el canal aparece antes al zapear.
+                startWithLowestProfile = playerOverrides.startWithLowestProfile
+                    ?: (panaccess.operatorConfig?.playerStartWithLowestProfile != false),
                 onChannelChanged = { playingChannel = it },
             )
             Screen.Guide -> when {
@@ -551,6 +576,7 @@ fun HospitalityApp(app: HospitalityApplication, showLogin: Boolean = false) {
                     onWatchCatchup = { program ->
                         program.catchupId?.let { media = MediaRequest(Playable.Catchup(it), program.title); open(Screen.MediaPlayer) }
                     },
+                    onProgramFocused = { focusedCatchupId = it.catchupId },
                     // Mismo color que las tarjetas de la home (OperatorConfig.cardColorHex/textColorHex).
                     cardColorHex = panaccess.operatorConfig?.cardColorHex,
                     textColorHex = panaccess.operatorConfig?.textColorHex,
@@ -579,6 +605,10 @@ fun HospitalityApp(app: HospitalityApplication, showLogin: Boolean = false) {
                 MediaPlayerScreen(
                     entertainment, it, text,
                     confirmColorHex = panaccess.operatorConfig?.confirmColorHex,
+                    decoderReuse = playerOverrides.decoderReuse
+                        ?: (panaccess.operatorConfig?.playerDecoderReuse != false),
+                    startWithLowestProfile = playerOverrides.startWithLowestProfile
+                        ?: (panaccess.operatorConfig?.playerStartWithLowestProfile != false),
                     // "Seguir viendo": guardado en la TV, en la sesión del huésped, así que el
                     // check-out lo borra junto con el idioma.
                     resume = it.target.resumeKey()?.let { key ->

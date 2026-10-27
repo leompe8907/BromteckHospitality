@@ -22,6 +22,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.Stable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -60,6 +61,32 @@ import kotlinx.coroutines.sync.withPermit
 
 internal val ScreenPadding = PaddingValues(horizontal = 52.dp, vertical = 36.dp)
 private const val LIVE_TV_INITIAL_PRELOAD_COUNT = 12
+/** La "precarga inicial" de TV en vivo se rehace si ya pasó esto desde la última (el evento al aire cambia). */
+private const val LIVE_TV_PRELOAD_MAX_AGE_MILLIS = 10 * 60 * 1000L
+
+/**
+ * Lo que [LiveTvScreen] precargó la última vez. Vive fuera de la pantalla (lo crea HospitalityApp)
+ * porque abrir el player saca la pantalla de la composición: con el estado adentro, cada vuelta
+ * atrás volvía a mostrar "Cargando" y a rehacer la precarga entera aunque ya estuviera todo en
+ * caché.
+ */
+@Stable
+class LiveTvPreload {
+    var key by mutableStateOf<List<Pair<String, String>>?>(null)
+        private set
+    var programs by mutableStateOf<Map<String, Program?>>(emptyMap())
+        private set
+    private var atMillis by mutableStateOf(0L)
+
+    fun isReadyFor(key: List<Pair<String, String>>): Boolean =
+        this.key == key && System.currentTimeMillis() - atMillis < LIVE_TV_PRELOAD_MAX_AGE_MILLIS
+
+    fun store(key: List<Pair<String, String>>, programs: Map<String, Program?>) {
+        this.key = key
+        this.programs = programs
+        atMillis = System.currentTimeMillis()
+    }
+}
 
 /**
  * TV en vivo: una fila por bouquet, como la home del base. Si el operador no tiene bouquets, una
@@ -77,6 +104,8 @@ fun LiveTvScreen(
     /** Ídem para el color de letra (OperatorConfig.textColorHex); null = el que surge del
      *  contraste de [cardColorHex], o el de la marca. */
     textColorHex: String? = null,
+    /** Precarga compartida entre visitas a esta pantalla: ver [LiveTvPreload]. */
+    preload: LiveTvPreload,
     onPlay: (channelId: String) -> Unit,
 ) {
     val result = channels ?: return CenteredMessage(text.loading)
@@ -100,12 +129,15 @@ fun LiveTvScreen(
         .distinctBy { it.first.id }
         .take(LIVE_TV_INITIAL_PRELOAD_COUNT)
     val preloadKey = initialCards.map { (channel, layout) -> channel.id to layout.cardDesign }
-    var initialPrograms by remember(preloadKey) { mutableStateOf<Map<String, Program?>>(emptyMap()) }
-    var initialImagesReady by remember(preloadKey) { mutableStateOf(false) }
+    // Si la precarga de esta misma grilla sigue vigente no se vuelve a bloquear la pantalla: las
+    // imágenes ya están en la caché de Coil y los programas en [preload].
+    val initialImagesReady = preload.isReadyFor(preloadKey)
+    val initialPrograms = if (initialImagesReady) preload.programs else emptyMap()
     val context = LocalContext.current
     LaunchedEffect(preloadKey) {
+        if (preload.isReadyFor(preloadKey)) return@LaunchedEffect
         val slots = Semaphore(5)
-        initialPrograms = coroutineScope {
+        val loaded = coroutineScope {
             initialCards.map { (channel, layout) ->
                 async {
                     slots.withPermit {
@@ -124,7 +156,7 @@ fun LiveTvScreen(
                 }
             }.awaitAll().toMap()
         }
-        initialImagesReady = true
+        preload.store(preloadKey, loaded)
     }
     if (!initialImagesReady) return CenteredMessage(text.loading)
 

@@ -141,10 +141,17 @@ fun HospitalityApp(
         is SessionOutcome.Failed -> when (outcome.error) {
             LoginError.InvalidCredentials -> setupText.loginRejected
             LoginError.Network -> setupText.loginTimeout
+            LoginError.WrongPin -> setupText.loginWrongPin
+            LoginError.LicenseInUse -> setupText.loginLicenseInUse
             else -> setupText.loginDrmError
-        } + " (${outcome.detail})"
+        }
     }
     fun apply(outcome: SessionOutcome) {
+        // El detalle técnico (p. ej. "verifyLoginCredentials: Empty answer when logging in") es
+        // para diagnosticar por log, nunca para mostrarlo tal cual al instalador/staff en pantalla.
+        if (outcome is SessionOutcome.Failed) {
+            Log.w("Hospitality.Login", "login falló (${outcome.error}): ${outcome.detail}")
+        }
         authError = describe(outcome)
         auth = when (outcome) {
             SessionOutcome.Ok -> Auth.Ready

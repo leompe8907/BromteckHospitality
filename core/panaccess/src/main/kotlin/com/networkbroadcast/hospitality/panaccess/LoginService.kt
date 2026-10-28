@@ -145,7 +145,15 @@ class LoginService(private val client: PanaccessClient) {
 
     private fun classify(result: CasResult): LoginError = when (result) {
         is CasResult.Success -> LoginError.Unknown("ok")
-        is CasResult.Failure -> LoginErrorMapper.fromMessage(result.message ?: result.code)
+        // LoginErrorMapper reconoce los códigos en snake_case del CAS ("empty_answer", etc.), pero
+        // la librería nativa de Panaccess (libpandrm.so) manda primero el texto humano ("Empty
+        // answer when logging in") y recién el código aparte — con result.message primero, ese
+        // texto nunca matcheaba ningún patrón y todo caía al genérico "no se pudo iniciar el
+        // servicio" en vez de "usuario o contraseña incorrectos". Probamos el código primero (más
+        // estable) y sólo si no clasifica nada, el mensaje (caso iOS: a veces no manda código).
+        is CasResult.Failure -> result.code?.let(LoginErrorMapper::fromMessage)
+            ?.takeUnless { it is LoginError.Unknown }
+            ?: LoginErrorMapper.fromMessage(result.message ?: result.code)
         CasResult.Timeout -> LoginError.Network
     }
 

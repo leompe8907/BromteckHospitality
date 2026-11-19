@@ -101,10 +101,23 @@ fun HomeScreen(
     onOpenWidget: (HomeWidget) -> Unit = {},
     /** Nombre del abonado que manda Panaccess en getClientConfig (OperatorConfig.subscriberName); null = no vino. */
     subscriberName: String? = null,
+    /** PRUEBA Lobby: emparejamiento para mostrar el QR en la home, e idioma actual. */
+    pairing: com.networkbroadcast.hospitality.companion.TvPairing? = null,
+    languageCode: String? = null,
     /** Tarjeta que recibe el foco: la que abrió la pantalla de la que se vuelve, o la primera. */
     focusOn: HomeAction?,
     onAction: (HomeAction) -> Unit,
 ) {
+    // PRUEBA de la dirección "Lobby" (rama prueba/lobby): home sin filas, ver LobbyHome.kt.
+    if (brand.direction.equals("LOBBY", ignoreCase = true)) {
+        LobbyHome(
+            brand = brand, text = text, logoUrl = logoUrl, roomNumber = roomNumber, weatherText = weatherText,
+            subscriberName = subscriberName, quickActions = quickActions, vodHasContent = vodHasContent,
+            previews = previews, services = services, widgets = widgets, onOpenWidget = onOpenWidget,
+            focusOn = focusOn, onAction = onAction, pairing = pairing, languageCode = languageCode,
+        )
+        return
+    }
     val colors = HospitalityTheme.colors
     val hour = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)
     val greeting = when (hour) {

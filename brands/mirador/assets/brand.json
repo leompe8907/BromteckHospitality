@@ -1,0 +1,58 @@
+{
+  "id": "mirador",
+  "applicationId": "com.networkbroadcast.hospitality.mirador",
+  "displayName": "Mirador (prueba Lobby)",
+  "direction": "LOBBY",
+  "languages": [
+    "es",
+    "en",
+    "pt",
+    "fr",
+    "de"
+  ],
+  "defaultLanguage": "es",
+  "location": "Cancún",
+  "showLogo": true,
+  "panaccess": {
+    "vendor": "NetworkBroadcast",
+    "branding": "Bromteck",
+    "discoveryMode": "cvsys",
+    "discoveryHint": "intv"
+  },
+  "backgrounds": [
+    "asset:fondos/hotel-bar-1.jpg",
+    "asset:fondos/hotel-pileta-1.jpg",
+    "asset:fondos/hotel-restaurante-1.jpg"
+  ],
+  "welcome": {
+    "enabled": true,
+    "demoGuestName": "Laura Méndez",
+    "demoRoom": "214",
+    "message": {
+      "es": "Esperamos que disfrutes tu estadía. Desde esta TV puedes ver canales y películas, conocer el hotel y conectar tu celular.",
+      "en": "We hope you enjoy your stay. From this TV you can watch channels and movies, discover the hotel and connect your phone.",
+      "pt": "Esperamos que você aproveite sua estadia. Nesta TV você pode ver canais e filmes, conhecer o hotel e conectar seu celular.",
+      "fr": "Nous vous souhaitons un excellent séjour. Depuis cette TV, regardez chaînes et films, découvrez l'hôtel et connectez votre téléphone.",
+      "de": "Wir wünschen Ihnen einen schönen Aufenthalt. Über diesen TV sehen Sie Sender und Filme, entdecken das Hotel und verbinden Ihr Handy."
+    }
+  },
+  "features": {
+    "liveTv": true,
+    "vod": true,
+    "hotelInfo": true,
+    "languageSelection": true,
+    "checkout": true,
+    "roomService": true,
+    "housekeeping": false,
+    "wakeUpCall": false,
+    "messaging": false,
+    "companion": true
+  },
+  "hotel": {
+    "asset": "hotel_data.json",
+    "url": null
+  },
+  "services": {
+    "asset": "services.json"
+  }
+}

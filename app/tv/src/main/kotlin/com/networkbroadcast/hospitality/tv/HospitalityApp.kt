@@ -40,6 +40,12 @@ import com.networkbroadcast.hospitality.tv.screens.HomeScreen
 import com.networkbroadcast.hospitality.tv.screens.HotelBackdrop
 import com.networkbroadcast.hospitality.tv.screens.WelcomeDialog
 import com.networkbroadcast.hospitality.tv.screens.LobbyWelcome
+import com.networkbroadcast.hospitality.tv.screens.LobbyWidgetDetail
+import com.networkbroadcast.hospitality.tv.screens.LobbyServices
+import com.networkbroadcast.hospitality.tv.screens.LobbyGuide
+import com.networkbroadcast.hospitality.tv.screens.LobbyHotel
+import com.networkbroadcast.hospitality.tv.screens.LobbyVod
+import com.networkbroadcast.hospitality.tv.screens.LobbyLiveTv
 import com.networkbroadcast.hospitality.entertainment.nowAndNext
 import com.networkbroadcast.hospitality.tv.screens.LanguageScreen
 import com.networkbroadcast.hospitality.tv.screens.LicenseScreen
@@ -569,8 +575,14 @@ fun HospitalityApp(
                     }
                 },
             )
-            Screen.AboutHotel -> AboutHotelScreen(app.hotelRepository(), current, brand.defaultLanguage, text)
-            Screen.LiveTv -> if (!channelCatalogReady) CenteredMessage(text.loading) else LiveTvScreen(
+            // PRUEBA Lobby: "El hotel" como mosaico de los servicios (widgets del operador).
+            Screen.AboutHotel -> if (lobbyTest) LobbyHotel(panaccess.operatorConfig?.widgets(current).orEmpty(), text) { selectedWidget = it; open(Screen.WidgetDetail) }
+                else AboutHotelScreen(app.hotelRepository(), current, brand.defaultLanguage, text)
+            // PRUEBA Lobby: lista de canales + vista previa, sin filas (ver LobbyScreens.kt).
+            Screen.LiveTv -> if (!channelCatalogReady) CenteredMessage(text.loading) else if (lobbyTest) LobbyLiveTv(
+                channels = channels, source = entertainment, text = text, focusOn = playingChannel,
+                onPlay = { playingChannel = it; open(Screen.Player) },
+            ) else LiveTvScreen(
                 channels = channels,
                 source = entertainment,
                 text = text,
@@ -596,10 +608,26 @@ fun HospitalityApp(
                 startWithLowestProfile = playerOverrides.startWithLowestProfile
                     ?: (panaccess.operatorConfig?.playerStartWithLowestProfile != false),
                 onChannelChanged = { playingChannel = it },
+                lobbyStyle = lobbyTest,
             )
             Screen.Guide -> when {
                 !channelCatalogReady -> CenteredMessage(text.loading)
                 lastHomeAction == HomeAction.CatchUp && catchups == null -> CenteredMessage(text.loading)
+                // PRUEBA Lobby: misma lógica que GuideScreen, con el lenguaje del Lobby.
+                lobbyTest -> LobbyGuide(
+                    source = entertainment,
+                    channels = if (lastHomeAction == HomeAction.CatchUp) catchups?.channels.orEmpty() else channelList,
+                    text = text,
+                    title = if (lastHomeAction == HomeAction.CatchUp) text.catchUp else text.guide,
+                    catchupProgramsByChannel = if (lastHomeAction == HomeAction.CatchUp) catchups?.programsByChannel else null,
+                    focusChannel = guideChannel,
+                    onChannelFocused = { guideChannel = it },
+                    onWatchLive = { playingChannel = it; open(Screen.Player) },
+                    onWatchCatchup = { program ->
+                        program.catchupId?.let { media = MediaRequest(Playable.Catchup(it), program.title); open(Screen.MediaPlayer) }
+                    },
+                    onProgramFocused = { focusedCatchupId = it.catchupId },
+                )
                 else -> GuideScreen(
                     source = entertainment,
                     channels = if (lastHomeAction == HomeAction.CatchUp) catchups?.channels.orEmpty() else channelList,
@@ -621,7 +649,7 @@ fun HospitalityApp(
                     confirmColorHex = panaccess.operatorConfig?.confirmColorHex,
                 )
             }
-            Screen.Vod -> VodScreen(
+            Screen.Vod -> if (lobbyTest) LobbyVod(vod = vod, text = text, focusOn = selectedVod?.id, onOpen = { selectedVod = it; open(Screen.VodDetail) }) else VodScreen(
                 vod = vod,
                 text = text,
                 focusOn = selectedVod?.id,
@@ -637,7 +665,7 @@ fun HospitalityApp(
                     open(Screen.MediaPlayer)
                 }
             }
-            Screen.WidgetDetail -> selectedWidget?.let { WidgetDetailScreen(it, text) }
+            Screen.WidgetDetail -> selectedWidget?.let { if (lobbyTest) LobbyWidgetDetail(it, text) else WidgetDetailScreen(it, text) }
             Screen.MediaPlayer -> media?.let {
                 MediaPlayerScreen(
                     entertainment, it, text,
@@ -659,7 +687,11 @@ fun HospitalityApp(
                 )
             }
             Screen.Services -> guestServices?.let { services ->
-                ServicesScreen(
+                if (lobbyTest) LobbyServices(
+                    services = services, text = ServicesText.of(current), language = current, focusOn = lastServiceId,
+                    onOpenItem = { selectedService = it; lastServiceId = it.id },
+                    onMyOrders = { open(Screen.MyOrders) },
+                ) else ServicesScreen(
                     services = services,
                     text = ServicesText.of(current),
                     language = current,

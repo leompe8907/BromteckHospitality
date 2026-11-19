@@ -481,6 +481,8 @@ fun PlayerScreen(
     /** Ver [HlsPlayer]: X_PLAYER_HLS_START_LOWEST_PROFILE. */
     startWithLowestProfile: Boolean = true,
     onChannelChanged: (String) -> Unit,
+    /** PRUEBA Lobby: cartel de información con el lenguaje del Lobby (ver LobbyPlayerInfo). */
+    lobbyStyle: Boolean = false,
 ) {
     if (channels.isEmpty()) return CenteredMessage(text.noChannels)
     var index by remember { mutableIntStateOf(channels.indexOfFirst { it.id == startChannelId }.coerceAtLeast(0)) }
@@ -563,6 +565,11 @@ fun PlayerScreen(
                 // nada que ver con el player: se veía como un color elegido a propósito cuando en
                 // realidad era "el operador no configuró esto".
                 val accentColor = HospitalityColors.parseHex(confirmColorHex) ?: HospitalityTheme.colors.accent
+                if (lobbyStyle) {
+                    LobbyPlayerInfo(channel, nowNext.first, nowNext.second, HospitalityTheme.colors.accent)
+                    error?.let { Text(it, style = HospitalityTheme.typography.body, color = accentColor, modifier = Modifier.padding(top = 10.dp)) }
+                    return@PlayerScrim
+                }
                 // Número y nombre del canal: lo primero que se lee al zapear, así que va al tamaño
                 // de título y con el número destacado en el color del operador.
                 Row(verticalAlignment = Alignment.Bottom) {

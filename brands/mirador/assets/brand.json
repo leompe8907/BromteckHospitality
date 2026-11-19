@@ -6,9 +6,7 @@
   "languages": [
     "es",
     "en",
-    "pt",
-    "fr",
-    "de"
+    "pt"
   ],
   "defaultLanguage": "es",
   "location": "Cancún",
@@ -54,5 +52,11 @@
   },
   "services": {
     "asset": "services.json"
+  },
+  "colors": {
+    "background": "#0C1714",
+    "surface": "#18241F",
+    "accent": "#C9A36A",
+    "focus": "#C9A36A"
   }
 }

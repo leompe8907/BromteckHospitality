@@ -54,7 +54,7 @@ fun LobbyWelcome(
     val accent = colors.accent
     Box(Modifier.fillMaxSize().background(Color(0x8C080E0C)), contentAlignment = Alignment.Center) {
         Column(
-            Modifier.widthIn(max = 600.dp).clip(RoundedCornerShape(15.dp)).background(Color(0xC20C1714)).padding(horizontal = 40.dp, vertical = 32.dp),
+            Modifier.widthIn(max = 600.dp).clip(RoundedCornerShape(15.dp)).background(Color(0xF00E1815)).padding(horizontal = 40.dp, vertical = 32.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             if (brand.showLogo) {
@@ -65,8 +65,8 @@ fun LobbyWelcome(
                     Text("${t.room} $it".uppercase(), style = TextStyle(fontFamily = HospitalityBodyFamily, fontSize = 9.sp, fontWeight = FontWeight.Bold, letterSpacing = 2.5.sp), color = accent, modifier = Modifier.padding(top = 18.dp))
                 }
                 Text(
-                    guestName?.takeIf { it.isNotBlank() }?.let { t.welcomeTitle.format(it) } ?: t.welcomeTitleNoName,
-                    style = TextStyle(fontFamily = HospitalityBodyFamily, fontSize = 30.sp, lineHeight = 36.sp, fontWeight = FontWeight.SemiBold),
+                    guestName?.takeIf { it.isNotBlank() }?.let { t.welcomeTitle.format(it.trim().split(" ").first()) + "." } ?: t.welcomeTitleNoName,
+                    style = TextStyle(fontFamily = HospitalityBodyFamily, fontSize = 34.sp, lineHeight = 40.sp, fontWeight = FontWeight.Medium),
                     color = colors.textPrimary, textAlign = TextAlign.Center, modifier = Modifier.padding(top = 6.dp),
                 )
                 brand.welcome.message.let { it[selected ?: brand.defaultLanguage] ?: it[brand.defaultLanguage] ?: it["en"] }?.let {
@@ -84,12 +84,19 @@ fun LobbyWelcome(
             Row(horizontalArrangement = Arrangement.spacedBy(9.dp)) {
                 brand.languages.forEachIndexed { i, code ->
                     val isFirst = if (selected != null) code == selected else i == 0
-                    FocusCard(
-                        onClick = { onSelected(code) },
-                        shape = RoundedCornerShape(8.dp),
-                        modifier = Modifier.size(width = 98.dp, height = 44.dp).then(if (isFirst) Modifier.focusRequester(first) else Modifier),
+                    // Como el prototipo: en reposo, botón translúcido; con foco, relleno del color de acento.
+                    androidx.compose.runtime.CompositionLocalProvider(
+                        com.networkbroadcast.hospitality.designsystem.LocalHospitalityColors provides colors.copy(surface = Color(0x1AF3EEE4), surfaceBorder = Color(0x29F3EEE4), textPrimary = accent),
                     ) {
-                        Text(UiText.languageNames[code] ?: code.uppercase(), style = TextStyle(fontFamily = HospitalityBodyFamily, fontSize = 12.sp, fontWeight = FontWeight.SemiBold), color = colors.textPrimary, modifier = Modifier.align(Alignment.Center))
+                        FocusCard(
+                            onClick = { onSelected(code) },
+                            shape = RoundedCornerShape(8.dp),
+                            modifier = Modifier.size(width = 120.dp, height = 44.dp).then(if (isFirst) Modifier.focusRequester(first) else Modifier),
+                        ) { focused ->
+                            if (focused) Box(Modifier.fillMaxSize().background(accent))
+                            Text(UiText.languageNames[code] ?: code.uppercase(), style = TextStyle(fontFamily = HospitalityBodyFamily, fontSize = 13.sp, fontWeight = FontWeight.SemiBold),
+                                color = if (focused) Color(0xFF14100A) else colors.textPrimary, modifier = Modifier.align(Alignment.Center))
+                        }
                     }
                 }
             }

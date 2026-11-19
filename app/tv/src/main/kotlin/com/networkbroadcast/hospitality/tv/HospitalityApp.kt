@@ -472,7 +472,7 @@ fun HospitalityApp(
                 LobbyWelcome(
                     brand = brand,
                     guestName = brand.welcome.demoGuestName ?: panaccess.operatorConfig?.subscriberName,
-                    room = panaccess.license?.licenseName,
+                    room = panaccess.license?.licenseName ?: brand.welcome.demoRoom,
                     selected = current,
                     onlyLanguage = choosingLanguage && current != null,
                     onSelected = {

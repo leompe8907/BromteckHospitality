@@ -40,6 +40,12 @@ import com.networkbroadcast.hospitality.tv.screens.HomeScreen
 import com.networkbroadcast.hospitality.tv.screens.HotelBackdrop
 import com.networkbroadcast.hospitality.tv.screens.WelcomeDialog
 import com.networkbroadcast.hospitality.tv.screens.LobbyWelcome
+import com.networkbroadcast.hospitality.tv.screens.LobbyScreensaver
+import com.networkbroadcast.hospitality.tv.screens.LOBBY_IDLE_MS
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
 import com.networkbroadcast.hospitality.tv.screens.LobbyWidgetDetail
 import com.networkbroadcast.hospitality.tv.screens.LobbyServices
 import com.networkbroadcast.hospitality.tv.screens.LobbyGuide
@@ -384,7 +390,24 @@ fun HospitalityApp(
     // PRUEBA Lobby (rama prueba/lobby): imagen de carga propia de la marca de prueba, en vez de la
     // de muestra (X_APP_SPLASH) que trae la cuenta de Panaccess.
     val testSplash = if (brand.direction.equals("LOBBY", ignoreCase = true) && brand.backgrounds.isNotEmpty()) "asset:fondos/splash.jpg" else null
-    Box(Modifier.fillMaxSize().background(HospitalityTheme.colors.background)) {
+    // PRUEBA Lobby: la bienvenida aparece cada vez que se abre la app (además de tras el check-out),
+    // para que se vea al encender la TV; el idioma ya elegido queda marcado.
+    var welcomeThisLaunch by remember { mutableStateOf(testSplash != null) }
+    // PRUEBA Lobby: pantalla de reposo tras LOBBY_IDLE_MS sin tocar el control.
+    var idle by remember { mutableStateOf(false) }
+    var inputTick by remember { mutableIntStateOf(0) }
+    var swallowKeyUp by remember { mutableStateOf(false) }
+    Box(
+        Modifier.fillMaxSize().background(HospitalityTheme.colors.background).onPreviewKeyEvent { e ->
+            inputTick++
+            when {
+                // Con el reposo en pantalla, la tecla solo lo saca: no llega a la home.
+                idle -> { if (e.type == KeyEventType.KeyDown) { idle = false; swallowKeyUp = true }; true }
+                swallowKeyUp && e.type == KeyEventType.KeyUp -> { swallowKeyUp = false; true }
+                else -> false
+            }
+        },
+    ) {
         when (auth) {
             // X_APP_SPLASH recién está disponible en operatorConfig después de un login/restore
             // exitoso -- justo lo que todavía no terminó acá. Se usa el último valor que quedó
@@ -472,7 +495,7 @@ fun HospitalityApp(
             holdingSplash -> HotelBackdrop(listOf(splashUrl!!))
             showsHotelBackdrop -> HotelBackdrop(backgrounds, placeholderImageUrl = panaccess.operatorConfig?.placeholderImageUrl)
         }
-        if (current == null || choosingLanguage) {
+        if (current == null || choosingLanguage || (lobbyTest && welcomeThisLaunch)) {
             // PRUEBA Lobby: bienvenida + idioma en un solo popup (ver LobbyWelcome.kt).
             if (lobbyTest) {
                 LobbyWelcome(
@@ -487,9 +510,11 @@ fun HospitalityApp(
                         choosingLanguage = false
                         session.welcomed = true
                         showingWelcome = false
+                        welcomeThisLaunch = false
                     },
                 )
                 if (choosingLanguage) BackHandler { choosingLanguage = false }
+                else if (current != null) BackHandler { welcomeThisLaunch = false }
                 return@Box
             }
             LanguageScreen(
@@ -744,6 +769,22 @@ fun HospitalityApp(
             )
         }
         if (selectedService == null) OrderStatusBanner(orderBanner)
+
+        // PRUEBA Lobby: reposo fuera del reproductor y sin diálogos abiertos.
+        val canIdle = lobbyTest && backStack.last() !in setOf(Screen.Player, Screen.MediaPlayer) && !showingPairing && !confirmingCheckout &&
+            selectedService == null && operatorMessage == null
+        LaunchedEffect(inputTick, canIdle) {
+            if (canIdle) { delay(LOBBY_IDLE_MS); Log.i("Hospitality.Idle", "reposo ON"); idle = true }
+        }
+        if (idle && canIdle) {
+            LobbyScreensaver(
+                brand = brand,
+                images = backgrounds,
+                language = current ?: brand.defaultLanguage,
+                weatherTempCelsius = panaccess.operatorConfig?.weatherTempCelsius,
+                weatherDescription = panaccess.operatorConfig?.weatherDescription,
+            )
+        }
 
         if (confirmingCheckout) {
             CheckoutDialog(

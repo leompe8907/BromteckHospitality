@@ -116,6 +116,25 @@ Versiones iguales a PanaccessApp (AGP 9.4.0, Kotlin 2.2.10, Gradle 9.6.0, Compos
    reemplaza en `HospitalityApplication.tvPairing` y `MobileApplication.companion` cuando exista el
    backend. La TV ya ejecuta las órdenes (`TvCommand`) que lleguen.
 5. **Ver TV en el celular** (TV Everywhere): pendiente de definir licencias (cada celular usaría una).
+6. **"Conectar celular" en la home Lobby** (`LobbyHome.kt`, `PairTile`): el tile muestra el QR y el
+   código, pero todavía no está terminado. Pide su propio código de emparejamiento mientras la home
+   está abierta y `PairPhoneDialog` pide otro: con el backend real, el segundo podría invalidar el
+   del tile. Ni el tile ni el diálogo se enteran de cuándo el celular se conectó. Hoy, con la
+   versión de prueba (`DemoTvPairing`), el código es inventado.
+7. **Servicios del hotel con pedidos.** La TV solo muestra lo que manda la cuenta de Panaccess
+   (`X_APP_SERVICES`, formato en `docs/x-app-services.md`), sin opción de pedir (`ReadOnlyServices`);
+   sin ese parámetro no muestra la sección. Pedir necesita la conexión con el sistema del hotel
+   (CRM/PMS), que todavía no existe: ver `docs/backend-idea.md`. El catálogo y los pedidos de prueba
+   (`services.json`, `DemoGuestServices`) ya no se usan en la TV; siguen en el celular y en la app
+   de staff.
+8. **Parámetros de Panaccess para los servicios, a configurar en cada cuenta.** Hoy es uno solo:
+   - `X_APP_SERVICES` — menú y servicios del hotel (bebidas, spa, etc.). Lleva el JSON directo o una
+     URL a un archivo con ese JSON, igual que `X_APP_WIDGETS`: como son varias categorías, textos en
+     cinco idiomas y fotos, conviene la URL. Formato completo en `docs/x-app-services.md`.
+   - Falta darlo de alta en el documento de parámetros de personalización remota (Cableatlántico) y
+     cargarlo en la cuenta de cada hotel; sin él, la sección de servicios no aparece en la TV.
+   - Probar con una cuenta real que el valor llegue y se muestre (hoy solo está probado el parseo,
+     `OperatorServicesTest`).
 
 ## Backend propio (otro proyecto)
 

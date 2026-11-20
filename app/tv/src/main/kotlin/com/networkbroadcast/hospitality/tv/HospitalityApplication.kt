@@ -16,6 +16,8 @@ import com.networkbroadcast.hospitality.hotel.FallbackHotelRepository
 import com.networkbroadcast.hospitality.hotel.HotelRepository
 import com.networkbroadcast.hospitality.hotel.LegacyHotelApiRepository
 import com.networkbroadcast.hospitality.hotel.UrlHotelRepository
+import com.networkbroadcast.hospitality.hotel.WifiNetwork
+import com.networkbroadcast.hospitality.hotel.parseOperatorWifi
 import com.networkbroadcast.hospitality.panaccess.OsmWatcher
 import com.networkbroadcast.hospitality.panaccess.PanaccessClient
 import com.networkbroadcast.hospitality.panaccess.PanaccessEndpoint
@@ -87,6 +89,24 @@ class HospitalityApplication : Application(), SingletonImageLoader.Factory {
             operatorServices?.takeIf { it.first == raw }?.let { return it.second }
             val built = parseOperatorCatalog(raw)?.let { ReadOnlyServices(it) }
             operatorServices = raw to built
+            return built
+        }
+
+    /** El último Wi-Fi ya armado, con el texto del que salió (ver [wifi]). */
+    private var operatorWifi: Pair<String, WifiNetwork?>? = null
+
+    /**
+     * Red Wi-Fi para huéspedes: la que manda la cuenta de Panaccess (X_APP_WIFI, formato en
+     * `docs/x-app-wifi.md`), con la que se arma el QR. Sin ese parámetro, o si no sirve (sin nombre de
+     * red, o con clave pero sin la clave), null y la TV no muestra nada de Wi-Fi. No es lazy porque la
+     * configuración del operador llega con el login.
+     */
+    val wifi: WifiNetwork?
+        get() {
+            val raw = panaccess.operatorConfig?.wifiRaw ?: return null
+            operatorWifi?.takeIf { it.first == raw }?.let { return it.second }
+            val built = parseOperatorWifi(raw)
+            operatorWifi = raw to built
             return built
         }
 

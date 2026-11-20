@@ -104,6 +104,8 @@ fun HomeScreen(
     /** PRUEBA Lobby: emparejamiento para mostrar el QR en la home, e idioma actual. */
     pairing: com.networkbroadcast.hospitality.companion.TvPairing? = null,
     languageCode: String? = null,
+    /** Red Wi-Fi del hotel (X_APP_WIFI) para el QR de la home; null = el operador no la cargó. */
+    wifi: com.networkbroadcast.hospitality.hotel.WifiNetwork? = null,
     /** Tarjeta que recibe el foco: la que abrió la pantalla de la que se vuelve, o la primera. */
     focusOn: HomeAction?,
     onAction: (HomeAction) -> Unit,
@@ -114,7 +116,7 @@ fun HomeScreen(
             brand = brand, text = text, logoUrl = logoUrl, roomNumber = roomNumber, weatherText = weatherText,
             subscriberName = subscriberName, quickActions = quickActions, vodHasContent = vodHasContent,
             previews = previews, services = services, widgets = widgets, onOpenWidget = onOpenWidget,
-            focusOn = focusOn, onAction = onAction, pairing = pairing, languageCode = languageCode,
+            focusOn = focusOn, onAction = onAction, pairing = pairing, languageCode = languageCode, wifi = wifi,
             catchUpAvailable = catchUpAvailable, secondLogoUrl = secondLogoUrl,
         )
         return
@@ -343,6 +345,7 @@ fun HomeScreen(
                         val label = when (action) {
                             HomeAction.AboutHotel -> text.aboutHotel
                             HomeAction.PairPhone -> text.pairPhone
+                            HomeAction.Wifi -> text.wifiTitle
                             HomeAction.Language -> text.language
                             HomeAction.Checkout -> text.checkout
                             HomeAction.LiveTv -> text.liveTv
@@ -421,6 +424,7 @@ data class HomePreviews(
 private fun HomeAction.icon(): Int = when (this) {
     HomeAction.AboutHotel -> R.drawable.ic_info
     HomeAction.PairPhone -> R.drawable.ic_phone
+    HomeAction.Wifi -> R.drawable.ic_wifi
     HomeAction.Language -> R.drawable.ic_language
     HomeAction.Checkout -> R.drawable.ic_checkout
     else -> R.drawable.ic_live

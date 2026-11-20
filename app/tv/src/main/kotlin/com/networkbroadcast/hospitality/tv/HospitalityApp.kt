@@ -64,6 +64,7 @@ import com.networkbroadcast.hospitality.tv.screens.LiveTvPreload
 import com.networkbroadcast.hospitality.tv.screens.LoginScreen
 import com.networkbroadcast.hospitality.tv.screens.MediaPlayerScreen
 import com.networkbroadcast.hospitality.tv.screens.PairPhoneDialog
+import com.networkbroadcast.hospitality.tv.screens.WifiDialog
 import com.networkbroadcast.hospitality.tv.screens.PlayerScreen
 import com.networkbroadcast.hospitality.tv.screens.ResumePoint
 import com.networkbroadcast.hospitality.tv.screens.VodDetailScreen
@@ -95,11 +96,12 @@ enum class Screen { Home, AboutHotel, LiveTv, Guide, Player, Vod, VodDetail, Med
 private enum class Auth { Provisioning, Checking, NeedsLogin, ChooseLicense, Ready }
 
 /** Acciones de la home. Cada una existe sólo si su flag está prendido. */
-enum class HomeAction { LiveTv, Guide, Vod, CatchUp, Services, MyOrders, AboutHotel, PairPhone, Language, Checkout }
+enum class HomeAction { LiveTv, Guide, Vod, CatchUp, Services, MyOrders, AboutHotel, PairPhone, Wifi, Language, Checkout }
 
-fun BrandConfig.quickActions(showsHotelInfo: Boolean): List<HomeAction> = buildList {
+fun BrandConfig.quickActions(showsHotelInfo: Boolean, showsWifi: Boolean): List<HomeAction> = buildList {
     if (showsHotelInfo) add(HomeAction.AboutHotel)
     if (features.companion) add(HomeAction.PairPhone)
+    if (showsWifi) add(HomeAction.Wifi)
     if (features.languageSelection && languages.size > 1) add(HomeAction.Language)
     if (features.checkout) add(HomeAction.Checkout)
 }
@@ -219,6 +221,7 @@ fun HospitalityApp(
     var choosingLanguage by remember { mutableStateOf(false) }
     var confirmingCheckout by remember { mutableStateOf(false) }
     var showingPairing by remember { mutableStateOf(false) }
+    var showingWifi by remember { mutableStateOf(false) }
     var showingWelcome by remember { mutableStateOf(brand.welcome.enabled && !session.welcomed) }
     val backStack = remember { mutableStateListOf(Screen.Home) }
     var lastHomeAction by remember { mutableStateOf<HomeAction?>(null) }
@@ -573,7 +576,8 @@ fun HospitalityApp(
                 textColorHex = panaccess.operatorConfig?.textColorHex,
                 // Segundo logo del hotel: tvModel de la licencia (MainFragment.onLicensesChanged del base).
                 secondLogoUrl = panaccess.license?.tvModel?.takeIf { it.startsWith("http") },
-                quickActions = brand.quickActions(app.showsHotelInfo),
+                quickActions = brand.quickActions(app.showsHotelInfo, showsWifi = app.wifi != null),
+                wifi = app.wifi,
                 // La presencia de catchup se determina con los grupos/eventos reales del CAS,
                 // no con el flag catchupDays del catálogo de streams.
                 vodHasContent = vod?.shelves?.any { it.items.isNotEmpty() } == true,
@@ -612,6 +616,7 @@ fun HospitalityApp(
                         HomeAction.MyOrders -> open(Screen.MyOrders)
                         HomeAction.AboutHotel -> open(Screen.AboutHotel)
                         HomeAction.PairPhone -> showingPairing = true
+                        HomeAction.Wifi -> showingWifi = true
                         HomeAction.Language -> choosingLanguage = true
                         HomeAction.Checkout -> confirmingCheckout = true
                     }
@@ -772,6 +777,7 @@ fun HospitalityApp(
         }
 
         if (showingPairing) PairPhoneDialog(app.tvPairing, text) { showingPairing = false }
+        app.wifi?.takeIf { showingWifi }?.let { WifiDialog(it, text, lobby = lobbyTest) { showingWifi = false } }
 
         val service = selectedService
         if (service != null && guestServices != null && !guestServices.canOrder) {
@@ -798,7 +804,7 @@ fun HospitalityApp(
         if (selectedService == null) OrderStatusBanner(orderBanner)
 
         // PRUEBA Lobby: reposo fuera del reproductor y sin diálogos abiertos.
-        val canIdle = lobbyTest && backStack.last() !in setOf(Screen.Player, Screen.MediaPlayer) && !showingPairing && !confirmingCheckout &&
+        val canIdle = lobbyTest && backStack.last() !in setOf(Screen.Player, Screen.MediaPlayer) && !showingPairing && !showingWifi && !confirmingCheckout &&
             selectedService == null && operatorMessage == null
         LaunchedEffect(inputTick, canIdle) {
             if (canIdle) { delay(LOBBY_IDLE_MS); Log.i("Hospitality.Idle", "reposo ON"); idle = true }

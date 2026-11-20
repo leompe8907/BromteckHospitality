@@ -1,5 +1,6 @@
 package com.networkbroadcast.hospitality.tv.screens
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -31,9 +32,11 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.FilterQuality
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
@@ -47,6 +50,9 @@ import com.networkbroadcast.hospitality.designsystem.FocusCard
 import com.networkbroadcast.hospitality.designsystem.HospitalityColors
 import com.networkbroadcast.hospitality.designsystem.HospitalityTheme
 import com.networkbroadcast.hospitality.designsystem.LocalHospitalityColors
+import com.networkbroadcast.hospitality.designsystem.qrImageBitmap
+import com.networkbroadcast.hospitality.hotel.WifiNetwork
+import com.networkbroadcast.hospitality.hotel.WifiSecurity
 import com.networkbroadcast.hospitality.panaccess.HomeWidget
 import com.networkbroadcast.hospitality.tv.HomeAction
 import com.networkbroadcast.hospitality.tv.R
@@ -101,6 +107,8 @@ fun LobbyHome(
     onAction: (HomeAction) -> Unit,
     pairing: com.networkbroadcast.hospitality.companion.TvPairing? = null,
     languageCode: String? = null,
+    /** Red Wi-Fi del hotel (X_APP_WIFI): si el operador la cargó, su QR ocupa el lugar de "Conectar celular". */
+    wifi: WifiNetwork? = null,
     /** true si algún canal tiene catch-up (mismo criterio que la home de siempre). */
     catchUpAvailable: Boolean = false,
     /** Segundo logo del hotel (tvModel de la licencia); null = no hay. */
@@ -126,12 +134,16 @@ fun LobbyHome(
             HomeAction.Vod -> brand.features.vod && vodHasContent
             HomeAction.CatchUp -> brand.features.guide && catchUpAvailable
             HomeAction.Services -> services != null
+            HomeAction.Wifi -> wifi != null
             else -> a in quickActions
         }
     }
     val hero: Tile = widgets.firstOrNull()?.let { Tile.Hotel(it) } ?: Tile.Act(HomeAction.LiveTv)
     // Catch-up va al final del pool: no mueve nada de lo que ya estaba, entra solo si queda lugar.
-    val pool = listOf(HomeAction.LiveTv, HomeAction.Guide, HomeAction.Vod, HomeAction.AboutHotel, HomeAction.PairPhone, HomeAction.CatchUp)
+    // El QR del Wi-Fi ocupa el lugar de "Conectar celular" cuando el operador cargó la red (X_APP_WIFI);
+    // sin ella, queda "Conectar celular" como siempre.
+    val pairOrWifi = if (wifi != null) HomeAction.Wifi else HomeAction.PairPhone
+    val pool = listOf(HomeAction.LiveTv, HomeAction.Guide, HomeAction.Vod, HomeAction.AboutHotel, pairOrWifi, HomeAction.CatchUp)
         .filter { has(it) && Tile.Act(it) != hero }
     val bigs = pool.take(4).map { Tile.Act(it) }
     val wides = buildList<Tile> {
@@ -188,6 +200,7 @@ fun LobbyHome(
                         when {
                             size == 'L' -> LiveTile(previews, text, big = true)
                             t.a == HomeAction.PairPhone && pairing != null -> PairTile(pairing, text, size == 'M')
+                            t.a == HomeAction.Wifi && wifi != null -> WifiTile(wifi, text, size)
                             t.a == HomeAction.AboutHotel -> AboutTile(widgets, text)
                             t.a == HomeAction.Services -> BigTile(t.a, text, previews, services)
                             t.a == HomeAction.Language -> LanguageTile(text, languageCode)
@@ -322,6 +335,7 @@ private fun BoxScope.LabelTile(a: HomeAction, text: UiText, services: HomeServic
 private fun label(a: HomeAction, text: UiText, services: HomeServices?) = when (a) {
     HomeAction.AboutHotel -> text.aboutHotel
     HomeAction.PairPhone -> text.pairPhone
+    HomeAction.Wifi -> text.wifiTitle
     HomeAction.Language -> text.language
     HomeAction.Checkout -> text.checkout
     HomeAction.LiveTv -> text.liveTv
@@ -334,6 +348,7 @@ private fun label(a: HomeAction, text: UiText, services: HomeServices?) = when (
 private fun HomeAction.lobbyIcon(): Int = when (this) {
     HomeAction.AboutHotel -> R.drawable.ic_info
     HomeAction.PairPhone -> R.drawable.ic_phone
+    HomeAction.Wifi -> R.drawable.ic_wifi
     HomeAction.Language -> R.drawable.ic_language
     HomeAction.Checkout -> R.drawable.ic_checkout
     HomeAction.Services, HomeAction.MyOrders -> R.drawable.ic_bell
@@ -366,6 +381,34 @@ private fun BoxScope.PairTile(pairing: com.networkbroadcast.hospitality.companio
             Text(text.pairPhone, style = TextStyle(fontFamily = com.networkbroadcast.hospitality.designsystem.HospitalityBodyFamily, fontSize = 12.sp, fontWeight = FontWeight.SemiBold), color = c.textPrimary, maxLines = 2)
             Text(LocalLobbyText.current.scanOrEnter, maxLines = 1, style = TextStyle(fontFamily = com.networkbroadcast.hospitality.designsystem.HospitalityBodyFamily, fontSize = 10.sp), color = c.textPrimary.copy(alpha = 0.75f), modifier = Modifier.padding(top = 4.dp))
             Text(code?.code?.chunked(3)?.joinToString(" ") ?: "··· ···", style = TextStyle(fontFamily = com.networkbroadcast.hospitality.designsystem.HospitalityBodyFamily, fontSize = 16.sp, fontWeight = FontWeight.SemiBold, letterSpacing = 1.sp), color = c.textPrimary, maxLines = 1, softWrap = false)
+        }
+    }
+}
+
+/**
+ * QR del Wi-Fi del hotel (X_APP_WIFI) con el nombre de la red y la clave. El QR va siempre sobre blanco y
+ * trae su propio margen de 4 módulos, así que se dibuja lo más grande que deja el lugar (se lee desde el
+ * sillón: mejor un QR grande que más texto). La clave, en monoespaciada para que no se confundan l/1 y O/0.
+ */
+@Composable
+private fun BoxScope.WifiTile(wifi: WifiNetwork, text: UiText, size: Char) {
+    val c = HospitalityTheme.colors
+    val body = com.networkbroadcast.hospitality.designsystem.HospitalityBodyFamily
+    val qr = remember(wifi) { qrImageBitmap(wifi.qrPayload) }
+    Row(Modifier.fillMaxSize().padding(10.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+        Image(
+            qr, contentDescription = null, filterQuality = FilterQuality.None,
+            modifier = Modifier.size(if (size == 'W') 98.dp else 92.dp).clip(RoundedCornerShape(6.dp)).background(Color.White),
+        )
+        Column(Modifier.weight(1f)) {
+            Text(text.wifiTitle, style = TextStyle(fontFamily = body, fontSize = 12.sp, fontWeight = FontWeight.SemiBold), color = c.textPrimary, maxLines = 2, overflow = TextOverflow.Ellipsis)
+            Text(wifi.ssid, style = TextStyle(fontFamily = body, fontSize = 11.sp), color = c.textPrimary.copy(alpha = 0.85f), maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(top = 3.dp))
+            val key = wifi.password
+            if (wifi.security == WifiSecurity.OPEN || key == null) {
+                Text(text.wifiOpen, style = TextStyle(fontFamily = body, fontSize = 10.sp), color = c.textPrimary.copy(alpha = 0.75f), maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(top = 2.dp))
+            } else {
+                Text(key, style = TextStyle(fontFamily = FontFamily.Monospace, fontSize = 12.sp, fontWeight = FontWeight.SemiBold), color = c.textPrimary, maxLines = 2, overflow = TextOverflow.Clip, modifier = Modifier.padding(top = 2.dp))
+            }
         }
     }
 }

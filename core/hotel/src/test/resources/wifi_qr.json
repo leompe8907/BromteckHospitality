@@ -1,0 +1,20 @@
+{
+  "_comment": "Texto del QR de Wi-Fi para cada red. Lo prueban el backend (hotel/tests_wifi_qr.py) y la app Android (WifiQrContractTest); si cambia una regla, cambia acá y en los dos lados. payload null = no hay QR.",
+  "cases": [
+    {"name": "wpa simple", "ssid": "HotelGuest", "password": "abc12345x", "security": "WPA", "hidden": false, "payload": "WIFI:T:WPA;S:HotelGuest;P:abc12345x;;"},
+    {"name": "wpa oculta", "ssid": "Oculta", "password": "secreta99", "security": "WPA", "hidden": true, "payload": "WIFI:T:WPA;S:Oculta;P:secreta99;H:true;;"},
+    {"name": "separadores escapados", "ssid": "Bar;Pileta", "password": "a,b:c\"d\\e", "security": "WPA", "hidden": false, "payload": "WIFI:T:WPA;S:Bar\\;Pileta;P:a\\,b\\:c\\\"d\\\\e;;"},
+    {"name": "solo hexadecimal va entre comillas", "ssid": "1234", "password": "abcdef12", "security": "WPA", "hidden": false, "payload": "WIFI:T:WPA;S:\"1234\";P:\"abcdef12\";;"},
+    {"name": "clave con espacios en los bordes se respeta", "ssid": "Red", "password": " clave123 ", "security": "WPA", "hidden": false, "payload": "WIFI:T:WPA;S:Red;P: clave123 ;;"},
+    {"name": "tildes y eñes", "ssid": "Café Ñandú", "password": "contraseña1", "security": "WPA", "hidden": false, "payload": "WIFI:T:WPA;S:Café Ñandú;P:contraseña1;;"},
+    {"name": "wep", "ssid": "Vieja", "password": "hello", "security": "WEP", "hidden": false, "payload": "WIFI:T:WEP;S:Vieja;P:hello;;"},
+    {"name": "abierta oculta", "ssid": "Libre", "password": null, "security": "nopass", "hidden": true, "payload": "WIFI:T:nopass;S:Libre;H:true;;"},
+    {"name": "abierta ignora la clave", "ssid": "Libre", "password": "no-se-usa", "security": "nopass", "hidden": false, "payload": "WIFI:T:nopass;S:Libre;;"},
+    {"name": "tipo desconocido se trata como wpa", "ssid": "Red", "password": "abc12345x", "security": "WPA2", "hidden": false, "payload": "WIFI:T:WPA;S:Red;P:abc12345x;;"},
+    {"name": "tipo en minusculas y con espacios", "ssid": "Red", "password": "hello", "security": " wep ", "hidden": false, "payload": "WIFI:T:WEP;S:Red;P:hello;;"},
+    {"name": "sin nombre no hay qr", "ssid": "", "password": "abc12345x", "security": "WPA", "hidden": false, "payload": null},
+    {"name": "nombre en blanco no hay qr", "ssid": "   ", "password": "abc12345x", "security": "WPA", "hidden": false, "payload": null},
+    {"name": "red con clave sin clave no hay qr", "ssid": "Red", "password": null, "security": "WPA", "hidden": false, "payload": null},
+    {"name": "clave en blanco no hay qr", "ssid": "Red", "password": "   ", "security": "WEP", "hidden": false, "payload": null}
+  ]
+}

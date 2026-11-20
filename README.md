@@ -120,21 +120,27 @@ Versiones iguales a PanaccessApp (AGP 9.4.0, Kotlin 2.2.10, Gradle 9.6.0, Compos
    código, pero todavía no está terminado. Pide su propio código de emparejamiento mientras la home
    está abierta y `PairPhoneDialog` pide otro: con el backend real, el segundo podría invalidar el
    del tile. Ni el tile ni el diálogo se enteran de cuándo el celular se conectó. Hoy, con la
-   versión de prueba (`DemoTvPairing`), el código es inventado.
+   versión de prueba (`DemoTvPairing`), el código es inventado. Si el operador carga `X_APP_WIFI`, el
+   QR del Wi-Fi ocupa su lugar en la home Lobby (ver punto 8).
 7. **Servicios del hotel con pedidos.** La TV solo muestra lo que manda la cuenta de Panaccess
    (`X_APP_SERVICES`, formato en `docs/x-app-services.md`), sin opción de pedir (`ReadOnlyServices`);
    sin ese parámetro no muestra la sección. Pedir necesita la conexión con el sistema del hotel
    (CRM/PMS), que todavía no existe: ver `docs/backend-idea.md`. El catálogo y los pedidos de prueba
    (`services.json`, `DemoGuestServices`) ya no se usan en la TV; siguen en el celular y en la app
    de staff.
-8. **Parámetros de Panaccess para los servicios, a configurar en cada cuenta.** Hoy es uno solo:
+8. **Parámetros nuevos de Panaccess, a configurar en cada cuenta.** Son dos:
    - `X_APP_SERVICES` — menú y servicios del hotel (bebidas, spa, etc.). Lleva el JSON directo o una
      URL a un archivo con ese JSON, igual que `X_APP_WIDGETS`: como son varias categorías, textos en
-     cinco idiomas y fotos, conviene la URL. Formato completo en `docs/x-app-services.md`.
-   - Falta darlo de alta en el documento de parámetros de personalización remota (Cableatlántico) y
-     cargarlo en la cuenta de cada hotel; sin él, la sección de servicios no aparece en la TV.
+     cinco idiomas y fotos, conviene la URL. Formato completo en `docs/x-app-services.md`. Sin él, la
+     sección de servicios no aparece en la TV.
+   - `X_APP_WIFI` — la red Wi-Fi de huéspedes, para el QR de la home: un JSON directo, nunca una URL
+     (`{"ssid":"HotelGuest","password":"abc12345x","security":"WPA","hidden":false}`). Formato completo
+     en `docs/x-app-wifi.md`. Sin él, no se muestra nada de Wi-Fi.
+   - Falta darlos de alta en el documento de parámetros de personalización remota (Cableatlántico) y
+     cargarlos en la cuenta de cada hotel.
    - Probar con una cuenta real que el valor llegue y se muestre (hoy solo está probado el parseo,
-     `OperatorServicesTest`).
+     `OperatorServicesTest` y `OperatorWifiTest`), y ver el QR de Wi-Fi en una TV real: nunca se vio ahí,
+     y con un celular de verdad queda por confirmar que lo lea desde el sillón.
 
 ## Backend propio (otro proyecto)
 

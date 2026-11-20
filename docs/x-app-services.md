@@ -1,3 +1,15 @@
+# Parámetros de Panaccess para configurar
+
+Este archivo describe el formato de los parámetros que la TV lee de la cuenta de Panaccess (parámetros de
+personalización remota de cada hotel):
+
+| Parámetro | Para qué | Dónde está |
+|---|---|---|
+| `X_APP_SERVICES` | Menú y servicios del hotel (bebidas, spa...), solo para mirar | [más abajo](#x_app_services--catálogo-de-servicios-del-hotel-desde-panaccess) |
+| `X_APP_WIFI` | Wi-Fi del hotel con QR para conectar el celular | [al final](#x_app_wifi--wi-fi-del-hotel-con-qr-desde-panaccess) |
+
+---
+
 # X_APP_SERVICES — catálogo de servicios del hotel desde Panaccess
 
 Mientras no haya conexión con el sistema del hotel (CRM/PMS), el operador puede mandar por Panaccess
@@ -53,3 +65,42 @@ categorías con textos en cinco idiomas y fotos).
   servicios.
 
 Código: `core/services/.../OperatorServices.kt` (`parseOperatorCatalog`, `ReadOnlyServices`).
+
+---
+
+# X_APP_WIFI — Wi-Fi del hotel con QR, desde Panaccess
+
+**Nombre del parámetro: `X_APP_WIFI`.**
+
+El operador carga la red Wi-Fi de huéspedes y la TV muestra un **QR** para conectar el celular, con el
+nombre de la red y la clave en texto por si la cámara no lo lee. Es un parámetro del dispositivo, como los
+otros, pero **el valor es siempre el JSON directo** (no una URL): son cuatro datos y entran en el campo.
+
+## Formato
+
+```json
+{"ssid":"HotelGuest","password":"abc12345x","security":"WPA","hidden":false}
+```
+
+Red abierta (sin clave):
+
+```json
+{"ssid":"HotelLibre","security":"nopass"}
+```
+
+| Campo | Qué es |
+|---|---|
+| `ssid` | Nombre de la red. **Obligatorio.** |
+| `password` | Clave. Obligatoria si la red tiene clave (WPA o WEP). |
+| `security` | `WPA` (por defecto), `WEP` o `nopass` (red abierta). Se acepta en minúsculas. Un valor que no conoce (`WPA2`, `WPA3`, `SAE`) se trata como WPA. |
+| `hidden` | `true` si la red está oculta. Por defecto `false`. También vale `"true"` o `"1"` como texto. |
+
+- La clave se usa **tal cual**: no se recortan espacios. Si lleva comillas `"` o barras `\`, hay que escaparlas
+  en el JSON (`\"` y `\\`).
+- Es la clave de la **red de huéspedes**: se le da a cualquiera. No cargar la red del personal.
+- Sin el parámetro, o si no sirve (sin `ssid`, una red con clave sin `password`, o un JSON inválido), la TV no
+  muestra nada de Wi-Fi y todo queda como antes. Un JSON roto se descarta entero.
+- En la home Lobby el QR ocupa el lugar de «Conectar celular» (sin el parámetro, vuelve «Conectar celular»); en la
+  home de siempre aparece «Wi-Fi del hotel» entre las acciones rápidas. Los textos están en es, en, pt, fr y de.
+
+Detalle del texto del QR y del código: `docs/x-app-wifi.md`.

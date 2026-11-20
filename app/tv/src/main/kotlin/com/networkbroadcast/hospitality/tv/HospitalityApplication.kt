@@ -21,9 +21,9 @@ import com.networkbroadcast.hospitality.panaccess.PanaccessClient
 import com.networkbroadcast.hospitality.panaccess.PanaccessEndpoint
 import com.networkbroadcast.hospitality.panaccess.PanaccessEntertainmentSource
 import com.networkbroadcast.hospitality.panaccess.PanaccessSession
-import com.networkbroadcast.hospitality.services.AssetServiceCatalog
-import com.networkbroadcast.hospitality.services.DemoGuestServices
 import com.networkbroadcast.hospitality.services.GuestServices
+import com.networkbroadcast.hospitality.services.ReadOnlyServices
+import com.networkbroadcast.hospitality.services.parseOperatorCatalog
 import com.panaccess.android.streaming.shared.epg.EpgApiCredentials
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -71,16 +71,24 @@ class HospitalityApplication : Application(), SingletonImageLoader.Factory {
     /** Trabajo que tiene que seguir aunque se cierre una pantalla (p. ej. el avance de un pedido de prueba). */
     val appScope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
+    /** El último catálogo del operador ya armado, con el texto del que salió (ver [guestServices]). */
+    private var operatorServices: Pair<String, GuestServices?>? = null
+
     /**
-     * Servicios del hotel (pedidos). Hoy la versión de PRUEBA con el catálogo de la marca (el pedido
-     * avanza solo); con el backend propio se reemplaza acá. null si la marca no tiene catálogo.
+     * Servicios del hotel: solo lo que manda la cuenta de Panaccess (X_APP_SERVICES), para mirar. Sin
+     * ese parámetro, null y la TV no muestra la sección. No hay catálogo fijo en la marca ni pedidos de
+     * prueba: pedir necesita la conexión con el sistema del hotel (CRM/PMS), que todavía no existe (ver
+     * [ReadOnlyServices]); cuando exista, lo reemplaza una implementación que sí reciba pedidos. No es
+     * lazy porque la configuración del operador llega con el login.
      */
-    val guestServices: GuestServices? by lazy {
-        brand.services.asset?.takeIf { brand.features.roomService }?.let { asset ->
-            val catalog = AssetServiceCatalog(this, asset)
-            DemoGuestServices(catalog::load, appScope)
+    val guestServices: GuestServices?
+        get() {
+            val raw = panaccess.operatorConfig?.param("X_APP_SERVICES") ?: return null
+            operatorServices?.takeIf { it.first == raw }?.let { return it.second }
+            val built = parseOperatorCatalog(raw)?.let { ReadOnlyServices(it) }
+            operatorServices = raw to built
+            return built
         }
-    }
 
     /** Mensajes en pantalla del operador (OSM). Se arranca con la sesión abierta. */
     val osm: OsmWatcher by lazy { OsmWatcher(this) }

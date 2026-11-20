@@ -147,7 +147,7 @@ data class OperatorConfig(
     // se resuelven acá, no antes, porque el huésped puede cambiar de idioma durante la estadía.
     // El valor de este parámetro puede ser el JSON directo o una URL a un archivo con ese JSON
     // adentro (campo de Panaccess con límite de caracteres) -- esa resolución pasa antes de
-    // llegar acá, en PanaccessSession.resolveWidgetsUrl, para que esta función siga siendo pura.
+    // llegar acá, en PanaccessSession.resolveUrlParam, para que esta función siga siendo pura.
     fun widgets(language: String): List<HomeWidget> {
         val raw = param("X_APP_WIDGETS")
         runCatching {

@@ -167,7 +167,8 @@ class PanaccessSession(context: Context, val client: PanaccessClient) {
 
     private suspend fun fetchOperatorConfig(): OperatorConfig? =
         (client.call("getClientConfig") as? CasResult.Success)?.let { OperatorConfig.parse(it.rawJson) }
-            ?.let { resolveWidgetsUrl(it) }
+            ?.let { resolveUrlParam(it, "X_APP_WIDGETS") }
+            ?.let { resolveUrlParam(it, "X_APP_SERVICES") }
             ?.also { logColorParams(it) }
 
     /**
@@ -194,9 +195,13 @@ class PanaccessSession(context: Context, val client: PanaccessClient) {
      * widgets, título/descripción/horario en 5 idiomas, fotos). Se resuelve acá, una sola vez al
      * traer la config, para que OperatorConfig.widgets() siga siendo puro/síncrono y no le
      * importe de dónde salió el texto.
+     *
+     * Lo mismo vale para X_APP_SERVICES (catálogo de servicios del hotel, ver
+     * services/OperatorServices.kt): el JSON con todas las categorías, textos por idioma y fotos
+     * tampoco entra en el campo del parámetro.
      */
-    private suspend fun resolveWidgetsUrl(config: OperatorConfig): OperatorConfig {
-        val raw = config.param("X_APP_WIDGETS") ?: return config
+    private suspend fun resolveUrlParam(config: OperatorConfig, key: String): OperatorConfig {
+        val raw = config.param(key) ?: return config
         if (!raw.startsWith("http://") && !raw.startsWith("https://")) return config
         val fetched = withContext(Dispatchers.IO) {
             runCatching {
@@ -208,10 +213,10 @@ class PanaccessSession(context: Context, val client: PanaccessClient) {
             }.getOrNull()
         }
         if (fetched == null) {
-            Log.w(TAG, "X_APP_WIDGETS: no se pudo descargar el JSON de $raw")
+            Log.w(TAG, "$key: no se pudo descargar el JSON de $raw")
             return config
         }
-        return config.copy(parameters = config.parameters + ("X_APP_WIDGETS" to fetched))
+        return config.copy(parameters = config.parameters + (key to fetched))
     }
 
     private suspend fun onLicenseEnabled(enabled: License): SessionOutcome {

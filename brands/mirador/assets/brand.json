@@ -6,7 +6,9 @@
   "languages": [
     "es",
     "en",
-    "pt"
+    "pt",
+    "fr",
+    "de"
   ],
   "defaultLanguage": "es",
   "location": "Cancún",

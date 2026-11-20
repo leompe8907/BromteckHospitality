@@ -31,10 +31,11 @@ import com.networkbroadcast.hospitality.brand.UiText
 import com.networkbroadcast.hospitality.brand.imageModel
 import com.networkbroadcast.hospitality.designsystem.FocusCard
 import com.networkbroadcast.hospitality.designsystem.HospitalityBodyFamily
+import com.networkbroadcast.hospitality.designsystem.HospitalityColors
 import com.networkbroadcast.hospitality.designsystem.HospitalityTheme
 
 /*
- * PRUEBA de la dirección "Lobby" (rama prueba/lobby): bienvenida e idioma en un solo popup, sobre
+ * PRUEBA de la dirección "Lobby": bienvenida e idioma en un solo popup, sobre
  * la foto del hotel, antes de que cargue nada más (feedback de Enrique, 20-nov-2026). Aparece la
  * primera vez en la estadía y vuelve después del check-out; reemplaza a LanguageScreen +
  * WelcomeDialog en la marca de prueba. Desde la home ("Idioma") se abre solo la parte de idioma.
@@ -42,27 +43,33 @@ import com.networkbroadcast.hospitality.designsystem.HospitalityTheme
 @Composable
 fun LobbyWelcome(
     brand: BrandConfig,
+    /** Logo que cargó el operador (X_APP_LOGO); null = el de la marca, si lo trae. */
+    logoUrl: String?,
     guestName: String?,
     room: String?,
     selected: String?,
     onlyLanguage: Boolean,
     onSelected: (String) -> Unit,
 ) {
-    val colors = HospitalityTheme.colors
+    // Colores del operador: color de card para la tarjeta, de letra y de confirmación para el botón.
+    val colors = lobbyGlass()
     val first = rememberInitialFocus()
     val t = UiText.of(selected ?: brand.defaultLanguage)
-    val accent = colors.accent
-    Box(Modifier.fillMaxSize().background(Color(0x8C080E0C)), contentAlignment = Alignment.Center) {
+    val accent = lobbyConfirmColor()
+    val panel = if (HospitalityColors.parseHex(LocalLobbyStyle.current.cardColorHex) != null) colors.surface.copy(alpha = 0.96f) else Color(0xF0111111)
+    // Con 3 idiomas, 120 dp cada botón; con más, se achican para que entren en la tarjeta (520 dp útiles).
+    val buttonWidth = minOf(120, (520 - 9 * (brand.languages.size - 1)) / brand.languages.size.coerceAtLeast(1)).dp
+    Box(Modifier.fillMaxSize().background(Color(0x8C000000)), contentAlignment = Alignment.Center) {
         Column(
-            Modifier.widthIn(max = 600.dp).clip(RoundedCornerShape(15.dp)).background(Color(0xF00E1815)).padding(horizontal = 40.dp, vertical = 32.dp),
+            Modifier.widthIn(max = 600.dp).clip(RoundedCornerShape(15.dp)).background(panel).padding(horizontal = 40.dp, vertical = 32.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            if (brand.showLogo) {
-                AsyncImage(model = imageModel("asset:logo.png"), contentDescription = brand.displayName, contentScale = ContentScale.Fit, modifier = Modifier.height(20.dp))
+            (logoUrl ?: if (brand.showLogo) imageModel("asset:logo.png") else null)?.let {
+                AsyncImage(model = it, contentDescription = brand.displayName, contentScale = ContentScale.Fit, modifier = Modifier.height(20.dp))
             }
             if (!onlyLanguage) {
                 room?.let {
-                    Text("${t.room} $it".uppercase(), style = TextStyle(fontFamily = HospitalityBodyFamily, fontSize = 9.sp, fontWeight = FontWeight.Bold, letterSpacing = 2.5.sp), color = accent, modifier = Modifier.padding(top = 18.dp))
+                    Text("${t.room} $it".uppercase(), style = TextStyle(fontFamily = HospitalityBodyFamily, fontSize = 9.sp, fontWeight = FontWeight.SemiBold, letterSpacing = 2.5.sp), color = accent, modifier = Modifier.padding(top = 18.dp))
                 }
                 Text(
                     guestName?.takeIf { it.isNotBlank() }?.let { t.welcomeTitle.format(it.trim().split(" ").first()) + "." } ?: t.welcomeTitleNoName,
@@ -91,11 +98,11 @@ fun LobbyWelcome(
                         FocusCard(
                             onClick = { onSelected(code) },
                             shape = RoundedCornerShape(8.dp),
-                            modifier = Modifier.size(width = 120.dp, height = 44.dp).then(if (isFirst) Modifier.focusRequester(first) else Modifier),
+                            modifier = Modifier.size(width = buttonWidth, height = 44.dp).then(if (isFirst) Modifier.focusRequester(first) else Modifier),
                         ) { focused ->
                             if (focused) Box(Modifier.fillMaxSize().background(accent))
                             Text(UiText.languageNames[code] ?: code.uppercase(), style = TextStyle(fontFamily = HospitalityBodyFamily, fontSize = 13.sp, fontWeight = FontWeight.SemiBold),
-                                color = if (focused) Color(0xFF14100A) else colors.textPrimary, modifier = Modifier.align(Alignment.Center))
+                                color = if (focused) HospitalityColors.readableTextColor(accent) else colors.textPrimary, modifier = Modifier.align(Alignment.Center))
                         }
                     }
                 }

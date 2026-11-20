@@ -115,6 +115,7 @@ fun HomeScreen(
             subscriberName = subscriberName, quickActions = quickActions, vodHasContent = vodHasContent,
             previews = previews, services = services, widgets = widgets, onOpenWidget = onOpenWidget,
             focusOn = focusOn, onAction = onAction, pairing = pairing, languageCode = languageCode,
+            catchUpAvailable = catchUpAvailable, secondLogoUrl = secondLogoUrl,
         )
         return
     }
@@ -145,7 +146,12 @@ fun HomeScreen(
         if (brand.features.vod && vodHasContent) add(HomeAction.Vod to text.moviesAndSeries)
         if (brand.features.guide && catchUpAvailable) add(HomeAction.CatchUp to text.catchUp)
     }
-    val serviceActions = if (services != null) listOf(HomeAction.Services, HomeAction.MyOrders) else emptyList()
+    // "Mis pedidos" solo existe si se puede pedir; con un catálogo solo informativo no hay pedidos.
+    val serviceActions = when {
+        services == null -> emptyList()
+        services.canOrder -> listOf(HomeAction.Services, HomeAction.MyOrders)
+        else -> listOf(HomeAction.Services)
+    }
     val all = entertainment.map { it.first } + serviceActions + quickActions
     val target = focusOn?.takeIf { it in all } ?: all.firstOrNull()
     val first = rememberInitialFocus(target)
@@ -296,7 +302,7 @@ fun HomeScreen(
                 Row(horizontalArrangement = Arrangement.spacedBy(16.dp), modifier = Modifier.fillMaxWidth()) {
                     FocusCard(
                         onClick = { onAction(HomeAction.Services) },
-                        modifier = Modifier.height(130.dp).weight(2f)
+                        modifier = Modifier.height(130.dp).weight(if (services.canOrder) 2f else 3f)
                             .then(if (HomeAction.Services == target) Modifier.focusRequester(first) else Modifier),
                     ) {
                         val cardColors2 = HospitalityTheme.colors
@@ -311,7 +317,7 @@ fun HomeScreen(
                             Text(services.orderLabel, style = HospitalityTheme.typography.label, color = cardColors2.textPrimary)
                         }
                     }
-                    FocusCard(
+                    if (services.canOrder) FocusCard(
                         onClick = { onAction(HomeAction.MyOrders) },
                         modifier = Modifier.height(130.dp).weight(1f)
                             .then(if (HomeAction.MyOrders == target) Modifier.focusRequester(first) else Modifier),
@@ -395,6 +401,8 @@ data class HomeServices(
     val imageUrl: String?,
     /** El pedido abierto más reciente y su estado: "Botella de champán: En camino". */
     val activeOrder: String?,
+    /** false = catálogo solo informativo (sin pedidos ni "Mis pedidos"). */
+    val canOrder: Boolean = true,
 )
 
 /** Datos para que las tarjetas de la home no estén vacías. */

@@ -44,6 +44,7 @@ import com.networkbroadcast.hospitality.brand.BrandConfig
 import com.networkbroadcast.hospitality.brand.UiText
 import com.networkbroadcast.hospitality.brand.imageModel
 import com.networkbroadcast.hospitality.designsystem.FocusCard
+import com.networkbroadcast.hospitality.designsystem.HospitalityColors
 import com.networkbroadcast.hospitality.designsystem.HospitalityTheme
 import com.networkbroadcast.hospitality.designsystem.LocalHospitalityColors
 import com.networkbroadcast.hospitality.panaccess.HomeWidget
@@ -54,15 +55,16 @@ import java.util.Calendar
 import java.util.Locale
 
 /*
- * PRUEBA DE IMPLEMENTACIÓN — dirección "Lobby" (rama prueba/lobby-esteban, 20-nov-2026).
+ * PRUEBA DE IMPLEMENTACIÓN — dirección "Lobby" (20-nov-2026).
  *
- * Home sin filas: la foto del hotel de fondo, un saludo grande y seis piezas de tres tamaños en
- * posiciones fijas (principal, dos grandes, una ancha, dos chicas), como el prototipo
- * Papeleria/hospitality-tv/lobby.html. Se activa con "direction": "LOBBY" en brand.json; el resto
- * de la app no cambia.
+ * Home sin filas: la foto del hotel de fondo, un encabezado chico y nueve lugares de cuatro
+ * tamaños en posiciones fijas (principal, cuatro medianos, dos anchos, dos chicos), como el
+ * prototipo Papeleria/hospitality-tv/lobby.html. Se activa con "direction": "LOBBY" en brand.json;
+ * el resto de la app no cambia.
  *
  * En esta prueba el reparto de piezas es automático (por prioridad, según lo que la marca tenga
  * prendido). En la versión real lo elige el hotel con un bloque "home" en brand.json.
+ * Colores, logos y textos salen de lo que configura el operador (ver LobbyStyle.kt).
  */
 
 /** Lienzo de la TV en dp: 960×540 (1920×1080 px a densidad 2). Mismas medidas que el prototipo v4. */
@@ -99,15 +101,22 @@ fun LobbyHome(
     onAction: (HomeAction) -> Unit,
     pairing: com.networkbroadcast.hospitality.companion.TvPairing? = null,
     languageCode: String? = null,
+    /** true si algún canal tiene catch-up (mismo criterio que la home de siempre). */
+    catchUpAvailable: Boolean = false,
+    /** Segundo logo del hotel (tvModel de la licencia); null = no hay. */
+    secondLogoUrl: String? = null,
 ) {
     val base = HospitalityTheme.colors
-    val accent = base.accent
+    val accent = lobbyConfirmColor()
+    val lobby = LocalLobbyText.current
     val name = subscriberName?.takeIf { it.isNotBlank() }
     val initials = name?.split(" ")?.filter { it.isNotBlank() }?.take(2)?.joinToString("") { it.first().uppercase() }
+    // Fecha en el idioma que eligió el huésped, no en el del equipo.
+    val locale = remember(languageCode) { Locale.forLanguageTag(languageCode ?: brand.defaultLanguage) }
     val now = remember { java.util.Date() }
-    val timeText = remember(now) { SimpleDateFormat("HH:mm", Locale.getDefault()).format(now) }
-    val dayText = remember(now) { SimpleDateFormat("EEEE,", Locale.getDefault()).format(now).replaceFirstChar { it.uppercase() } }
-    val dateText = remember(now) { SimpleDateFormat("d MMM yyyy", Locale.getDefault()).format(now) }
+    val timeText = remember(now) { SimpleDateFormat("HH:mm", locale).format(now) }
+    val dayText = remember(now, locale) { SimpleDateFormat("EEEE,", locale).format(now).replaceFirstChar { it.titlecase(locale) } }
+    val dateText = remember(now, locale) { SimpleDateFormat("d MMM yyyy", locale).format(now) }
 
     // Reparto automático por prioridad (en la versión real lo elige el hotel en brand.json -> "home").
     val has = { a: HomeAction ->
@@ -115,12 +124,14 @@ fun LobbyHome(
             HomeAction.LiveTv -> brand.features.liveTv
             HomeAction.Guide -> brand.features.liveTv && brand.features.guide
             HomeAction.Vod -> brand.features.vod && vodHasContent
+            HomeAction.CatchUp -> brand.features.guide && catchUpAvailable
             HomeAction.Services -> services != null
             else -> a in quickActions
         }
     }
     val hero: Tile = widgets.firstOrNull()?.let { Tile.Hotel(it) } ?: Tile.Act(HomeAction.LiveTv)
-    val pool = listOf(HomeAction.LiveTv, HomeAction.Guide, HomeAction.Vod, HomeAction.AboutHotel, HomeAction.PairPhone)
+    // Catch-up va al final del pool: no mueve nada de lo que ya estaba, entra solo si queda lugar.
+    val pool = listOf(HomeAction.LiveTv, HomeAction.Guide, HomeAction.Vod, HomeAction.AboutHotel, HomeAction.PairPhone, HomeAction.CatchUp)
         .filter { has(it) && Tile.Act(it) != hero }
     val bigs = pool.take(4).map { Tile.Act(it) }
     val wides = buildList<Tile> {
@@ -135,41 +146,44 @@ fun LobbyHome(
     val first = rememberInitialFocus(target)
 
     // Fondo: la foto del hotel ya la dibuja HotelBackdrop detrás; acá solo el velo para leer.
-    Box(Modifier.fillMaxSize().background(Brush.verticalGradient(0f to Color(0xC7080E0C), 0.18f to Color(0x59080E0C), 0.55f to Color(0x73080E0C), 1f to Color(0xE6080E0C)))) {
+    Box(Modifier.fillMaxSize().background(Brush.verticalGradient(0f to Color(0xC7000000), 0.18f to Color(0x59000000), 0.55f to Color(0x73000000), 1f to Color(0xE6000000)))) {
 
         // Encabezado del día a día: logo a la izquierda; clima, hora, "Hola" y habitación a la derecha.
         Row(Modifier.fillMaxWidth().padding(horizontal = Pad).padding(top = 25.dp).height(46.dp), verticalAlignment = Alignment.CenterVertically) {
-            // PRUEBA: si la marca trae su logo (showLogo), le gana al de la cuenta de Panaccess.
-            (if (brand.showLogo) imageModel("asset:logo.png") else logoUrl)?.let {
+            // Logo que cargó el operador (X_APP_LOGO); si no hay, el de la marca; si tampoco, el nombre.
+            (logoUrl ?: if (brand.showLogo) imageModel("asset:logo.png") else null)?.let {
                 AsyncImage(model = it, contentDescription = null, contentScale = ContentScale.Fit, modifier = Modifier.height(26.dp).widthIn(max = 220.dp))
             } ?: Text(brand.displayName.uppercase(), style = serif(15.sp).copy(letterSpacing = 4.sp), color = base.textPrimary)
+            secondLogoUrl?.let {
+                AsyncImage(model = it, contentDescription = null, contentScale = ContentScale.Fit, modifier = Modifier.padding(start = 18.dp).height(26.dp).widthIn(max = 120.dp))
+            }
             Spacer(Modifier.weight(1f))
             val small = TextStyle(fontFamily = com.networkbroadcast.hospitality.designsystem.HospitalityBodyFamily, fontSize = 9.5.sp, color = base.textPrimary.copy(alpha = 0.78f))
-            val strong = TextStyle(fontFamily = com.networkbroadcast.hospitality.designsystem.HospitalityBodyFamily, fontSize = 12.5.sp, fontWeight = FontWeight.Bold, color = base.textPrimary)
+            val strong = TextStyle(fontFamily = com.networkbroadcast.hospitality.designsystem.HospitalityBodyFamily, fontSize = 12.5.sp, fontWeight = FontWeight.SemiBold, color = base.textPrimary)
             val sep = @Composable { Box(Modifier.padding(horizontal = 15.dp).width(1.dp).height(30.dp).background(base.textPrimary.copy(alpha = 0.28f))) }
             weatherText?.let {
                 Column { Text(it.substringAfter(" · ", "").ifBlank { " " }, style = small); Text(it.substringBefore(" · "), style = strong) }
                 sep()
             }
-            Text(timeText, style = TextStyle(fontFamily = com.networkbroadcast.hospitality.designsystem.HospitalityBodyFamily, fontSize = 27.sp, fontWeight = FontWeight.Bold, color = base.textPrimary))
+            Text(timeText, style = TextStyle(fontFamily = com.networkbroadcast.hospitality.designsystem.HospitalityBodyFamily, fontSize = 27.sp, fontWeight = FontWeight.SemiBold, color = base.textPrimary))
             Column(Modifier.padding(start = 8.dp)) { Text(dayText, style = small); Text(dateText, style = strong.copy(fontWeight = FontWeight.Medium, fontSize = 11.sp)) }
             name?.let {
                 sep()
-                Column(horizontalAlignment = Alignment.End) { Text("Hola", style = small); Text(it, style = strong) }
+                Column(horizontalAlignment = Alignment.End) { Text(lobby.hello, style = small); Text(it, style = strong) }
                 Box(Modifier.padding(start = 8.dp).size(32.dp).clip(CircleShape).background(accent), contentAlignment = Alignment.Center) {
-                    Text(initials.orEmpty(), style = TextStyle(fontFamily = com.networkbroadcast.hospitality.designsystem.HospitalityBodyFamily, fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color(0xFF14100A)))
+                    Text(initials.orEmpty(), style = TextStyle(fontFamily = com.networkbroadcast.hospitality.designsystem.HospitalityBodyFamily, fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = HospitalityColors.readableTextColor(accent)))
                 }
             }
             roomNumber?.let { sep(); Column { Text(text.room, style = small); Text(it, style = strong) } }
         }
 
         // Piezas translúcidas sobre la foto.
-        val glass = base.copy(surface = Color(0x9E0C1714), surfaceBorder = Color(0x24F3EEE4))
+        val glass = lobbyGlass()
         CompositionLocalProvider(LocalHospitalityColors provides glass) {
             val place = @Composable { t: Tile, s: Slot, size: Char ->
                 val focus = first.takeIf { t == target }
                 when (t) {
-                    is Tile.Hotel -> Piece(s, { onOpenWidget(t.w) }, focus) { HeroWidget(t.w, accent, big = size == 'L') }
+                    is Tile.Hotel -> Piece(s, { onOpenWidget(t.w) }, focus) { HeroWidget(t.w, accent, text.floorLabel, big = size == 'L') }
                     is Tile.Act -> Piece(s, { onAction(t.a) }, focus) {
                         when {
                             size == 'L' -> LiveTile(previews, text, big = true)
@@ -216,20 +230,20 @@ private fun serif(size: androidx.compose.ui.unit.TextUnit) = TextStyle(
 
 @Composable
 private fun BoxScope.Scrim() {
-    Box(Modifier.fillMaxSize().background(Brush.verticalGradient(0f to Color(0x0D050807), 0.5f to Color(0x73050807), 1f to Color(0xEB050807))))
+    Box(Modifier.fillMaxSize().background(Brush.verticalGradient(0f to Color(0x0D000000), 0.5f to Color(0x73000000), 1f to Color(0xEB000000))))
 }
 
 @Composable
 private fun Kicker(s: String, color: Color = HospitalityTheme.colors.textPrimary) =
-    Text(s.uppercase(), style = TextStyle(fontFamily = com.networkbroadcast.hospitality.designsystem.HospitalityBodyFamily, fontSize = 8.5.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.8.sp), color = color.copy(alpha = 0.75f), maxLines = 1, overflow = TextOverflow.Ellipsis)
+    Text(s.uppercase(), style = TextStyle(fontFamily = com.networkbroadcast.hospitality.designsystem.HospitalityBodyFamily, fontSize = 10.5.sp, fontWeight = FontWeight.SemiBold, letterSpacing = 1.5.sp), color = color.copy(alpha = 0.75f), maxLines = 1, overflow = TextOverflow.Ellipsis)
 
 @Composable
-private fun BoxScope.HeroWidget(w: HomeWidget, accent: Color, big: Boolean = true) {
+private fun BoxScope.HeroWidget(w: HomeWidget, accent: Color, floorLabel: String, big: Boolean = true) {
     val c = HospitalityTheme.colors
     AsyncImage(model = imageModel(w.imageUrl), contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
     Scrim()
     Column(Modifier.align(Alignment.BottomStart).padding(horizontal = 20.dp, vertical = 18.dp)) {
-        Kicker(listOfNotNull(w.hours, w.floor?.let { "Piso $it" }).joinToString(" · ").ifEmpty { " " }, accent)
+        Kicker(listOfNotNull(w.hours, w.floor?.let { "$floorLabel $it" }).joinToString(" · ").ifEmpty { " " }, accent)
         Text(w.title, style = serif(if (big) 40.sp else 20.sp).copy(fontWeight = FontWeight.SemiBold), color = c.textPrimary, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(top = 4.dp))
         w.description?.takeIf { big }?.let { Text(it, style = TextStyle(fontFamily = com.networkbroadcast.hospitality.designsystem.HospitalityBodyFamily, fontSize = 12.sp), color = c.textPrimary.copy(alpha = 0.82f), maxLines = 2, overflow = TextOverflow.Ellipsis) }
     }
@@ -267,7 +281,7 @@ private fun BoxScope.BigTile(a: HomeAction, text: UiText, p: HomePreviews, servi
             Scrim()
             TileText(text.moviesAndSeries, null)
         }
-        HomeAction.Guide -> {
+        HomeAction.Guide, HomeAction.CatchUp -> {
             Row(Modifier.align(Alignment.TopStart).padding(14.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 p.guideLogos.take(3).forEach {
                     Box(Modifier.size(52.dp, 30.dp).clip(RoundedCornerShape(5.dp)).background(Color.White).padding(3.dp), contentAlignment = Alignment.Center) {
@@ -275,7 +289,7 @@ private fun BoxScope.BigTile(a: HomeAction, text: UiText, p: HomePreviews, servi
                     }
                 }
             }
-            TileText(text.guide, null)
+            TileText(if (a == HomeAction.CatchUp) text.catchUp else text.guide, null)
         }
         HomeAction.Services -> {
             services?.imageUrl?.let { AsyncImage(model = imageModel(it), contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize()); Scrim() }
@@ -350,8 +364,8 @@ private fun BoxScope.PairTile(pairing: com.networkbroadcast.hospitality.companio
         }
         Column {
             Text(text.pairPhone, style = TextStyle(fontFamily = com.networkbroadcast.hospitality.designsystem.HospitalityBodyFamily, fontSize = 12.sp, fontWeight = FontWeight.SemiBold), color = c.textPrimary, maxLines = 2)
-            Text("Escanea o ingresa:", maxLines = 1, style = TextStyle(fontFamily = com.networkbroadcast.hospitality.designsystem.HospitalityBodyFamily, fontSize = 10.sp), color = c.textPrimary.copy(alpha = 0.75f), modifier = Modifier.padding(top = 4.dp))
-            Text(code?.code?.chunked(3)?.joinToString(" ") ?: "··· ···", style = TextStyle(fontFamily = com.networkbroadcast.hospitality.designsystem.HospitalityBodyFamily, fontSize = 16.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp), color = c.textPrimary, maxLines = 1, softWrap = false)
+            Text(LocalLobbyText.current.scanOrEnter, maxLines = 1, style = TextStyle(fontFamily = com.networkbroadcast.hospitality.designsystem.HospitalityBodyFamily, fontSize = 10.sp), color = c.textPrimary.copy(alpha = 0.75f), modifier = Modifier.padding(top = 4.dp))
+            Text(code?.code?.chunked(3)?.joinToString(" ") ?: "··· ···", style = TextStyle(fontFamily = com.networkbroadcast.hospitality.designsystem.HospitalityBodyFamily, fontSize = 16.sp, fontWeight = FontWeight.SemiBold, letterSpacing = 1.sp), color = c.textPrimary, maxLines = 1, softWrap = false)
         }
     }
 }
@@ -370,7 +384,7 @@ private fun BoxScope.AboutTile(widgets: List<HomeWidget>, text: UiText) {
 @Composable
 private fun BoxScope.LanguageTile(text: UiText, code: String?) {
     val c = HospitalityTheme.colors
-    Text((code ?: "es").uppercase(), style = TextStyle(fontFamily = com.networkbroadcast.hospitality.designsystem.HospitalityBodyFamily, fontSize = 20.sp, fontWeight = FontWeight.Bold), color = c.textPrimary,
+    Text((code ?: "es").uppercase(), style = TextStyle(fontFamily = com.networkbroadcast.hospitality.designsystem.HospitalityBodyFamily, fontSize = 20.sp, fontWeight = FontWeight.SemiBold), color = c.textPrimary,
         modifier = Modifier.align(Alignment.TopStart).padding(12.dp))
     Column(Modifier.align(Alignment.BottomStart).padding(12.dp)) {
         Kicker(text.language)

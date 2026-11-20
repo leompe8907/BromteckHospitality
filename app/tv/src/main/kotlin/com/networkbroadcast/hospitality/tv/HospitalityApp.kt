@@ -40,6 +40,9 @@ import com.networkbroadcast.hospitality.tv.screens.HomeScreen
 import com.networkbroadcast.hospitality.tv.screens.HotelBackdrop
 import com.networkbroadcast.hospitality.tv.screens.WelcomeDialog
 import com.networkbroadcast.hospitality.tv.screens.LobbyWelcome
+import com.networkbroadcast.hospitality.tv.screens.LobbyScope
+import com.networkbroadcast.hospitality.tv.screens.LobbyStyle
+import com.networkbroadcast.hospitality.tv.screens.ServiceInfoDialog
 import com.networkbroadcast.hospitality.tv.screens.LobbyScreensaver
 import com.networkbroadcast.hospitality.tv.screens.LOBBY_IDLE_MS
 import androidx.compose.runtime.mutableIntStateOf
@@ -387,12 +390,11 @@ fun HospitalityApp(
         }
     }
 
-    // PRUEBA Lobby (rama prueba/lobby): imagen de carga propia de la marca de prueba, en vez de la
-    // de muestra (X_APP_SPLASH) que trae la cuenta de Panaccess.
-    val testSplash = if (brand.direction.equals("LOBBY", ignoreCase = true) && brand.backgrounds.isNotEmpty()) "asset:fondos/splash.jpg" else null
+    // PRUEBA Lobby: imagen de carga de la marca, solo para cuando el operador no trae la suya (X_APP_SPLASH).
+    val lobbySplash = if (brand.direction.equals("LOBBY", ignoreCase = true) && brand.backgrounds.isNotEmpty()) "asset:fondos/splash.jpg" else null
     // PRUEBA Lobby: la bienvenida aparece cada vez que se abre la app (además de tras el check-out),
     // para que se vea al encender la TV; el idioma ya elegido queda marcado.
-    var welcomeThisLaunch by remember { mutableStateOf(testSplash != null) }
+    var welcomeThisLaunch by remember { mutableStateOf(lobbySplash != null) }
     // PRUEBA Lobby: pantalla de reposo tras LOBBY_IDLE_MS sin tocar el control.
     var idle by remember { mutableStateOf(false) }
     var inputTick by remember { mutableIntStateOf(0) }
@@ -415,12 +417,12 @@ fun HospitalityApp(
             // arranque de la TV no hay nada cacheado y esto no dibuja nada (igual que HotelBackdrop
             // sin fotos).
             Auth.Provisioning -> {
-                (testSplash ?: panaccess.cachedSplashImageUrl)?.let { HotelBackdrop(listOf(it)) }
+                (panaccess.cachedSplashImageUrl ?: lobbySplash)?.let { HotelBackdrop(listOf(it)) }
                 CenteredMessage(if (restoreFailed) setupText.reconnecting else setupText.provisioning)
                 return@Box
             }
             Auth.Checking -> {
-                (testSplash ?: panaccess.cachedSplashImageUrl)?.let { HotelBackdrop(listOf(it)) }
+                (panaccess.cachedSplashImageUrl ?: lobbySplash)?.let { HotelBackdrop(listOf(it)) }
                 CenteredMessage(if (restoreFailed) setupText.reconnecting else setupText.connecting)
                 return@Box
             }
@@ -468,12 +470,16 @@ fun HospitalityApp(
         val showsHotelBackdrop = onHome || backStack.last() in setOf(Screen.Guide, Screen.LiveTv, Screen.Vod)
         // Delancer: fondo configurable desde el panel de Cableatlántico (X_APP_LOGO_BACKGROUND).
         // Si el hotel no lo cargó, se usa el fondo genérico de la marca de siempre.
-        // PRUEBA Lobby (rama prueba/lobby): en la marca de prueba, las fotos de la marca le ganan
-        // al fondo de la cuenta de Panaccess, que en la cuenta de prueba es una imagen de muestra.
         val lobbyTest = brand.direction.equals("LOBBY", ignoreCase = true) && brand.backgrounds.isNotEmpty()
-        val backgrounds = if (lobbyTest) brand.backgrounds
-            else panaccess.operatorConfig?.hotelBackgroundUrl?.let { listOf(it) } ?: brand.backgrounds
+        val backgrounds = panaccess.operatorConfig?.hotelBackgroundUrl?.let { listOf(it) } ?: brand.backgrounds
         val logoUrl = panaccess.operatorConfig?.hotelLogoUrl
+        // PRUEBA Lobby: lo que el operador personaliza (colores, placeholder) llega a todas las pantallas Lobby.
+        val lobbyStyle = LobbyStyle(
+            cardColorHex = panaccess.operatorConfig?.cardColorHex,
+            textColorHex = panaccess.operatorConfig?.textColorHex,
+            confirmColorHex = panaccess.operatorConfig?.confirmColorHex,
+            placeholderImageUrl = panaccess.operatorConfig?.placeholderImageUrl,
+        )
         // Precarga del fondo/logo apenas se conocen (no bloquea nada: si no llegan a tiempo, el
         // placeholder de HotelBackdrop/LanguageScreen cubre el hueco) — mismo espíritu que la
         // precarga del catálogo de más arriba, para que no se vea el salto de color sólido a foto.
@@ -489,30 +495,37 @@ fun HospitalityApp(
         // pantalla de conexión, en vez de pasar al fondo común: cambiar de imagen a mitad de la
         // carga se lee como si la app se hubiera reiniciado sola. Recién al abrir Home aparece el
         // fondo del hotel, que ahí sí es un cambio de pantalla y no un parpadeo.
-        val splashUrl = testSplash ?: panaccess.cachedSplashImageUrl ?: panaccess.operatorConfig?.splashImageUrl
+        val splashUrl = panaccess.cachedSplashImageUrl ?: panaccess.operatorConfig?.splashImageUrl ?: lobbySplash
         val holdingSplash = !homeCatalogReady && splashUrl != null
+        // PRUEBA Lobby: en la bienvenida, la imagen de bienvenida del operador (X_APP_WELCOME_IMAGE) de fondo.
+        val lobbyWelcomeShowing = lobbyTest && !(choosingLanguage && current != null) && (current == null || welcomeThisLaunch)
         when {
             holdingSplash -> HotelBackdrop(listOf(splashUrl!!))
+            lobbyWelcomeShowing -> HotelBackdrop(listOf(welcomeImageUrl!!), placeholderImageUrl = panaccess.operatorConfig?.placeholderImageUrl)
             showsHotelBackdrop -> HotelBackdrop(backgrounds, placeholderImageUrl = panaccess.operatorConfig?.placeholderImageUrl)
         }
         if (current == null || choosingLanguage || (lobbyTest && welcomeThisLaunch)) {
             // PRUEBA Lobby: bienvenida + idioma en un solo popup (ver LobbyWelcome.kt).
             if (lobbyTest) {
-                LobbyWelcome(
-                    brand = brand,
-                    guestName = brand.welcome.demoGuestName ?: panaccess.operatorConfig?.subscriberName,
-                    room = panaccess.license?.licenseName ?: brand.welcome.demoRoom,
-                    selected = current,
-                    onlyLanguage = choosingLanguage && current != null,
-                    onSelected = {
-                        session.language = it
-                        language = it
-                        choosingLanguage = false
-                        session.welcomed = true
-                        showingWelcome = false
-                        welcomeThisLaunch = false
-                    },
-                )
+                LobbyScope(lobbyStyle, current ?: brand.defaultLanguage) {
+                    LobbyWelcome(
+                        brand = brand,
+                        logoUrl = logoUrl,
+                        // El nombre y la habitación de la cuenta; los de demo de la marca solo si la cuenta no los trae.
+                        guestName = panaccess.operatorConfig?.subscriberName ?: brand.welcome.demoGuestName,
+                        room = panaccess.license?.licenseName ?: brand.welcome.demoRoom,
+                        selected = current,
+                        onlyLanguage = choosingLanguage && current != null,
+                        onSelected = {
+                            session.language = it
+                            language = it
+                            choosingLanguage = false
+                            session.welcomed = true
+                            showingWelcome = false
+                            welcomeThisLaunch = false
+                        },
+                    )
+                }
                 if (choosingLanguage) BackHandler { choosingLanguage = false }
                 else if (current != null) BackHandler { welcomeThisLaunch = false }
                 return@Box
@@ -538,6 +551,9 @@ fun HospitalityApp(
         // insertar/quitar filas cuando VOD o Catch Up responden después.
         if (!homeCatalogReady) { CenteredMessage(text.loading); return@Box }
         val channelList = channels?.channels.orEmpty()
+        // PRUEBA Lobby: las pantallas Lobby leen el estilo del operador y los textos del idioma elegido
+        // de acá (LobbyScope no hace nada en las demás marcas). Sin re-indentar el bloque entero.
+        LobbyScope(lobbyStyle, current, enabled = lobbyTest, onBack = { if (backStack.size > 1) backStack.removeAt(backStack.lastIndex) }) {
         when (backStack.last()) {
             Screen.Home -> HomeScreen(
                 brand = brand,
@@ -548,8 +564,8 @@ fun HospitalityApp(
                 // Clima: ya resuelto por Panaccess (ver OperatorConfig.weatherText), null si el hotel no lo tiene configurado.
                 weatherText = panaccess.operatorConfig?.weatherText,
                 // Nombre del abonado que manda Panaccess en getClientConfig; null si la cuenta no lo trae.
-                // PRUEBA Lobby: nombre de demo de la marca (la cuenta de prueba trae "Mario Bromteck").
-                subscriberName = if (lobbyTest) brand.welcome.demoGuestName ?: panaccess.operatorConfig?.subscriberName else panaccess.operatorConfig?.subscriberName,
+                // PRUEBA Lobby: si la cuenta no trae nombre, el de demo de la marca.
+                subscriberName = panaccess.operatorConfig?.subscriberName ?: brand.welcome.demoGuestName.takeIf { lobbyTest },
                 // Color de las tarjetas configurable por Delancer, null = el de la marca de siempre.
                 cardColorHex = panaccess.operatorConfig?.cardColorHex,
                 // Color de letra (e íconos que acompañan texto) configurable por Delancer, null =
@@ -567,10 +583,11 @@ fun HospitalityApp(
                     HomeServices(
                         title = servicesText.title,
                         categories = serviceCatalog?.categories?.joinToString(" · ") { it.name.localized(current) }.orEmpty(),
-                        orderLabel = servicesText.order,
+                        orderLabel = if (it.canOrder) servicesText.order else servicesText.browse,
                         myOrdersLabel = servicesText.myOrders,
                         imageUrl = serviceCatalog?.categories?.flatMap { it.items }?.firstNotNullOfOrNull { it.imageUrl },
                         activeOrder = serviceOrders.firstOrNull { it.status.isOpen }?.let { "${it.summary}: ${servicesText.status(it.status)}" },
+                        canOrder = it.canOrder,
                     )
                 },
                 widgets = panaccess.operatorConfig?.widgets(current).orEmpty(),
@@ -727,6 +744,7 @@ fun HospitalityApp(
             }
             Screen.MyOrders -> guestServices?.let { MyOrdersScreen(it, ServicesText.of(current), current) }
         }
+        }
         if (backStack.size > 1) BackHandler { backStack.removeAt(backStack.lastIndex) }
 
         operatorMessage?.let { message ->
@@ -756,7 +774,16 @@ fun HospitalityApp(
         if (showingPairing) PairPhoneDialog(app.tvPairing, text) { showingPairing = false }
 
         val service = selectedService
-        if (service != null && guestServices != null) {
+        if (service != null && guestServices != null && !guestServices.canOrder) {
+            // Catálogo solo informativo (X_APP_SERVICES): se mira, no se pide.
+            ServiceInfoDialog(
+                item = service,
+                services = guestServices,
+                text = ServicesText.of(current),
+                language = current,
+                onDismiss = { selectedService = null },
+            )
+        } else if (service != null && guestServices != null) {
             ServiceOrderDialog(
                 item = service,
                 services = guestServices,
@@ -779,6 +806,7 @@ fun HospitalityApp(
         if (idle && canIdle) {
             LobbyScreensaver(
                 brand = brand,
+                logoUrl = logoUrl,
                 images = backgrounds,
                 language = current ?: brand.defaultLanguage,
                 weatherTempCelsius = panaccess.operatorConfig?.weatherTempCelsius,

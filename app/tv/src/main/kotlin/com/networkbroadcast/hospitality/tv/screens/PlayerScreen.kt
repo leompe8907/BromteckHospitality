@@ -566,8 +566,8 @@ fun PlayerScreen(
                 // realidad era "el operador no configuró esto".
                 val accentColor = HospitalityColors.parseHex(confirmColorHex) ?: HospitalityTheme.colors.accent
                 if (lobbyStyle) {
-                    LobbyPlayerInfo(channel, nowNext.first, nowNext.second, HospitalityTheme.colors.accent)
-                    error?.let { Text(it, style = HospitalityTheme.typography.body, color = accentColor, modifier = Modifier.padding(top = 10.dp)) }
+                    LobbyPlayerInfo(channel, nowNext.first, nowNext.second, text.nextLabel)
+                    error?.let { Text(it, style = HospitalityTheme.typography.body, color = lobbyConfirmColor(), modifier = Modifier.padding(top = 10.dp)) }
                     return@PlayerScrim
                 }
                 // Número y nombre del canal: lo primero que se lee al zapear, así que va al tamaño

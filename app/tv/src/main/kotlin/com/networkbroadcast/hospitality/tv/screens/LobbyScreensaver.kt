@@ -37,6 +37,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
 import com.networkbroadcast.hospitality.brand.BrandConfig
+import com.networkbroadcast.hospitality.brand.LobbyText
 import com.networkbroadcast.hospitality.brand.imageModel
 import com.networkbroadcast.hospitality.designsystem.HospitalityBodyFamily
 import kotlinx.coroutines.delay
@@ -45,7 +46,7 @@ import java.time.format.DateTimeFormatter
 import java.util.Locale
 
 /*
- * PRUEBA de la dirección "Lobby" (rama prueba/lobby): pantalla de reposo. Aparece tras un rato sin
+ * PRUEBA de la dirección "Lobby": pantalla de reposo. Aparece tras un rato sin
  * tocar el control (fuera del reproductor) y se va con cualquier tecla. Cambia con el clima que ya
  * resuelve Panaccess (OperatorConfig.weatherDescription): despejado = foto tal cual, nublado =
  * foto desaturada, lluvia = más oscura y con lluvia animada; de noche, más oscura. Si la cuenta no
@@ -70,15 +71,19 @@ private fun scaled(m: ColorMatrix, b: Float) = m.apply {
     timesAssign(ColorMatrix(floatArrayOf(b, 0f, 0f, 0f, 0f, 0f, b, 0f, 0f, 0f, 0f, 0f, b, 0f, 0f, 0f, 0f, 0f, 1f, 0f)))
 }
 
-private val returnHint = mapOf(
-    "es" to "Cualquier tecla para volver",
-    "en" to "Press any key to return",
-    "pt" to "Qualquer tecla para voltar",
-)
+/** Cómo se escribe la fecha larga en cada idioma ("jueves 20 de noviembre", "Thursday, November 20"). */
+private fun datePattern(language: String) = when (language) {
+    "en" -> "EEEE, MMMM d"
+    "de" -> "EEEE, d. MMMM"
+    "fr" -> "EEEE d MMMM"
+    else -> "EEEE d 'de' MMMM"
+}
 
 @Composable
 fun LobbyScreensaver(
     brand: BrandConfig,
+    /** Logo que cargó el operador (X_APP_LOGO); null = el de la marca, si lo trae. */
+    logoUrl: String?,
     images: List<String>,
     language: String,
     weatherTempCelsius: Int?,
@@ -101,8 +106,7 @@ fun LobbyScreensaver(
         ColorFilter.colorMatrix(m)
     }
     val locale = Locale.forLanguageTag(language)
-    val datePattern = when (language) { "en" -> "EEEE, MMMM d"; else -> "EEEE d 'de' MMMM" }
-    val date = now.format(DateTimeFormatter.ofPattern(datePattern, locale)).replaceFirstChar { it.titlecase(locale) }
+    val date = now.format(DateTimeFormatter.ofPattern(datePattern(language), locale)).replaceFirstChar { it.titlecase(locale) }
     val weatherLine = if (hasWeather) listOfNotNull("$weatherTempCelsius°", weatherDescription?.replaceFirstChar { it.titlecase(locale) }).joinToString(" · ") else null
 
     Box(Modifier.fillMaxSize().background(Color.Black)) {
@@ -121,9 +125,9 @@ fun LobbyScreensaver(
             ),
         )
         Column(Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally) {
-            if (brand.showLogo) {
+            (logoUrl ?: if (brand.showLogo) imageModel("asset:logo.png") else null)?.let {
                 AsyncImage(
-                    model = imageModel("asset:logo.png"), contentDescription = brand.displayName, contentScale = ContentScale.Fit,
+                    model = it, contentDescription = brand.displayName, contentScale = ContentScale.Fit,
                     modifier = Modifier.padding(top = 36.dp).height(22.dp),
                 )
             }
@@ -139,7 +143,7 @@ fun LobbyScreensaver(
             )
         }
         Text(
-            returnHint[language] ?: returnHint.getValue("es"),
+            LobbyText.of(language).pressAnyKey,
             style = TextStyle(fontFamily = HospitalityBodyFamily, fontSize = 11.sp),
             color = Color.White.copy(alpha = 0.7f),
             modifier = Modifier.align(Alignment.BottomEnd).padding(end = 48.dp, bottom = 36.dp),

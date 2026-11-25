@@ -8,9 +8,10 @@ Hospitality TV: a white-label Android TV hotel app, separate from `androidpanacc
 PanAccess streaming app, a sibling project by the same company). One generic app per surface —
 the hotel's identity comes from its brand folder, the operator config comes from Panaccess at
 runtime. Three independent apps share the same brand flavors: `app/tv` (the TV/Firestick app,
-horizontal only), `app/mobile` (a companion phone app — hotel info + "connect to TV" + ordering,
-does not play any Panaccess content or hold licenses), `app/staff` (waiter/staff order queue + QR
-codes for locations).
+horizontal only), `app/mobile` (the guest's phone app — hotel info + watching the Panaccess content
+(channels, guide, VOD) with its own session, received when the guest scans the room TV's QR; no
+"log out": guests have no credentials), `app/staff` (waiter/staff order queue + QR codes for
+locations).
 
 **Hard rule:** this project never modifies or deletes anything in `androidpanaccessapp`. Anything
 reused from there is *copied*, with the source commit recorded in a `SOURCE.md` next to the copy
@@ -56,9 +57,12 @@ Compose BOM 2025.11.00, Media3 1.6.1 — keep them in sync when bumping either r
 ## Architecture
 
 **Module boundary = "who talks to what".** The three apps never depend on each other, only on
-`core/*`. `app/mobile` and `app/staff` deliberately don't depend on `core:panaccess` or
-`core:entertainment` — the phone/staff apps never touch Panaccess licenses or play video; they
-only talk to the TV in the room via `core:companion`.
+`core/*`. `app/staff` deliberately doesn't depend on `core:panaccess` or `core:entertainment` — it
+never touches Panaccess licenses or plays video. `app/mobile` does depend on them (it plays content
+with its own Panaccess session; how that session reaches the phone from the QR is still an open
+decision — see `docs/emparejamiento.md`), and talks to the TV in the room via `core:companion`
+(remote control only works if there is a channel between phone and TV: hotel Wi-Fi usually isolates
+devices, so those features are off without one).
 
 | Module | Responsibility |
 |---|---|

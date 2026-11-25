@@ -128,7 +128,8 @@ Versiones iguales a PanaccessApp (AGP 9.4.0, Kotlin 2.2.10, Gradle 9.6.0, Compos
    (CRM/PMS), que todavía no existe: ver `docs/backend-idea.md`. El catálogo y los pedidos de prueba
    (`services.json`, `DemoGuestServices`) ya no se usan en la TV; siguen en el celular y en la app
    de staff.
-8. **Parámetros nuevos de Panaccess, a configurar en cada cuenta.** Son dos:
+8. **Parámetros nuevos de Panaccess, a configurar en cada cuenta.** Son tres (el tercero es un nombre
+   propuesto que hay que crear en Panaccess):
    - `X_APP_SERVICES` — menú y servicios del hotel (bebidas, spa, etc.). Lleva el JSON directo o una
      URL a un archivo con ese JSON, igual que `X_APP_WIDGETS`: como son varias categorías, textos en
      cinco idiomas y fotos, conviene la URL. Formato completo en `docs/x-app-services.md`. Sin él, la
@@ -136,6 +137,13 @@ Versiones iguales a PanaccessApp (AGP 9.4.0, Kotlin 2.2.10, Gradle 9.6.0, Compos
    - `X_APP_WIFI` — la red Wi-Fi de huéspedes, para el QR de la home: un JSON directo, nunca una URL
      (`{"ssid":"HotelGuest","password":"abc12345x","security":"WPA","hidden":false}`). Formato completo
      en `docs/x-app-wifi.md`. Sin él, no se muestra nada de Wi-Fi.
+   - `X_APP_MOBILE_TILES` — **nombre propuesto, todavía no existe en Panaccess: hay que crearlo.** Orden y
+     tamaño (`S`, `M`, `W`) de los tiles de la home de la app del celular: un JSON directo
+     (`[{"id":"live","size":"M"},{"id":"widgets","size":"M"},{"id":"wifi","size":"S"}]`). Formato completo en
+     `docs/x-app-services.md`. Sin él, el celular usa un orden por defecto.
+   - `X_APP_MOBILE_BACKGROUND` — **nombre propuesto, hay que crearlo.** Fondo de la app del celular, aparte del
+     de la TV: la URL de una foto o un color en hex (`#0E2E32`). Sin él, el fondo liso del tema. Detalle en
+     `docs/x-app-services.md`.
    - Falta darlos de alta en el documento de parámetros de personalización remota (Cableatlántico) y
      cargarlos en la cuenta de cada hotel.
    - Probar con una cuenta real que el valor llegue y se muestre (hoy solo está probado el parseo,

@@ -44,6 +44,8 @@ data class ServiceItem(
     val description: Map<String, String> = emptyMap(),
     /** 0 = sin cargo (toallas, almohadas). */
     val price: Double = 0.0,
+    /** false = el catálogo no trae precio: no mostrar "Sin cargo", que sería decir algo que no se sabe. */
+    val showPrice: Boolean = true,
     /** URL o "asset:carpeta/foto.jpg" de la marca. */
     val imageUrl: String? = null,
     /** Para servicios con duración (masajes). */
@@ -142,6 +144,13 @@ data class ServiceOrder(
 
 /** Lado huésped: TV y celular. */
 interface GuestServices {
+    /**
+     * false = solo se puede mirar el catálogo (el operador lo manda por Panaccess y todavía no hay
+     * conexión con el sistema del hotel para recibir pedidos): las pantallas no ofrecen pedir ni
+     * "Mis pedidos".
+     */
+    val canOrder: Boolean get() = true
+
     suspend fun catalog(): ServiceCatalog?
 
     /** Pedidos de esta estadía, del más nuevo al más viejo. Se actualizan solos cuando el personal avanza. */
@@ -173,6 +182,10 @@ interface StaffServices {
 /** Texto en el idioma pedido; si falta, en inglés (lo entiende más gente), después el de reserva. */
 fun Map<String, String>.localized(language: String, fallback: String = "es"): String =
     this[language] ?: this["en"] ?: this[fallback] ?: values.firstOrNull().orEmpty()
+
+/** El precio como se muestra, o null si el catálogo no lo trae ([ServiceItem.showPrice] en false). */
+fun ServiceItem.priceText(currency: String, language: String, freeLabel: String): String? =
+    if (showPrice) formatPrice(price, currency, language, freeLabel) else null
 
 /** "MX$2,400.00" según el idioma; 0 → [freeLabel]. */
 fun formatPrice(amount: Double, currency: String, language: String, freeLabel: String): String {

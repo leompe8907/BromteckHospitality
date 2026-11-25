@@ -101,10 +101,26 @@ fun HomeScreen(
     onOpenWidget: (HomeWidget) -> Unit = {},
     /** Nombre del abonado que manda Panaccess en getClientConfig (OperatorConfig.subscriberName); null = no vino. */
     subscriberName: String? = null,
+    /** PRUEBA Lobby: emparejamiento para mostrar el QR en la home, e idioma actual. */
+    pairing: com.networkbroadcast.hospitality.companion.SharedPairingCode? = null,
+    languageCode: String? = null,
+    /** Red Wi-Fi del hotel (X_APP_WIFI) para el QR de la home; null = el operador no la cargó. */
+    wifi: com.networkbroadcast.hospitality.hotel.WifiNetwork? = null,
     /** Tarjeta que recibe el foco: la que abrió la pantalla de la que se vuelve, o la primera. */
     focusOn: HomeAction?,
     onAction: (HomeAction) -> Unit,
 ) {
+    // PRUEBA de la dirección "Lobby" (rama prueba/lobby): home sin filas, ver LobbyHome.kt.
+    if (brand.direction.equals("LOBBY", ignoreCase = true)) {
+        LobbyHome(
+            brand = brand, text = text, logoUrl = logoUrl, roomNumber = roomNumber, weatherText = weatherText,
+            subscriberName = subscriberName, quickActions = quickActions, vodHasContent = vodHasContent,
+            previews = previews, services = services, widgets = widgets, onOpenWidget = onOpenWidget,
+            focusOn = focusOn, onAction = onAction, pairing = pairing, languageCode = languageCode, wifi = wifi,
+            catchUpAvailable = catchUpAvailable, secondLogoUrl = secondLogoUrl,
+        )
+        return
+    }
     val colors = HospitalityTheme.colors
     val hour = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)
     val greeting = when (hour) {
@@ -132,7 +148,12 @@ fun HomeScreen(
         if (brand.features.vod && vodHasContent) add(HomeAction.Vod to text.moviesAndSeries)
         if (brand.features.guide && catchUpAvailable) add(HomeAction.CatchUp to text.catchUp)
     }
-    val serviceActions = if (services != null) listOf(HomeAction.Services, HomeAction.MyOrders) else emptyList()
+    // "Mis pedidos" solo existe si se puede pedir; con un catálogo solo informativo no hay pedidos.
+    val serviceActions = when {
+        services == null -> emptyList()
+        services.canOrder -> listOf(HomeAction.Services, HomeAction.MyOrders)
+        else -> listOf(HomeAction.Services)
+    }
     val all = entertainment.map { it.first } + serviceActions + quickActions
     val target = focusOn?.takeIf { it in all } ?: all.firstOrNull()
     val first = rememberInitialFocus(target)
@@ -283,7 +304,7 @@ fun HomeScreen(
                 Row(horizontalArrangement = Arrangement.spacedBy(16.dp), modifier = Modifier.fillMaxWidth()) {
                     FocusCard(
                         onClick = { onAction(HomeAction.Services) },
-                        modifier = Modifier.height(130.dp).weight(2f)
+                        modifier = Modifier.height(130.dp).weight(if (services.canOrder) 2f else 3f)
                             .then(if (HomeAction.Services == target) Modifier.focusRequester(first) else Modifier),
                     ) {
                         val cardColors2 = HospitalityTheme.colors
@@ -298,7 +319,7 @@ fun HomeScreen(
                             Text(services.orderLabel, style = HospitalityTheme.typography.label, color = cardColors2.textPrimary)
                         }
                     }
-                    FocusCard(
+                    if (services.canOrder) FocusCard(
                         onClick = { onAction(HomeAction.MyOrders) },
                         modifier = Modifier.height(130.dp).weight(1f)
                             .then(if (HomeAction.MyOrders == target) Modifier.focusRequester(first) else Modifier),
@@ -324,6 +345,7 @@ fun HomeScreen(
                         val label = when (action) {
                             HomeAction.AboutHotel -> text.aboutHotel
                             HomeAction.PairPhone -> text.pairPhone
+                            HomeAction.Wifi -> text.wifiTitle
                             HomeAction.Language -> text.language
                             HomeAction.Checkout -> text.checkout
                             HomeAction.LiveTv -> text.liveTv
@@ -382,6 +404,8 @@ data class HomeServices(
     val imageUrl: String?,
     /** El pedido abierto más reciente y su estado: "Botella de champán: En camino". */
     val activeOrder: String?,
+    /** false = catálogo solo informativo (sin pedidos ni "Mis pedidos"). */
+    val canOrder: Boolean = true,
 )
 
 /** Datos para que las tarjetas de la home no estén vacías. */
@@ -400,6 +424,7 @@ data class HomePreviews(
 private fun HomeAction.icon(): Int = when (this) {
     HomeAction.AboutHotel -> R.drawable.ic_info
     HomeAction.PairPhone -> R.drawable.ic_phone
+    HomeAction.Wifi -> R.drawable.ic_wifi
     HomeAction.Language -> R.drawable.ic_language
     HomeAction.Checkout -> R.drawable.ic_checkout
     else -> R.drawable.ic_live

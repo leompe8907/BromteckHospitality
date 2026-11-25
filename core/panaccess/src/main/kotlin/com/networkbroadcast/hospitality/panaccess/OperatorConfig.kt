@@ -121,6 +121,11 @@ data class OperatorConfig(
     // segundo de calidad -- y la cuenta lo puede apagar.
     val playerStartWithLowestProfile: Boolean get() = flag("X_PLAYER_HLS_START_LOWEST_PROFILE") ?: true
 
+    // Red Wi-Fi para huéspedes (QR en la home): un objeto JSON con ssid, password, security y hidden.
+    // Crudo acá; se interpreta en core:hotel (parseOperatorWifi), que es donde vive la regla del QR.
+    // Nunca se loguea: lleva la clave de la red.
+    val wifiRaw: String? get() = param("X_APP_WIFI")
+
     // Imagen de placeholder (fondo del hotel, pósters de VOD mientras cargan o si fallan)
     // configurable por Delancer. Si no está configurada, se cae al gris fijo de siempre según el
     // tema (ver screens/Common.kt#rememberPlaceholderPainter en app/tv). Clave confirmada contra
@@ -147,7 +152,7 @@ data class OperatorConfig(
     // se resuelven acá, no antes, porque el huésped puede cambiar de idioma durante la estadía.
     // El valor de este parámetro puede ser el JSON directo o una URL a un archivo con ese JSON
     // adentro (campo de Panaccess con límite de caracteres) -- esa resolución pasa antes de
-    // llegar acá, en PanaccessSession.resolveWidgetsUrl, para que esta función siga siendo pura.
+    // llegar acá, en PanaccessSession.resolveUrlParam, para que esta función siga siendo pura.
     fun widgets(language: String): List<HomeWidget> {
         val raw = param("X_APP_WIDGETS")
         runCatching {

@@ -90,6 +90,7 @@ internal class EntertainmentCatalogCache(
                     year = item.optInt("year").takeUnless { item.isNull("year") },
                     synopsis = item.nullableString("synopsis"),
                     durationMinutes = item.optInt("durationMinutes").takeUnless { item.isNull("durationMinutes") },
+                    isSeries = item.optBoolean("isSeries", false),
                 )
             }.orEmpty()
             VodShelf(shelf.optString("title"), items)
@@ -112,6 +113,7 @@ internal class EntertainmentCatalogCache(
                             putNullable("year", item.year)
                             putNullable("synopsis", item.synopsis)
                             putNullable("durationMinutes", item.durationMinutes)
+                            put("isSeries", item.isSeries)
                         }) }
                     })
                 }) }

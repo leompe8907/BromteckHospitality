@@ -1,0 +1,1386 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Hospitality · App del celular (mockup)</title>
+<!--
+  MOCKUP de la app del celular de huéspedes (app/mobile). Archivo único, sin red ni dependencias.
+  - La CONFIGURACIÓN (marcas, handoff de la TV, orden y tamaño de los tiles, contenido) está en el
+    primer bloque de script de abajo: objeto CONFIG. Todo lo que ves sale de ahí, no del código de pantallas.
+  - Las fotos de ejemplo de la ficha se leen de ../../brands/demo/assets/hotel/ y las fuentes de core/designsystem (rutas relativas).
+  - Hay UNA sola marca, generic: toma todo del handoff y de los parámetros de Panaccess (X_APP_*), editables en "Parámetros".
+  - Lo inventado para el mockup (logos vectoriales, canales, películas, clima, servicios) está marcado.
+-->
+<script>
+/* =====================================================================================
+   CONFIG  ·  todo lo que el hotel / el operador / la TV pueden cambiar
+   -------------------------------------------------------------------------------------
+   brands[x]       lo que ya existe en brands/<x>/assets/brand.json (direction, features, languages)
+                   + lo que el mockup necesita para dibujarlo (handoff, wifi, servicios, clima)
+   brands[x].handoff   lo que la TV (vía backend) le manda al celular al canjear el código:
+                       hotelName, room, lang, guest, logo, font, welcome, colors
+                       (colors = los X_APP_* del operador: confirm, cancel, text, card, player; lo que no define
+                       el operador lo completa la dirección visual) + wifi, weather, services y hotel de la marca
+   features.remoteControl  false = no hay canal celular↔TV: no se dibuja el control remoto ni "Mandar a la TV"
+   Dirección visual: la de cada marca (brand.json), sin selector. Tipografía: una pareja, display para títulos y texto para el resto.
+   Fondo: el celular NO usa el fondo de la TV. Es un color liso (token de fondo de la dirección visual).
+   brands[x].home  orden y tamaño de los tiles de la home. ES UN PARÁMETRO, no código.
+                   size: "S" icono 1×1 · "M" widget 2×2 (misma forma, más grande) · "W" widget ancho 4×2
+   layoutPresets   otros órdenes para probar (selector "Orden de tiles" y editor JSON)
+   ===================================================================================== */
+const CONFIG = {
+  clock: "9:41", nowMin: 9 * 60 + 41,
+  tileIds: ["remote", "live", "vod", "wifi", "weather", "services", "hotel", "settings"],
+
+  brands: {
+    generic: {
+      id: "generic", displayName: "Hospitality TV", direction: "RESORT",
+      languages: ["es", "en", "pt", "fr", "de"], defaultLanguage: "es", location: null,
+      features: { liveTv: true, vod: true, hotelInfo: false, languageSelection: true, checkout: true, companion: false, guide: true, remoteControl: true },
+      hotel: {"name": {"es": "Hotel"}, "description": {"es": "Un paraíso todo incluido frente al mar Caribe que combina relax, diversión y gastronomía de primer nivel.", "en": "An all-inclusive paradise on the Caribbean Sea that combines relaxation, fun, and top-tier cuisine.", "pt": "Um paraíso all-inclusive em frente ao mar do Caribe que combina relaxamento, diversão e alta gastronomia.", "fr": "Un paradis tout compris en bord de mer des Caraïbes combinant détente, divertissement et gastronomie de haut niveau.", "de": "Ein All-inclusive-Paradies am Karibischen Meer mit Entspannung, Spaß und erstklassiger Küche."}, "images": [{"title": {"es": "Actividades acuáticas", "en": "Water Activities", "pt": "Atividades aquáticas", "fr": "Activités aquatiques", "de": "Wasseraktivitäten"}, "description": {"es": "Kayak, snorkel y paddle en aguas cristalinas. Pedí tu equipo en el centro de actividades de la playa.", "en": "Kayaking, snorkeling, and paddleboarding in crystal-clear water. Get your gear at the beach activity center.", "pt": "Caiaque, snorkel e stand up paddle em águas cristalinas. Retire seu equipamento no centro de atividades da praia.", "fr": "Kayak, snorkeling et paddle dans une eau cristalline. Demandez votre équipement au centre d'activités de la plage.", "de": "Kajak, Schnorcheln und Stand-up-Paddling in kristallklarem Wasser. Ausrüstung gibt es im Aktivitätszentrum am Strand."}, "url": "../../brands/demo/assets/hotel/1-actividades-acuaticas.jpg"}, {"title": {"es": "Noches temáticas", "en": "Theme Nights", "pt": "Noites temáticas", "fr": "Soirées à thème", "de": "Themenabende"}, "description": {"es": "Disfrutá de espectáculos únicos con música en vivo y ambientaciones sorprendentes.", "en": "Enjoy unique shows with live music and stunning settings.", "pt": "Desfrute de shows únicos com música ao vivo e cenários impressionantes.", "fr": "Profitez de spectacles uniques avec de la musique live et des décors étonnants.", "de": "Genießen Sie einzigartige Shows mit Live-Musik und atemberaubender Kulisse."}, "url": "../../brands/demo/assets/hotel/2-noches-tematicas.jpg"}, {"title": {"es": "Piscina infantil", "en": "Kids Pool", "pt": "Piscina infantil", "fr": "Piscine pour enfants", "de": "Kinderbecken"}, "description": {"es": "Piscina con toboganes para que los más chicos se diviertan con seguridad.", "en": "Pool with water slides for kids to have safe fun.", "pt": "Piscina com escorregadores para as crianças se divertirem com segurança.", "fr": "Piscine avec toboggans pour que les enfants s'amusent en toute sécurité.", "de": "Pool mit Wasserrutschen, damit Kinder sicher Spaß haben können."}, "url": "../../brands/demo/assets/hotel/3-piscina-infantil.jpg"}, {"title": {"es": "Gimnasio moderno", "en": "Modern Gym", "pt": "Academia moderna", "fr": "Salle de sport moderne", "de": "Modernes Fitnessstudio"}, "description": {"es": "Entrená en nuestro gimnasio totalmente equipado con máquinas de última generación.", "en": "Train in our fully equipped gym with state-of-the-art machines.", "pt": "Treine na nossa academia totalmente equipada com máquinas de última geração.", "fr": "Entraînez-vous dans notre salle de sport entièrement équipée avec des machines modernes.", "de": "Trainieren Sie in unserem voll ausgestatteten Fitnessstudio mit modernsten Geräten."}, "url": "../../brands/demo/assets/hotel/4-gimnasio.jpg"}, {"title": {"es": "Spa & Bienestar", "en": "Spa & Wellness", "pt": "Spa & Bem-estar", "fr": "Spa et bien-être", "de": "Spa & Wellness"}, "description": {"es": "Relajate con nuestros tratamientos de spa en un entorno de total tranquilidad.", "en": "Relax with our spa treatments in a completely peaceful setting.", "pt": "Relaxe com nossos tratamentos de spa em um ambiente totalmente tranquilo.", "fr": "Détendez-vous avec nos soins de spa dans un cadre de tranquillité totale.", "de": "Entspannen Sie sich mit unseren Spa-Behandlungen in einer absolut ruhigen Umgebung."}, "url": "../../brands/demo/assets/hotel/5-spa.jpg"}, {"title": {"es": "Gastronomía gourmet", "en": "Gourmet Dining", "pt": "Gastronomia gourmet", "fr": "Gastronomie gourmet", "de": "Gourmetküche"}, "description": {"es": "Descubrí sabores internacionales en nuestros restaurantes de alta categoría.", "en": "Discover international flavors at our high-end restaurants.", "pt": "Descubra sabores internacionais em nossos restaurantes de alto padrão.", "fr": "Découvrez des saveurs internationales dans nos restaurants haut de gamme.", "de": "Entdecken Sie internationale Aromen in unseren erstklassigen Restaurants."}, "url": "../../brands/demo/assets/hotel/6-gastronomia.jpg"}, {"title": {"es": "Pool party", "en": "Pool Party", "pt": "Festa na piscina", "fr": "Fête à la piscine", "de": "Poolparty"}, "description": {"es": "Viví una auténtica fiesta con música en vivo, espuma y diversión en la piscina.", "en": "Experience a real party with live music, foam, and poolside fun.", "pt": "Viva uma verdadeira festa com música ao vivo, espuma e diversão na piscina.", "fr": "Vivez une vraie fête avec de la musique live, de la mousse et du plaisir à la piscine.", "de": "Erleben Sie eine echte Party mit Live-Musik, Schaum und Spaß am Pool."}, "url": "../../brands/demo/assets/hotel/7-pool-party.jpg"}, {"title": {"es": "Piscina frente al mar", "en": "Oceanfront Pool", "pt": "Piscina à beira-mar", "fr": "Piscine en bord de mer", "de": "Pool am Meer"}, "description": {"es": "Relajate en nuestras piscinas infinitas con vista directa al mar Caribe.", "en": "Relax in our infinity pools with a direct view of the Caribbean Sea.", "pt": "Relaxe em nossas piscinas infinitas com vista direta para o mar do Caribe.", "fr": "Détendez-vous dans nos piscines à débordement avec vue directe sur la mer des Caraïbes.", "de": "Entspannen Sie sich in unseren Infinity-Pools mit direktem Blick auf das Karibische Meer."}, "url": "../../brands/demo/assets/hotel/8-piscina-frente-al-mar.jpg"}]},   // ficha del hotel (solo se ve si se prende features.hotelInfo); fotos de ejemplo
+      handoff: {
+        // generic no trae identidad: todo esto llega de la TV / del operador (X_APP_*). Datos INVENTADOS para el mockup.
+        hotelName: "Hotel Miramar", city: "Mazatlán", room: "305", lang: "es", guest: "Familia Ortega",
+        logo: "chevron", colors: { confirm: "#E2B13C" }, font: "Hospitality", welcome: null,
+      },
+      wifi: { ssid: "Miramar_Guest", password: "bienvenido24" },
+      reception: "0",
+      services: [["restaurant", 7, 22, "pl_lobby"], ["pool", 8, 20, "pl_pool"], ["gym", 6, 22, "pl_f2"], ["reception", 0, 24, "pl_lobby"]],
+      weather: { temp: 31, cond: "c_sun", hi: 33, lo: 26, hum: 61, wind: 12, uv: 9, sea: 27 },
+      home: [{ id: "remote", size: "W" }, { id: "live", size: "M" }, { id: "vod", size: "M" },
+             { id: "wifi", size: "S" }, { id: "weather", size: "S" }, { id: "services", size: "S" }, { id: "settings", size: "S" }],
+    },
+  },
+
+  // Otros órdenes / tamaños para probar
+  layoutPresets: {
+    control: { name: "Control grande, resto chico", tiles: [{ id: "remote", size: "W" }, { id: "live", size: "M" }, { id: "wifi", size: "M" }, { id: "vod", size: "S" }, { id: "weather", size: "S" }, { id: "services", size: "S" }, { id: "hotel", size: "S" }] },
+    content: { name: "Contenido primero", tiles: [{ id: "live", size: "W" }, { id: "vod", size: "M" }, { id: "hotel", size: "M" }, { id: "remote", size: "S" }, { id: "wifi", size: "S" }, { id: "weather", size: "S" }, { id: "services", size: "S" }] },
+    compact: { name: "Todo chico (clima y control medianos)", tiles: [{ id: "remote", size: "M" }, { id: "weather", size: "M" }, { id: "live", size: "S" }, { id: "vod", size: "S" }, { id: "wifi", size: "S" }, { id: "services", size: "S" }, { id: "hotel", size: "S" }, { id: "settings", size: "S" }] },
+    info: { name: "Hotel primero", tiles: [{ id: "hotel", size: "W" }, { id: "services", size: "M" }, { id: "wifi", size: "M" }, { id: "remote", size: "S" }, { id: "live", size: "S" }, { id: "vod", size: "S" }, { id: "weather", size: "S" }] },
+  },
+
+  // Contenido de Panaccess (INVENTADO para el mockup). Guía y títulos van en el idioma del operador, no se traducen.
+  channels: [
+    { n: 1, name: "Canal Hotel", abbr: "CH", hue: 190, from: 480, p: [["Bienvenida al resort", 60], ["Yoga frente al mar", 75], ["Cocina del Caribe", 45], ["Noticias del hotel", 30], ["Mediodía en la playa", 90]] },
+    { n: 2, name: "Noticias 24", abbr: "N24", hue: 8, from: 480, p: [["Primera edición", 90], ["Mundo hoy", 60], ["Economía y mercados", 45], ["Reporte del clima", 15], ["Edición central", 60]] },
+    { n: 3, name: "Cine Plus", abbr: "CP", hue: 285, from: 450, p: [["Contrarreloj", 120], ["Casa de arena", 105], ["Marea alta", 110], ["Noche en Lisboa", 100]] },
+    { n: 4, name: "Deportes Uno", abbr: "D1", hue: 142, from: 510, p: [["Tenis: final del Abierto", 180], ["Resumen de goles", 30], ["Ciclismo: etapa 12", 120], ["Golf en vivo", 120]] },
+    { n: 5, name: "Música Mar", abbr: "MM", hue: 332, from: 540, p: [["Playlist de la mañana", 60], ["Bossa y brisa", 60], ["Clásicos del Caribe", 90], ["Acústico en vivo", 60]] },
+    { n: 6, name: "Kids Planet", abbr: "KP", hue: 48, from: 510, p: [["Los exploradores", 45], ["Isla Dorada", 45], ["Mundo burbuja", 30], ["Cuentos de playa", 30], ["Los exploradores", 45]] },
+    { n: 7, name: "Doc Viajes", abbr: "DV", hue: 215, from: 540, p: [["Ruta de la seda", 60], ["Islas del mundo", 60], ["Trenes legendarios", 55], ["Mercados del mundo", 60]] },
+    { n: 8, name: "Cocina TV", abbr: "CT", hue: 24, from: 570, p: [["Mercados del mundo", 30], ["Pescado del día", 45], ["Postres al horno", 60], ["Chef en casa", 45]] },
+  ],
+  vod: [
+    { t: "El último faro", g: "g_drama", y: 2024, m: 112, h1: 205, h2: 255 },
+    { t: "Ruta 9", g: "g_action", y: 2023, m: 104, h1: 12, h2: 330 },
+    { t: "Casa de arena", g: "g_comedy", y: 2025, m: 98, h1: 38, h2: 12 },
+    { t: "Océano profundo", g: "g_doc", y: 2022, m: 86, h1: 190, h2: 230 },
+    { t: "Noche en Lisboa", g: "g_drama", y: 2024, m: 121, h1: 280, h2: 330 },
+    { t: "Los Pérez de vacaciones", g: "g_comedy", y: 2023, m: 95, h1: 160, h2: 60 },
+    { t: "Pequeño Capitán", g: "g_kids", y: 2025, m: 82, h1: 48, h2: 190 },
+    { t: "Contrarreloj", g: "g_action", y: 2024, m: 109, h1: 350, h2: 20 },
+    { t: "Marea alta", g: "g_drama", y: 2021, m: 117, h1: 225, h2: 190 },
+    { t: "Isla Dorada", g: "g_kids", y: 2024, m: 79, h1: 40, h2: 150 },
+  ],
+};
+</script>
+<style>
+@font-face{font-family:"HospBody";font-weight:400;src:url("../../core/designsystem/src/main/res/font/hospitality_body_regular.ttf") format("truetype")}
+@font-face{font-family:"HospBody";font-weight:500;src:url("../../core/designsystem/src/main/res/font/hospitality_body_medium.ttf") format("truetype")}
+@font-face{font-family:"HospBody";font-weight:600;src:url("../../core/designsystem/src/main/res/font/hospitality_body_semibold.ttf") format("truetype")}
+@font-face{font-family:"HospDisplay";font-weight:600;src:url("../../core/designsystem/src/main/res/font/hospitality_display.ttf") format("truetype")}
+:root{--ft:"HospBody","Rubik","Segoe UI",system-ui,sans-serif;--fd:"HospDisplay",Georgia,serif}
+
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0}
+body{background:#0e1113;color:#d9dde0;font:14px/1.45 "HospBody","Rubik","Segoe UI",system-ui,sans-serif}
+button{font:inherit;color:inherit;border:0;background:none;padding:0;cursor:pointer}
+.ic{display:block;flex:none}
+
+/* ---------------- página: barra de control ---------------- */
+.bar{position:sticky;top:0;z-index:50;background:rgba(14,17,19,.94);backdrop-filter:blur(10px);border-bottom:1px solid #22282c;padding:12px 24px}
+.bar h1{margin:0;font:600 17px/1.2 var(--ft);letter-spacing:.02em;color:#f2f4f5}
+.bar h1 small{font:400 12px "HospBody",sans-serif;color:#7d878d;margin-left:10px;letter-spacing:0}
+.ctl{display:flex;flex-wrap:wrap;gap:10px 22px;margin-top:10px;align-items:flex-end}
+.fld{display:flex;flex-direction:column;gap:5px}
+.fld>label{font-size:10.5px;letter-spacing:.09em;text-transform:uppercase;color:#7d878d}
+.seg{display:inline-flex;background:#1a1f22;border:1px solid #2a3135;border-radius:9px;padding:2px}
+.seg button{padding:5px 11px;border-radius:7px;font-size:12.5px;color:#a9b2b7}
+.seg button[aria-pressed=true]{background:#e9edef;color:#101315;font-weight:600}
+.bar select,.bar input[type=color],.bar button.ghost{background:#1a1f22;border:1px solid #2a3135;border-radius:9px;color:#d9dde0;font-size:12.5px;padding:6px 9px;height:30px}
+.bar input[type=color]{padding:2px;width:36px}
+.bar input[type=range]{accent-color:#e9edef;width:110px}
+.bar button.ghost:hover,.bar select:hover{border-color:#4a555b}
+.bar .sw{display:flex;gap:6px;align-items:center}
+.bar .sw .x{font-size:11px;color:#7d878d;text-decoration:underline;cursor:pointer}
+.panel{display:none;margin-top:12px;gap:18px;grid-template-columns:1.1fr 1fr 1fr}
+.ops{display:flex;flex-direction:column;gap:6px}
+.op{display:flex;align-items:center;gap:9px;background:#161b1e;border:1px solid #2a3135;border-radius:9px;padding:5px 8px;font-size:12.5px}
+.op b{display:block;font-weight:600;color:#e9edef}
+.op small{display:block;color:#7d878d;font:11px ui-monospace,Menlo,monospace}
+.op div{flex:1;min-width:0}
+.op em{font-style:normal;font-size:10.5px;padding:2px 8px;border-radius:9px;background:#243038;color:#9fb0b8}
+.op em.o{background:#3a2f1a;color:#e9c46a}
+.op a{color:#7d878d;cursor:pointer;text-decoration:none;padding:0 4px}
+.dat{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-bottom:10px}
+.dat label{font-size:10.5px;color:#7d878d;display:flex;flex-direction:column;gap:3px}
+.dat input[type=text],.dat select{background:#1a1f22;border:1px solid #2a3135;border-radius:7px;color:#d9dde0;padding:5px 8px;font-size:12.5px;min-width:0}
+.chks{display:flex;flex-wrap:wrap;gap:6px 14px;margin-top:6px;font-size:12.5px;color:#cfd6da}
+.panel .note2{margin-top:8px;font-size:12px;color:#8a959b;line-height:1.5}
+.panel.on{display:grid}
+.panel h3{margin:0 0 6px;font-size:11px;letter-spacing:.09em;text-transform:uppercase;color:#7d878d;font-weight:500}
+.panel textarea,.panel pre{width:100%;height:230px;margin:0;background:#121618;border:1px solid #2a3135;border-radius:10px;color:#cfe3d4;font:12px/1.5 ui-monospace,Menlo,Consolas,monospace;padding:10px;resize:vertical;overflow:auto;white-space:pre}
+.panel .row{display:flex;gap:10px;align-items:center;margin-top:8px;flex-wrap:wrap}
+.panel .msg{font-size:12px;color:#e8a66b}
+.panel .msg.ok{color:#7ad19a}
+@media(max-width:1100px){.panel.on{grid-template-columns:1fr}}
+
+/* ---------------- página: tablero de teléfonos ---------------- */
+main{padding:6px 24px 80px}
+.sec{margin:34px 0 4px}
+.sec h2{margin:0;font:600 22px/1.2 var(--ft);color:#f2f4f5}
+.sec p{margin:5px 0 0;color:#8a959b;max-width:70ch;font-size:13.5px}
+.stage{display:flex;flex-wrap:wrap;gap:26px 22px;margin-top:20px;zoom:var(--z,.78)}
+.unit{margin:0;width:412px}
+.cap{margin-top:14px;padding:0 6px}
+.cap b{display:block;color:#f2f4f5;font-weight:600;font-size:15px}
+.cap span{display:block;color:#8a959b;font-size:12.5px;margin-top:2px}
+.cap .acts{margin-top:8px;display:flex;gap:8px;flex-wrap:wrap}
+.cap .acts button{font-size:12px;color:#b4bec3;border:1px solid #2f373c;border-radius:20px;padding:3px 11px}
+.cap .acts button:hover{border-color:#6a777e;color:#fff}
+
+/* ---------------- marco del teléfono ---------------- */
+.phone{width:412px;height:866px;padding:11px;border-radius:62px;background:#1a2024;box-shadow:0 0 0 1.5px #3a4348 inset,0 30px 60px -20px rgba(0,0,0,.7),0 0 0 1px #000}
+.screen{position:relative;width:390px;height:844px;border-radius:52px;overflow:hidden;isolation:isolate;
+  background:var(--bg);color:var(--text);font-family:"HospBody","Rubik","Segoe UI",system-ui,sans-serif;font-size:14px;
+  transition:background-color .7s ease,color .7s ease}
+.island{position:absolute;z-index:40;top:11px;left:50%;width:112px;height:32px;margin-left:-56px;border-radius:20px;background:#000}
+.sbar{position:absolute;z-index:39;top:0;left:0;right:0;height:54px;padding:17px 32px 0 36px;display:flex;justify-content:space-between;font-weight:600;font-size:15px;color:var(--text);pointer-events:none;transition:color .7s}
+.sbar.force{color:#fff}
+.sbar .si{display:flex;gap:6px;align-items:center}
+.hind{position:absolute;z-index:40;bottom:8px;left:50%;width:134px;height:5px;margin-left:-67px;border-radius:3px;background:var(--text);opacity:.55;pointer-events:none}
+.hind.force{background:#fff}
+.view{position:absolute;inset:0;z-index:1}
+.toast{position:absolute;z-index:45;left:50%;bottom:48px;transform:translate(-50%,20px);opacity:0;padding:9px 16px;border-radius:22px;background:#111a;backdrop-filter:blur(12px);color:#fff;font-size:13px;font-weight:500;white-space:nowrap;transition:.25s;pointer-events:none;display:flex;gap:7px;align-items:center;background:rgba(20,22,24,.88)}
+.toast.on{opacity:1;transform:translate(-50%,0)}
+
+/* ---------------- piezas comunes dentro del teléfono ---------------- */
+.scr{position:absolute;inset:0;display:flex;flex-direction:column}
+.scroll{overflow-y:auto;overflow-x:hidden;scrollbar-width:none}
+.scroll::-webkit-scrollbar{display:none}
+.kick{font-size:10.5px;font-weight:600;letter-spacing:.14em;text-transform:uppercase}
+.disp{font-family:var(--ft);font-weight:600;letter-spacing:-.005em}
+.btn{display:flex;align-items:center;justify-content:center;gap:9px;height:54px;border-radius:calc(27px*var(--tr,1) + 2px);font-weight:600;font-size:16px;width:100%}
+.btn.pri{background:var(--accent);color:var(--ink)}
+.btn.sec{background:transparent;color:var(--text);border:1px solid var(--border)}
+.btn.txt{background:none;color:var(--text2);font-weight:500;height:44px}
+.btn[disabled]{opacity:.38}
+.top{flex:none;display:flex;align-items:center;gap:10px;padding:56px 16px 10px;position:relative;z-index:5}
+.top h1{flex:1;margin:0;font:600 20px/1.1 var(--fd);text-align:left}
+.rb0{width:40px;height:40px;border-radius:50%;display:grid;place-items:center;background:var(--tile);border:1px solid var(--tileb);backdrop-filter:blur(14px);color:var(--text);flex:none}
+.card{background:var(--tile);border:1px solid var(--tileb);border-radius:calc(22px*var(--tr,1));backdrop-filter:blur(14px)}
+.pill{white-space:nowrap;display:inline-flex;align-items:center;gap:7px;height:30px;padding:0 12px;border-radius:15px;background:var(--tile);border:1px solid var(--tileb);backdrop-filter:blur(14px);font-size:12px;font-weight:600;color:var(--text)}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--accent);box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 28%,transparent);flex:none}
+.bg{position:absolute;inset:0;z-index:0;background:var(--bg);transition:background .7s}
+.fadebg .bg{animation:bgin .9s ease}
+@keyframes bgin{from{opacity:0}to{opacity:1}}
+.bg .im{position:absolute;inset:0;background-size:cover;background-position:50% 35%;transition:opacity .7s}
+.bg .vl{position:absolute;inset:0}
+
+/* ---------------- primera pantalla (neutra) ---------------- */
+.neutral{padding:62px 26px 36px;align-items:stretch}
+.brandline{display:flex;align-items:center;gap:9px;font-weight:600;font-size:15px;letter-spacing:.01em}
+.brandline .app{width:30px;height:30px;border-radius:9px;background:var(--text);color:var(--bg);display:grid;place-items:center}
+.illus{flex:1;display:grid;place-items:center;min-height:0}
+.illus svg{width:100%;max-height:330px}
+.neutral h1{margin:0 0 10px;font:600 30px/1.12 var(--fd);letter-spacing:-.01em;text-wrap:balance}
+.neutral p{margin:0 0 22px;color:var(--text2);font-size:15px;line-height:1.5}
+.neutral .btns{display:flex;flex-direction:column;gap:6px}
+.neutral .foot{margin-top:12px;display:flex;gap:7px;align-items:center;justify-content:center;color:var(--muted);font-size:12.5px}
+
+/* ---------------- escanear ---------------- */
+.cam{background:#08090a;color:#fff}
+.cam .feed{position:absolute;inset:0;background:#0c1114;overflow:hidden}
+.cam .tvv{position:absolute;left:50%;top:41%;width:250px;height:176px;margin:-88px 0 0 -125px;transform:rotate(-3.5deg) perspective(600px) rotateY(6deg);border-radius:10px;background:#050607;padding:11px;box-shadow:0 22px 50px #000a,0 0 0 2px #1e2528;filter:blur(.4px)}
+.cam .tvv .sc{width:100%;height:100%;border-radius:4px;background:#12303a;display:grid;place-items:center}
+.cam .tvv .qrw{background:#fff;padding:7px;border-radius:5px;width:112px;height:112px}
+.cam .tvv .qrw svg{width:100%;height:100%;display:block}
+.cam .tvstand{position:absolute;left:50%;top:calc(41% + 92px);width:90px;height:10px;margin-left:-45px;background:#14191c;border-radius:0 0 8px 8px;transform:rotate(-3.5deg)}
+.cam .shade{position:absolute;inset:0;background:rgba(0,0,0,.3)}
+.cam .vf{position:absolute;left:50%;top:41%;width:226px;height:226px;margin:-113px 0 0 -113px}
+.cam .vf i{position:absolute;width:38px;height:38px;border:3.5px solid #fff;transition:border-color .25s}
+.cam .vf i:nth-child(1){left:0;top:0;border-right:0;border-bottom:0;border-top-left-radius:18px}
+.cam .vf i:nth-child(2){right:0;top:0;border-left:0;border-bottom:0;border-top-right-radius:18px}
+.cam .vf i:nth-child(3){left:0;bottom:0;border-right:0;border-top:0;border-bottom-left-radius:18px}
+.cam .vf i:nth-child(4){right:0;bottom:0;border-left:0;border-top:0;border-bottom-right-radius:18px}
+.cam .vf.lock i{border-color:#6ee7a0}
+.cam .vf b{position:absolute;left:8px;right:8px;top:0;height:2px;border-radius:2px;background:#fff;box-shadow:0 0 10px 2px rgba(255,255,255,.5);animation:scan 2.2s ease-in-out infinite}
+@keyframes scan{0%,100%{top:6%}50%{top:94%}}
+.cam .top{position:absolute;left:0;right:0;top:0}
+.cam .top .rb0{background:#ffffff1f;border-color:#ffffff22;color:#fff}
+.cam .bot{position:absolute;left:0;right:0;bottom:0;padding:0 26px 38px;text-align:center}
+.cam .bot p{margin:0 0 4px;font-size:17px;font-weight:500}
+.cam .bot small{display:block;color:#ffffff99;font-size:12.5px;margin-bottom:20px}
+.cam .btn.sec{border-color:#ffffff40;color:#fff;background:#ffffff14;backdrop-filter:blur(12px)}
+.cam .tap{position:absolute;inset:0;z-index:2;cursor:pointer}
+
+/* ---------------- código ---------------- */
+.codescr{padding:0}
+.codescr .mid{flex:1;padding:6px 26px 0}
+.codescr h1{margin:6px 0 8px;font:600 28px/1.1 var(--fd)}
+.codescr p{margin:0 0 24px;color:var(--text2);font-size:14.5px}
+.digs{display:flex;gap:9px;justify-content:space-between;margin-bottom:20px}
+.dg{flex:1;height:62px;border-radius:calc(16px*var(--tr,1) + 2px);background:var(--tile);border:1.5px solid var(--border);display:grid;place-items:center;font:600 28px "HospBody",sans-serif;font-variant-numeric:tabular-nums}
+.dg.cur{border-color:var(--accent);box-shadow:0 0 0 4px color-mix(in srgb,var(--accent) 22%,transparent)}
+.dg.cur:empty::after{content:"";width:2px;height:28px;background:var(--accent);animation:blink 1s steps(1) infinite}
+@keyframes blink{50%{opacity:0}}
+.pad{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;padding:14px 22px 34px}
+.pad button{height:58px;border-radius:16px;background:var(--tile);border:1px solid var(--tileb);font:500 24px "HospBody",sans-serif;display:grid;place-items:center;color:var(--text)}
+.pad button:active{background:var(--border)}
+.pad button.nop{background:none;border-color:transparent}
+.shake{animation:shake .4s}
+@keyframes shake{20%,60%{transform:translateX(-7px)}40%,80%{transform:translateX(7px)}}
+
+/* ---------------- conectando / handoff ---------------- */
+.conn{padding:70px 26px 34px;align-items:stretch}
+.ring.sm{width:58px;height:58px;margin:0 auto 12px}
+.ring{width:84px;height:84px;margin:6px auto 18px;position:relative;display:grid;place-items:center;color:var(--accent)}
+.ring svg.sp{position:absolute;inset:0;animation:spin 1.1s linear infinite}
+.ring.done svg.sp{animation:none}
+@keyframes spin{to{transform:rotate(360deg)}}
+.conn h1{margin:0 0 16px;text-align:center;font:600 26px/1.1 var(--fd)}
+.steps{display:flex;flex-direction:column;gap:11px;margin-bottom:20px}
+.stp{display:flex;gap:11px;align-items:center;color:var(--muted);font-size:14.5px;transition:color .3s}
+.stp.on{color:var(--text)}
+.stp .c{width:22px;height:22px;border-radius:50%;border:1.5px solid var(--border);display:grid;place-items:center;flex:none;transition:.3s}
+.stp.done .c{background:var(--accent);border-color:var(--accent);color:var(--ink)}
+.stp.act .c{border-color:var(--accent);border-top-color:transparent;animation:spin .8s linear infinite}
+.pays{display:grid;grid-template-columns:1fr 1fr;gap:7px}
+.pc{min-width:0;padding:7px 11px 8px;border-radius:calc(13px*var(--tr,1) + 2px);background:var(--tile);border:1px solid var(--tileb);opacity:0;transform:translateY(6px);animation:rin .4s forwards}
+.pc.w2{grid-column:span 2}
+.pc small{display:block;font-size:9px;letter-spacing:.11em;text-transform:uppercase;color:var(--muted);font-weight:700}
+.pc b{display:flex;gap:6px;align-items:center;font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:1px;color:var(--text)}
+.pc b.wrap{white-space:normal;font-weight:500;font-size:12px;line-height:1.35;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+.btn.cancel{color:var(--cancel)}
+.digs.bad .dg{border-color:#E5484D}
+.mkimg{display:block;width:auto;max-width:100%;object-fit:contain}
+.sq .mk{max-width:64px}
+.pay{padding:14px 16px;margin-top:2px}
+.pay .kick{color:var(--muted);margin-bottom:8px}
+.pr{display:flex;align-items:center;gap:10px;padding:8px 0;border-top:1px solid var(--border);opacity:0;transform:translateY(6px);animation:rin .45s forwards}
+.pr:first-of-type{border-top:0}
+.pr .l{width:96px;flex:none;color:var(--muted);font-size:12.5px}
+.pr .v{flex:1;font-weight:600;font-size:14.5px;display:flex;align-items:center;gap:8px;min-width:0}
+.sw2{display:inline-flex}
+.sw2 i{width:17px;height:18px;border-radius:50%;border:2px solid var(--bg);margin-left:-5px;display:block}
+.sw2 i:first-child{margin-left:0}
+@keyframes rin{to{opacity:1;transform:none}}
+
+/* ---------------- bienvenida ---------------- */
+.welc{justify-content:flex-end;padding:0 18px 40px}
+.welc .gl{padding:26px 22px 22px;border-radius:calc(28px*var(--tr,1) + 4px)}
+.welc h1{margin:18px 0 0;font:600 34px/1.05 var(--fd)}
+.welc .room{margin-top:8px;color:var(--text2);font-size:15px;display:flex;gap:7px;align-items:center}
+.welc .msg{margin:14px 0 20px;color:var(--text2);font-size:14px;line-height:1.5}
+.welc .anim{animation:rin .6s both}
+
+/* ---------------- logo de marca ---------------- */
+.logo{display:inline-flex;align-items:center;gap:9px;color:var(--text)}
+.logo .mk{display:grid;place-items:center;color:var(--accent)}
+.logo .wm{font:600 17px/1 var(--ft);letter-spacing:.02em}
+.logo.cin .wm{font-size:12.5px;letter-spacing:.3em;text-transform:uppercase;font-family:"HospBody",sans-serif;font-weight:600}
+.logo.big .wm{font-size:22px}
+.logo.cin.big .wm{font-size:15px}
+
+/* ---------------- home ---------------- */
+.home{overflow-y:auto;scrollbar-width:none}
+.home::-webkit-scrollbar{display:none}
+.hero{padding:60px 18px 0;position:relative}
+.hrow{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.hrow .logoc{white-space:nowrap;display:flex;align-items:center;height:38px;padding:0 13px 0 11px;border-radius:19px;background:var(--tile);border:1px solid var(--tileb);backdrop-filter:blur(14px)}
+.hrow .right{display:flex;gap:8px;align-items:center}
+.greet{margin:22px 2px 20px}
+.greet .kick{color:var(--accent);display:flex;gap:6px;align-items:center}
+.greet h1{margin:5px 0 0;font:600 36px/1.04 var(--fd);letter-spacing:-.01em}
+.grid{display:grid;grid-template-columns:repeat(4,1fr);grid-auto-rows:79.5px;column-gap:12px;row-gap:22px;grid-auto-flow:row dense;padding:0 18px}
+.tile{position:relative;cursor:pointer;color:var(--text);outline:none;min-width:0}
+.tile:active{transform:scale(.97)}
+.tile{transition:transform .12s}
+.tile .sq{position:absolute;inset:0;border-radius:calc(19px*var(--tr,1));background:var(--tile);border:1px solid var(--tileb);backdrop-filter:blur(14px);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;color:var(--accent);overflow:hidden;box-shadow:var(--sh)}
+.tile .lbl{position:absolute;left:-4px;right:-4px;top:calc(100% + 4px);text-align:center;font-size:11.5px;font-weight:500;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tile.fill .sq{background:var(--accent);border-color:transparent;color:var(--ink)}
+.tile .sq b{font-size:15px;font-weight:600;color:var(--text);line-height:1}
+.tile .sq small{position:absolute;right:7px;bottom:6px;font-size:9.5px;font-weight:700;letter-spacing:.06em;color:var(--text2)}
+.wd{border-radius:calc(26px*var(--tr,1));overflow:hidden;background:var(--tile);border:1px solid var(--tileb);backdrop-filter:blur(14px);box-shadow:var(--sh);isolation:isolate}
+.wd.M{grid-column:span 2;grid-row:span 2}
+.wd.W{grid-column:span 4;grid-row:span 2}
+.wd.fill{background:var(--accent);border-color:transparent;color:var(--ink)}
+.wi{position:absolute;inset:0;padding:14px;display:flex;flex-direction:column}
+.wk{display:flex;align-items:center;gap:7px;font-size:10px;font-weight:700;letter-spacing:.13em;text-transform:uppercase;opacity:.85}
+.wd:not(.fill) .wk{color:var(--text2)}
+.wd:not(.fill) .wk .ic{color:var(--accent)}
+.wi .big{font:600 19px/1.15 var(--ft)}
+.wi .sub{font-size:12px;opacity:.78;margin-top:2px}
+.sky{background:#4a97d2!important;color:#fff;border-color:transparent!important}
+.sky .wk,.sky .wk .ic{color:#ffffffcc!important}
+.photo{background-size:cover;background-position:center}
+.scrim{position:absolute;inset:0;z-index:-1;background:rgba(0,0,0,.42)}
+.ontv{color:#fff}
+.livebadge{display:inline-flex;align-items:center;gap:5px;font-size:9.5px;font-weight:700;letter-spacing:.12em}
+.livebadge i{width:6px;height:6px;border-radius:50%;background:#E5484D;display:block}
+.pbar{height:3px;border-radius:2px;background:#ffffff40;overflow:hidden;margin-top:8px}
+.pbar i{display:block;height:100%;background:var(--pctl)}
+.mdp{position:relative;border-radius:50%;background:#00000026;flex:none}
+.wd:not(.fill) .mdp{background:var(--border)}
+.mdp i{position:absolute;display:grid;place-items:center;opacity:.9}
+.mdp i.u{left:50%;top:4%;transform:translateX(-50%)}
+.mdp i.d{left:50%;bottom:4%;transform:translateX(-50%)}
+.mdp i.l{top:50%;left:4%;transform:translateY(-50%)}
+.mdp i.r{top:50%;right:4%;transform:translateY(-50%)}
+.mdp i.o{left:50%;top:50%;width:36%;height:36%;transform:translate(-50%,-50%);border-radius:50%;background:var(--ink);color:var(--accent);font-size:11px;font-weight:700}
+.wd:not(.fill) .mdp i.o{background:var(--accent);color:var(--ink)}
+.poster{border-radius:9px;position:relative;overflow:hidden;flex:none}
+.qrbox{background:#fff;padding:5px;border-radius:9px;flex:none}
+.qrbox svg{display:block;width:100%;height:100%}
+.chip3{display:flex;flex-direction:column;gap:5px}
+.chip3 span{display:flex;gap:7px;align-items:center;font-size:11px;font-weight:600;padding:5px 9px;border-radius:9px;background:#ffffff1f;backdrop-filter:blur(8px);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mini4{display:grid;gap:7px}
+.mini4 span{display:flex;align-items:center;gap:7px;font-size:11.5px;font-weight:600;padding:7px 8px;border-radius:11px;background:color-mix(in srgb,var(--text) 8%,transparent);min-width:0}
+.mini4 span em{font-style:normal;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mini4 .ic{color:var(--accent)}
+.homefoot{padding:26px 24px 44px;text-align:center;font-size:11.5px;color:var(--text2);opacity:.8}
+
+/* ---------------- control remoto ---------------- */
+.rem{padding:0}
+.tvbox{margin:4px 16px 0;padding:11px;display:flex;gap:12px;align-items:center}
+.tvs{position:relative;width:176px;height:99px;border-radius:9px;overflow:hidden;background:#000;flex:none;box-shadow:0 0 0 3px #000,0 0 0 4px var(--border);color:#fff}
+.tvs .sc{position:absolute;inset:0;display:flex;flex-direction:column;justify-content:flex-end;padding:8px 9px;transition:background .4s}
+.tvs .sc .b{font-weight:700;font-size:11px;line-height:1.15}
+.tvs .sc .a{font-size:9px;opacity:.85}
+.tvs .sc .big{position:absolute;left:0;right:0;top:12px;text-align:center;font-size:26px;font-weight:700;opacity:.22;letter-spacing:.04em}
+.tvs .osd{position:absolute;left:8px;right:8px;top:8px;height:20px;border-radius:6px;background:#000b;display:flex;gap:6px;align-items:center;padding:0 6px;font-size:9px;opacity:0;transition:.2s}
+.tvs .osd.on{opacity:1}
+.tvs .osd i{flex:1;height:3px;border-radius:2px;background:#ffffff40;position:relative;overflow:hidden}
+.tvs .osd i u{position:absolute;left:0;top:0;bottom:0;background:#fff}
+.tvinfo{min-width:0;flex:1}
+.tvinfo .t{font-weight:600;font-size:13.5px;line-height:1.25}
+.tvinfo .s{font-size:11.5px;color:var(--text2);margin-top:3px}
+.chipc{display:inline-flex;margin-top:8px;font-size:10.5px;font-weight:600;padding:3px 9px;border-radius:12px;background:color-mix(in srgb,var(--accent) 20%,transparent);color:var(--accent)}
+.rbody{padding:16px 16px 0;display:flex;flex-direction:column;gap:14px}
+.rr{display:flex;gap:10px}
+.rb{flex:1;height:50px;border-radius:calc(25px*var(--tr,1) + 2px);background:var(--tile);border:1px solid var(--tileb);display:flex;align-items:center;justify-content:center;gap:7px;font-size:13px;font-weight:600;color:var(--text);transition:transform .08s,background .15s}
+.rb:active,.rb.p{transform:scale(.94);background:color-mix(in srgb,var(--accent) 30%,var(--tile))}
+.rcl{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.rock{width:68px;height:196px;border-radius:34px;background:var(--tile);border:1px solid var(--tileb);display:flex;flex-direction:column;align-items:center;justify-content:space-between;padding:6px 0;flex:none}
+.rock button{width:56px;height:56px;border-radius:50%;display:grid;place-items:center;color:var(--text)}
+.rock button:active{background:color-mix(in srgb,var(--accent) 30%,transparent)}
+.rock .lb{font-size:10px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--text2)}
+.dpad{position:relative;width:212px;height:212px;border-radius:50%;background:var(--tile);border:1px solid var(--tileb);flex:none;box-shadow:var(--sh)}
+.dpad button{position:absolute;width:62px;height:62px;display:grid;place-items:center;border-radius:50%;color:var(--text)}
+.dpad button:active{background:color-mix(in srgb,var(--accent) 30%,transparent)}
+.dpad .u{left:50%;top:6px;margin-left:-31px}.dpad .d{left:50%;bottom:6px;margin-left:-31px}
+.dpad .l{top:50%;left:6px;margin-top:-31px}.dpad .r{top:50%;right:6px;margin-top:-31px}
+.dpad .ok{left:50%;top:50%;width:86px;height:86px;margin:-43px 0 0 -43px;background:var(--accent);color:var(--ink);font-weight:700;font-size:18px}
+.dpad .ok:active{filter:brightness(1.15);transform:scale(.95)}
+.sendc{margin:2px 16px 0;padding:12px;display:flex;flex-wrap:wrap;gap:12px;align-items:center}
+.sendc .sendb{width:100%;height:46px;justify-content:center;border-radius:calc(23px*var(--tr,1) + 2px);font-size:14.5px}
+.sendc .th{width:92px;height:52px;border-radius:8px;flex:none;position:relative;overflow:hidden;color:#fff}
+.sendc .tx{flex:1;min-width:0}
+.sendc .tx .k{font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);font-weight:700}
+.sendc .tx .n{font-weight:600;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sendb{height:40px;padding:0 14px;border-radius:20px;background:var(--accent);color:var(--ink);font-weight:600;font-size:13px;display:flex;align-items:center;gap:6px;flex:none}
+
+/* ---------------- contenido ---------------- */
+.player{margin:2px 16px 0;position:relative;aspect-ratio:16/9;border-radius:calc(20px*var(--tr,1));overflow:hidden;background:#000;color:#fff;flex:none;cursor:pointer}
+.player .vid{position:absolute;inset:0;overflow:hidden}
+.player .vid i{position:absolute;border-radius:50%;opacity:.7;animation:drift 12s ease-in-out infinite alternate}
+.player .vid i:nth-child(1){width:190px;height:190px;left:-30px;top:-60px;background:var(--c1)}
+.player .vid i:nth-child(2){width:150px;height:150px;right:-20px;bottom:-30px;background:var(--c2);animation-duration:16s;animation-direction:alternate-reverse}
+.player .vid i:nth-child(3){width:90px;height:90px;left:46%;top:18%;background:var(--c3);opacity:.55;animation-duration:9s}
+.paused .vid i{animation-play-state:paused}
+.paused::after{content:"";position:absolute;inset:0;background:rgba(0,0,0,.28)}
+@keyframes drift{from{transform:translate(-8%,-4%) scale(1)}to{transform:translate(12%,8%) scale(1.18)}}
+.player .wm{position:absolute;left:0;right:0;top:50%;transform:translateY(-62%);text-align:center;font:600 54px/1 var(--ft);opacity:.22;letter-spacing:.02em}
+.player .tp{position:absolute;left:12px;right:12px;top:10px;display:flex;justify-content:space-between;align-items:flex-start;font-size:11px;font-weight:700;text-shadow:0 1px 3px rgba(0,0,0,.6);z-index:1}
+.player .bar3{position:absolute;left:0;right:0;bottom:0;height:38px;padding:0 12px;display:flex;align-items:center;gap:10px;background:rgba(0,0,0,.5);z-index:2}
+.player .ppi{display:grid;place-items:center;color:var(--pctl)}
+.player .tm{font-size:11px;font-variant-numeric:tabular-nums;white-space:nowrap;color:#fff}
+.player .pb{flex:1;height:3px;border-radius:2px;background:rgba(255,255,255,.3);overflow:hidden}
+.player .pb i{display:block;height:100%;background:var(--pctl);width:0}
+.player .ib{display:grid;place-items:center;color:var(--pctl)}
+.nowrow{margin:12px 16px 0;display:flex;gap:10px;align-items:center}
+.nowrow .tx{flex:1;min-width:0}
+.nowrow .tx .n{font:600 19px/1.15 var(--ft)}
+.nowrow .tx .s{font-size:12px;color:var(--text2);margin-top:3px}
+.tabs{margin:14px 16px 0;display:flex;gap:4px;padding:3px;border-radius:calc(18px*var(--tr,1) + 2px);background:var(--tile);border:1px solid var(--tileb);flex:none}
+.tabs button{flex:1;height:34px;border-radius:calc(15px*var(--tr,1) + 2px);font-size:13px;font-weight:600;color:var(--text2)}
+.tabs button.on{background:var(--accent);color:var(--ink)}
+.clist{padding:12px 16px 40px;display:flex;flex-direction:column;gap:8px}
+.crow{display:flex;gap:12px;align-items:center;padding:9px 12px 9px 9px;border-radius:calc(16px*var(--tr,1) + 2px);background:var(--tile);border:1px solid var(--tileb);cursor:pointer}
+.crow.on{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent)}
+.clogo{width:48px;height:34px;border-radius:9px;display:grid;place-items:center;color:#fff;font-weight:700;font-size:12px;letter-spacing:.04em;flex:none}
+.crow .tx{flex:1;min-width:0}
+.crow .tx .n{font-weight:600;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.crow .tx .s{font-size:12px;color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.crow .num{font-size:11px;color:var(--muted);font-weight:700;width:18px;text-align:right}
+.crow .pbar{background:var(--border);margin-top:6px}
+.guide{padding:12px 0 40px;display:flex;flex-direction:column;gap:14px}
+.grow .gh{display:flex;gap:8px;align-items:center;padding:0 16px 7px;font-weight:600;font-size:13px}
+.gstrip{display:flex;gap:7px;padding:0 16px;overflow-x:auto;scrollbar-width:none}
+.gstrip::-webkit-scrollbar{display:none}
+.gp{flex:none;width:136px;padding:9px 11px;border-radius:calc(14px*var(--tr,1) + 2px);background:var(--tile);border:1px solid var(--tileb)}
+.gp.now{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 14%,var(--tile))}
+.gp .h{font-size:10.5px;font-weight:700;color:var(--muted);letter-spacing:.04em}
+.gp.now .h{color:var(--accent)}
+.gp .t{font-size:12.5px;font-weight:600;line-height:1.25;margin-top:2px}
+.vgrid{padding:14px 16px 40px;display:flex;flex-direction:column;gap:16px}
+.vfeat{height:170px;border-radius:calc(20px*var(--tr,1));position:relative;overflow:hidden;color:#fff;cursor:pointer}
+.vfeat .in{position:absolute;inset:0;padding:14px;display:flex;flex-direction:column;justify-content:flex-end;text-shadow:0 1px 6px rgba(0,0,0,.45)}
+.vfeat::before{content:"";position:absolute;right:-40px;top:-40px;width:170px;height:170px;border-radius:50%;background:rgba(255,255,255,.12)}
+.vfeat .t{font:600 26px/1.05 var(--ft)}
+.vfeat .m{font-size:12px;opacity:.85;margin-top:4px}
+.vrow h4{margin:0 0 9px;font-size:13px;letter-spacing:.1em;text-transform:uppercase;color:var(--text2);font-weight:600}
+.vrow .st{display:flex;gap:10px;overflow-x:auto;scrollbar-width:none;margin:0 -16px;padding:0 16px}
+.vrow .st::-webkit-scrollbar{display:none}
+.vp{flex:none;width:112px;cursor:pointer}
+.vp .po{height:162px;border-radius:calc(14px*var(--tr,1) + 2px);position:relative;overflow:hidden;color:#fff;padding:10px;display:flex;flex-direction:column;justify-content:flex-end;box-shadow:var(--sh)}
+.vp .po b{font:600 16px/1.05 var(--ft);position:relative}
+.vp .po::before{content:"";position:absolute;right:-24px;top:-24px;width:90px;height:90px;border-radius:50%;background:rgba(255,255,255,.14)}
+.vp .mt{font-size:11px;color:var(--text2);margin-top:5px}
+.vp.on .po{outline:2px solid var(--accent);outline-offset:2px}
+.chips{display:flex;gap:7px;overflow-x:auto;scrollbar-width:none}
+.chips span{flex:none;padding:6px 13px;border-radius:17px;font-size:12.5px;font-weight:600;background:var(--tile);border:1px solid var(--tileb);color:var(--text2)}
+.chips span.on{background:var(--text);color:var(--bg);border-color:transparent}
+
+/* ---------------- servicios / hotel / wifi / clima / ajustes ---------------- */
+.svbody{padding:6px 16px 40px;display:flex;flex-direction:column;gap:10px}
+.note{display:flex;gap:11px;padding:13px 14px;border-radius:calc(18px*var(--tr,1));background:color-mix(in srgb,var(--accent) 14%,var(--tile));border:1px solid color-mix(in srgb,var(--accent) 35%,transparent);font-size:13px;color:var(--text);line-height:1.45}
+.note .ic{color:var(--accent);margin-top:1px}
+.svc{padding:14px;cursor:pointer}
+.svc .hd{display:flex;gap:13px;align-items:center}
+.svc .ico{width:46px;height:46px;border-radius:calc(15px*var(--tr,1));background:color-mix(in srgb,var(--accent) 16%,transparent);display:grid;place-items:center;color:var(--accent);flex:none}
+.svc .tx{flex:1;min-width:0}
+.svc .n{font-weight:600;font-size:15.5px}
+.svc .h{font-size:12.5px;color:var(--text2);margin-top:1px}
+.st2{font-size:11px;font-weight:700;padding:3px 9px;border-radius:11px;display:flex;gap:5px;align-items:center;flex:none}
+.st2.o{background:color-mix(in srgb,#37c871 20%,transparent);color:#37c871}
+.st2.c{background:color-mix(in srgb,var(--muted) 22%,transparent);color:var(--text2)}
+.st2 i{width:6px;height:6px;border-radius:50%;background:currentColor;display:block}
+.svc .ex{display:none;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);font-size:13.5px;color:var(--text2);line-height:1.5}
+.svc.open .ex{display:block}
+.svc .ex .kv{display:flex;gap:7px;align-items:center;margin-top:9px;color:var(--text);font-size:13px}
+.svc .ex .kv .ic{color:var(--accent)}
+.svc .chev{transition:transform .2s;color:var(--muted)}
+.svc.open .chev{transform:rotate(180deg)}
+.hhero{margin:4px 16px 0;height:230px;border-radius:calc(24px*var(--tr,1));overflow:hidden;position:relative;flex:none}
+.car{display:flex;overflow-x:auto;scroll-snap-type:x mandatory;scrollbar-width:none;height:100%}
+.car::-webkit-scrollbar{display:none}
+.car>div{flex:none;width:100%;scroll-snap-align:center;background-size:cover;background-position:center;position:relative;color:#fff}
+.car>div .cp{position:absolute;left:0;right:0;bottom:0;padding:14px 16px;background:rgba(0,0,0,.55)}
+.car>div .cp b{font:600 22px/1.1 var(--ft)}
+.car>div .cp span{display:block;font-size:12.5px;opacity:.85;margin-top:3px}
+.dots{position:absolute;top:12px;right:14px;display:flex;gap:5px}
+.dots i{width:6px;height:6px;border-radius:3px;background:#fff6;transition:.2s}
+.dots i.on{width:16px;background:#fff}
+.hbody{padding:18px 18px 40px}
+.hbody h2{margin:0 0 4px;font:600 28px/1.05 var(--fd)}
+.hbody .loc{display:flex;gap:6px;align-items:center;color:var(--accent);font-size:12.5px;font-weight:600;margin-bottom:12px}
+.hbody p{margin:0 0 10px;color:var(--text2);font-size:14.5px;line-height:1.6}
+.hbody .clamp.long{max-height:7.4em;overflow:hidden}
+.hbody .clamp.long.open{max-height:none}
+.gth{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:16px}
+.gth div{height:92px;border-radius:calc(14px*var(--tr,1) + 2px);background-size:cover;background-position:center;position:relative;overflow:hidden;cursor:pointer;color:#fff}
+.gth div span{position:absolute;inset:auto 0 0 0;padding:7px 9px;font-size:11.5px;font-weight:600;line-height:1.15;background:rgba(0,0,0,.55)}
+.gt{margin:20px 0 0;font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);font-weight:700}
+.linkb{color:var(--accent);font-weight:600;font-size:13.5px;margin-bottom:16px}
+.wfcard{margin:6px 16px 0;padding:22px 20px;display:flex;flex-direction:column;align-items:center;gap:14px;text-align:center}
+.wfcard .qrbox{width:206px;height:206px;padding:12px;border-radius:18px}
+.wfcard .ssid{font:600 24px/1 var(--fd)}
+.cred{width:100%;display:flex;flex-direction:column;gap:8px}
+.cred div{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:11px 14px;border-radius:calc(14px*var(--tr,1) + 2px);background:color-mix(in srgb,var(--text) 6%,transparent);text-align:left}
+.cred small{display:block;font-size:10px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+.cred b{font:600 15px ui-monospace,Menlo,Consolas,monospace;letter-spacing:.02em}
+.cred .cp{color:var(--accent);font-size:12.5px;font-weight:600;display:flex;gap:5px;align-items:center}
+.hint{margin:16px 26px 0;text-align:center;color:var(--text2);font-size:13px}
+.wxh{margin:4px 16px 0;border-radius:calc(26px*var(--tr,1));padding:20px;color:#fff;background:#4a97d2;position:relative;overflow:hidden;flex:none}
+.wxh .city{display:flex;gap:6px;align-items:center;font-weight:600;font-size:14px}
+.wxh .tmp{font:600 84px/1 var(--ft);margin:6px 0 0;letter-spacing:-.02em}
+.wxh .cd{font-size:16px;font-weight:500}
+.wxh .hl{font-size:13px;opacity:.9;margin-top:2px}
+.wxh .sunbig{position:absolute;right:-18px;top:-6px;opacity:.95;color:#ffe9a3}
+.wxg{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:12px 16px 0}
+.wxg div{padding:11px 6px;text-align:center;border-radius:calc(16px*var(--tr,1) + 2px);background:var(--tile);border:1px solid var(--tileb)}
+.wxg .ic{margin:0 auto 5px;color:var(--accent)}
+.wxg b{display:block;font-size:14px}
+.wxg span{font-size:10.5px;color:var(--text2)}
+.wxs{margin:16px 16px 0}
+.wxs h4{margin:0 0 8px;font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);font-weight:700}
+.hours{display:flex;gap:8px;overflow-x:auto;scrollbar-width:none}
+.hours::-webkit-scrollbar{display:none}
+.hours div{flex:none;width:58px;padding:10px 0;text-align:center;border-radius:16px;background:var(--tile);border:1px solid var(--tileb);font-size:12px}
+.hours div.now{background:var(--accent);color:var(--ink);border-color:transparent}
+.hours b{display:block;font-size:15px;margin-top:4px}
+.hours .ic{margin:5px auto 0}
+.days div{display:flex;align-items:center;gap:12px;padding:10px 4px;border-top:1px solid var(--border);font-size:14px}
+.days div:first-child{border-top:0}
+.days .d{width:48px;font-weight:600;text-transform:capitalize}
+.days .ic{color:var(--accent)}
+.days .bar2{flex:1;height:5px;border-radius:3px;background:var(--border);position:relative}
+.days .bar2 i{position:absolute;top:0;bottom:0;border-radius:3px;background:var(--accent)}
+.days .tt{width:76px;text-align:right;font-variant-numeric:tabular-nums;color:var(--text2)}
+.days .tt b{color:var(--text)}
+.sttl{margin:18px 18px 8px;font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);font-weight:700}
+.stbody{padding-bottom:40px}
+.linkc{margin:0 16px;padding:14px;display:flex;gap:12px;align-items:center}
+.linkc .ic{color:var(--accent)}
+.linkc b{display:block;font-size:14.5px}
+.linkc span{font-size:12.5px;color:var(--text2)}
+.langs{margin:0 16px;overflow:hidden}
+.langs button{width:100%;display:flex;align-items:center;gap:12px;padding:14px 16px;border-top:1px solid var(--border);text-align:left;font-size:15px;color:var(--text)}
+.langs button:first-child{border-top:0}
+.langs button .cd{margin-left:auto;color:var(--accent)}
+.langs button small{color:var(--muted);font-size:12px;font-weight:600;letter-spacing:.06em;width:24px}
+.paras{margin:0 18px;color:var(--text2);font-size:13px;line-height:1.55}
+.kv2{margin:0 16px;overflow:hidden}
+.kv2 div{display:flex;justify-content:space-between;padding:13px 16px;border-top:1px solid var(--border);font-size:14px}
+.kv2 div:first-child{border-top:0}
+.kv2 span{color:var(--text2)}
+.ended{justify-content:center;align-items:stretch;padding:0 22px}
+.ended .gl{padding:30px 22px 22px;text-align:center;border-radius:calc(30px*var(--tr,1) + 4px);display:flex;flex-direction:column;align-items:center}
+.ended .ico{width:64px;height:64px;border-radius:50%;background:color-mix(in srgb,var(--accent) 18%,transparent);color:var(--accent);display:grid;place-items:center;margin:18px 0 14px}
+.ended h1{margin:0 0 10px;font:600 28px/1.1 var(--fd);text-wrap:balance}
+.ended p{margin:0 0 22px;color:var(--text2);font-size:14.5px;line-height:1.5}
+</style>
+</head>
+<body>
+<div class="bar">
+  <h1>Hospitality · app del celular <small>mockup interactivo · toca cualquier teléfono · todo sale de CONFIG</small></h1>
+  <div class="ctl">
+    <div class="fld"><label>Idioma</label><select id="selLang"></select></div>
+    <div class="fld"><label>Orden y tamaño de tiles</label><select id="selLayout"></select></div>
+    <div class="fld"><label>Zoom</label><input type="range" id="zoom" min="40" max="100"></div>
+    <div class="fld"><label>&nbsp;</label><button class="ghost" id="btnPanel">Parámetros ▾</button></div>
+  </div>
+  <div class="panel" id="panel">
+    <div>
+      <h3>Parámetro: orden y tamaño de los tiles de la home</h3>
+      <textarea id="layoutJson" spellcheck="false" aria-label="JSON de tiles"></textarea>
+      <div class="row"><button class="ghost" id="applyLayout">Aplicar a todos los teléfonos</button><button class="ghost" id="resetLayout">Volver al de la marca</button><span class="msg" id="layoutMsg"></span></div>
+      <div class="note2">ids: remote, live, vod, wifi, weather, services, hotel, settings · size: S (icono 1×1), M (widget 2×2), W (widget ancho 4×2). Lo que la marca no tiene prendido (features) no se dibuja.</div>
+    </div>
+    <div>
+      <h3>Colores del operador (Panaccess)</h3>
+      <div class="ops" id="ops"></div>
+      <div class="note2">El hotel manda: lo que el operador define pisa a la dirección visual, que solo completa el resto. “×” vuelve al valor de la dirección.<br>
+        <b>Fondo:</b> el celular no usa el fondo de la TV. Es un color liso, el token de fondo de la dirección elegida. Un fondo propio del celular (parámetro aparte, p. ej. <code>X_APP_BACKGROUND_MOBILE</code>) queda como posibilidad a futuro y no está dibujado.<br>
+        <b>Cancelar:</b> sin <code>X_APP_CANCEL_COLOR</code> toma el acento, como la TV. <b>Tipografía:</b> una sola pareja del design system (display para títulos, texto para el resto), igual en todas las marcas. <b>Dirección visual:</b> la de generic (Resort).</div>
+    </div>
+    <div>
+      <h3>Handoff de la TV y parámetros (X_APP_*)</h3>
+      <div class="dat">
+        <label>Hotel<input type="text" id="dHotel"></label><label>Ciudad<input type="text" id="dCity"></label>
+        <label>Habitación<input type="text" id="dRoom"></label><label>Huésped (vacío = sin nombre)<input type="text" id="dGuest"></label>
+        <label>Wi‑Fi: red (X_APP_WIFI)<input type="text" id="dSsid"></label><label>Wi‑Fi: clave<input type="text" id="dPass"></label>
+        <label>Logo de ejemplo (X_APP_LOGO)<select id="dLogo"><option value="chevron">chevron</option><option value="wave">ola</option><option value="crown">corona</option></select></label>
+      </div>
+      <h3>Features</h3>
+      <div class="chks">
+        <label><input type="checkbox" id="chk_remoteControl"> <code>remoteControl</code> (canal celular↔TV)</label>
+        <label><input type="checkbox" id="chk_vod"> <code>vod</code></label>
+        <label><input type="checkbox" id="chk_hotelInfo"> <code>hotelInfo</code></label>
+        <label><input type="checkbox" id="chk_liveTv"> <code>liveTv</code></label>
+      </div>
+      <div class="note2">Sin <code>remoteControl</code> (el Wi‑Fi de hotel suele aislar los dispositivos) no existen el control remoto ni “Mandar a la TV”.</div>
+      <h3 style="margin-top:12px">Handoff completo</h3>
+      <pre id="handoffJson" style="height:150px"></pre>
+    </div>
+  </div>
+</div>
+<main id="main"></main>
+<script>
+/* =====================================================================================
+   Textos de la app en los 5 idiomas (es / en / pt / fr / de). El idioma llega de la TV en el handoff
+   y se puede cambiar en Ajustes. Lo que viene de Panaccess (guía, títulos) no se traduce.
+   ===================================================================================== */
+const LANG_NAMES = { es: "Español", en: "English", pt: "Português", fr: "Français", de: "Deutsch" };
+const STR = {
+es: {
+  n_title: "Escanea el QR en la televisión de tu hotel para ver el contenido",
+  n_sub: "Lo verás en la pantalla de tu habitación. Solo toma unos segundos.",
+  n_scan: "Escanear código QR", n_type: "Escribir el código de 6 dígitos", n_foot: "No necesitas usuario ni contraseña.",
+  s_hint: "Apunta la cámara al código QR de la TV", s_tap: "Toca el visor para simular la lectura", s_manual: "Escribir el código",
+  c_title: "Código de la TV", c_sub: "Aparece debajo del QR, en la pantalla de tu habitación. Vence a los 10 minutos.", c_go: "Conectar",
+  k_conn: "Conectando…", k_s1: "Leyendo el código", k_s2: "Verificando con el hotel", k_s3: "Recibiendo los datos de tu habitación", k_got: "Tu TV te envió",
+  h_hotel: "Hotel", h_room: "Habitación", h_lang: "Idioma", h_guest: "Huésped", h_look: "Logo, fondo y colores", h_none: "Aún sin nombre", cancel: "Cancelar", h_logo: "Logo", h_colors: "Colores", h_font: "Tipografía", h_wifi: "Wi‑Fi", h_wx: "Clima", h_msg: "Bienvenida", h_svc: "Servicios", h_info: "Ficha", h_n_svc: "{n} servicios", h_n_photos: "{n} fotos",
+  w_hello: "Bienvenido", w_hello_n: "Bienvenido, {n}", w_room: "Habitación {r}", w_go: "Empezar",
+  w_msg: "Aquí tienes todo tu viaje: canales, películas, el control de tu TV y la información del hotel.",
+  hi: "Hola", hi_n: "Hola, {n}", tvOn: "TV conectada", tvRoom: "TV de la habitación {r}",
+  t_remote: "Control remoto", t_live: "Canales", t_vod: "Películas", t_wifi: "Wi‑Fi", t_weather: "Clima", t_services: "Servicios", t_hotel: "El hotel", t_settings: "Ajustes",
+  nowTv: "Ahora en TV", sendTv: "Mandar a la TV", sentTv: "Enviado a la TV", network: "Red", password: "Clave", copy: "Copiar", copied: "Copiado", watching: "Lo que estás viendo",
+  c_sun: "Soleado", c_part: "Parcialmente nublado", hi_t: "Máx", lo_t: "Mín", hum: "Humedad", wind: "Viento", uv: "UV", sea: "Mar", hourly: "Hora por hora", next5: "Próximos días", now: "Ahora",
+  tab_live: "Canales", tab_guide: "Guía", tab_vod: "Películas", live: "EN VIVO", after: "Después", g_drama: "Drama", g_comedy: "Comedia", g_action: "Acción", g_doc: "Documental", g_kids: "Infantil", all: "Todo", min: "min", featured: "Destacada",
+  r_ok: "OK", r_back: "Atrás", r_home: "Inicio", r_guide: "Guía", r_hotel: "El hotel", r_vol: "Volumen", r_ch: "Canal", r_mute: "Silencio", r_last: "Orden enviada", r_ready: "Listo para enviar órdenes",
+  sv_title: "Servicios del hotel", sv_note: "Información para tu estadía. Para pedir algo, marca {x} desde el teléfono de tu habitación.", sv_open: "Abierto", sv_closed: "Cerrado", sv_hours: "Horario", sv_where: "Dónde", sv_24h: "Las 24 horas",
+  sv_restaurant: "Restaurante", sv_restaurant_d: "Desayuno buffet, comida y cena a la carta con vista al mar.",
+  sv_spa: "Spa y bienestar", sv_spa_d: "Masajes y tratamientos. Reserva en el mostrador del spa.",
+  sv_gym: "Gimnasio", sv_gym_d: "Equipos de última generación y toallas a disposición.",
+  sv_pool: "Piscina", sv_pool_d: "Piscina principal y área infantil. Toallas en el módulo de la piscina.",
+  sv_activities: "Actividades", sv_activities_d: "Kayak, paddle y snorkel. Pasa por el centro de actividades de la playa.",
+  sv_reception: "Recepción", sv_reception_d: "Atención las 24 horas: llaves, información y asistencia.",
+  pl_lobby: "Lobby", pl_f2: "Piso 2", pl_pool: "Zona de piscina", pl_beach: "Frente a la playa",
+  ho_gal: "Galería", ho_title: "El hotel", ho_tv: "Verlo en la TV", ho_more: "Leer más", ho_less: "Leer menos",
+  wf_title: "Wi‑Fi del hotel", wf_hint: "Abre la cámara y apunta al código para unirte a la red.",
+  st_title: "Ajustes", st_lang: "Idioma", st_lang_note: "Tu TV nos indicó cuál usar. Puedes cambiarlo cuando quieras.", st_stay: "Tu estadía",
+  st_stay_note: "Esta app no pide usuario ni contraseña. Se desvincula sola cuando termina tu estadía.", st_about: "Acerca de", st_ver: "Versión", st_src: "Contenido y datos del hotel, a través de tu operador.", st_linked: "Vinculada a la TV de la habitación {r}",
+  e_title: "Tu estadía ha finalizado", e_text: "Gracias por visitarnos. La conexión con la TV de la habitación {r} se cerró. Esperamos verte pronto.", e_ok: "Entendido",
+  back: "Volver", na: "Esta función no está activa en este hotel.",
+},
+en: {
+  n_title: "Scan the QR on your hotel TV to see the content",
+  n_sub: "You'll find it on the screen in your room. It only takes a few seconds.",
+  n_scan: "Scan QR code", n_type: "Enter the 6-digit code", n_foot: "No username or password needed.",
+  s_hint: "Point the camera at the QR code on the TV", s_tap: "Tap the viewfinder to simulate the scan", s_manual: "Enter the code",
+  c_title: "TV code", c_sub: "It's below the QR on your room's screen. It expires after 10 minutes.", c_go: "Connect",
+  k_conn: "Connecting…", k_s1: "Reading the code", k_s2: "Checking with the hotel", k_s3: "Receiving your room details", k_got: "Your TV sent",
+  h_hotel: "Hotel", h_room: "Room", h_lang: "Language", h_guest: "Guest", h_look: "Logo, background and colors", h_none: "No name yet", cancel: "Cancel", h_logo: "Logo", h_colors: "Colors", h_font: "Typeface", h_wifi: "Wi‑Fi", h_wx: "Weather", h_msg: "Welcome", h_svc: "Services", h_info: "Hotel page", h_n_svc: "{n} services", h_n_photos: "{n} photos",
+  w_hello: "Welcome", w_hello_n: "Welcome, {n}", w_room: "Room {r}", w_go: "Get started",
+  w_msg: "Everything for your stay: channels, movies, your TV remote and hotel information.",
+  hi: "Hello", hi_n: "Hello, {n}", tvOn: "TV connected", tvRoom: "Room {r} TV",
+  t_remote: "Remote", t_live: "Channels", t_vod: "Movies", t_wifi: "Wi‑Fi", t_weather: "Weather", t_services: "Services", t_hotel: "The hotel", t_settings: "Settings",
+  nowTv: "Now on TV", sendTv: "Send to TV", sentTv: "Sent to the TV", network: "Network", password: "Password", copy: "Copy", copied: "Copied", watching: "What you're watching",
+  c_sun: "Sunny", c_part: "Partly cloudy", hi_t: "High", lo_t: "Low", hum: "Humidity", wind: "Wind", uv: "UV", sea: "Sea", hourly: "Hourly", next5: "Next days", now: "Now",
+  tab_live: "Channels", tab_guide: "Guide", tab_vod: "Movies", live: "LIVE", after: "Next", g_drama: "Drama", g_comedy: "Comedy", g_action: "Action", g_doc: "Documentary", g_kids: "Kids", all: "All", min: "min", featured: "Featured",
+  r_ok: "OK", r_back: "Back", r_home: "Home", r_guide: "Guide", r_hotel: "The hotel", r_vol: "Volume", r_ch: "Channel", r_mute: "Mute", r_last: "Command sent", r_ready: "Ready to send commands",
+  sv_title: "Hotel services", sv_note: "Information for your stay. To order anything, dial {x} from your room phone.", sv_open: "Open", sv_closed: "Closed", sv_hours: "Hours", sv_where: "Where", sv_24h: "24 hours",
+  sv_restaurant: "Restaurant", sv_restaurant_d: "Breakfast buffet, lunch and à la carte dinner with sea views.",
+  sv_spa: "Spa & wellness", sv_spa_d: "Massages and treatments. Book at the spa desk.",
+  sv_gym: "Gym", sv_gym_d: "State-of-the-art equipment and towels available.",
+  sv_pool: "Pool", sv_pool_d: "Main pool and kids' area. Towels at the pool station.",
+  sv_activities: "Activities", sv_activities_d: "Kayak, paddleboard and snorkel. Visit the beach activity center.",
+  sv_reception: "Front desk", sv_reception_d: "Open 24 hours: keys, information and assistance.",
+  pl_lobby: "Lobby", pl_f2: "Floor 2", pl_pool: "Pool area", pl_beach: "Beachfront",
+  ho_gal: "Gallery", ho_title: "The hotel", ho_tv: "See it on the TV", ho_more: "Read more", ho_less: "Read less",
+  wf_title: "Hotel Wi‑Fi", wf_hint: "Open the camera and point it at the code to join the network.",
+  st_title: "Settings", st_lang: "Language", st_lang_note: "Your TV told us which one to use. You can change it anytime.", st_stay: "Your stay",
+  st_stay_note: "This app doesn't ask for a username or password. It unlinks by itself when your stay ends.", st_about: "About", st_ver: "Version", st_src: "Hotel content and data, through your operator.", st_linked: "Linked to the TV in room {r}",
+  e_title: "Your stay has ended", e_text: "Thank you for visiting. The connection to the TV in room {r} has closed. We hope to see you again soon.", e_ok: "Got it",
+  back: "Back", na: "This feature isn't active at this hotel.",
+},
+pt: {
+  n_title: "Escaneie o QR na televisão do seu hotel para ver o conteúdo",
+  n_sub: "Ele aparece na tela do seu quarto. Leva só alguns segundos.",
+  n_scan: "Escanear código QR", n_type: "Digitar o código de 6 dígitos", n_foot: "Sem usuário nem senha.",
+  s_hint: "Aponte a câmera para o código QR da TV", s_tap: "Toque no visor para simular a leitura", s_manual: "Digitar o código",
+  c_title: "Código da TV", c_sub: "Fica abaixo do QR, na tela do seu quarto. Vence em 10 minutos.", c_go: "Conectar",
+  k_conn: "Conectando…", k_s1: "Lendo o código", k_s2: "Verificando com o hotel", k_s3: "Recebendo os dados do seu quarto", k_got: "Sua TV enviou",
+  h_hotel: "Hotel", h_room: "Quarto", h_lang: "Idioma", h_guest: "Hóspede", h_look: "Logo, fundo e cores", h_none: "Ainda sem nome", cancel: "Cancelar", h_logo: "Logo", h_colors: "Cores", h_font: "Tipografia", h_wifi: "Wi‑Fi", h_wx: "Clima", h_msg: "Boas-vindas", h_svc: "Serviços", h_info: "Ficha", h_n_svc: "{n} serviços", h_n_photos: "{n} fotos",
+  w_hello: "Bem-vindo", w_hello_n: "Bem-vindo, {n}", w_room: "Quarto {r}", w_go: "Começar",
+  w_msg: "Tudo da sua estadia: canais, filmes, o controle da sua TV e as informações do hotel.",
+  hi: "Olá", hi_n: "Olá, {n}", tvOn: "TV conectada", tvRoom: "TV do quarto {r}",
+  t_remote: "Controle", t_live: "Canais", t_vod: "Filmes", t_wifi: "Wi‑Fi", t_weather: "Clima", t_services: "Serviços", t_hotel: "O hotel", t_settings: "Ajustes",
+  nowTv: "Agora na TV", sendTv: "Enviar para a TV", sentTv: "Enviado para a TV", network: "Rede", password: "Senha", copy: "Copiar", copied: "Copiado", watching: "O que você está vendo",
+  c_sun: "Ensolarado", c_part: "Parcialmente nublado", hi_t: "Máx", lo_t: "Mín", hum: "Umidade", wind: "Vento", uv: "UV", sea: "Mar", hourly: "Hora a hora", next5: "Próximos dias", now: "Agora",
+  tab_live: "Canais", tab_guide: "Guia", tab_vod: "Filmes", live: "AO VIVO", after: "Depois", g_drama: "Drama", g_comedy: "Comédia", g_action: "Ação", g_doc: "Documentário", g_kids: "Infantil", all: "Tudo", min: "min", featured: "Destaque",
+  r_ok: "OK", r_back: "Voltar", r_home: "Início", r_guide: "Guia", r_hotel: "O hotel", r_vol: "Volume", r_ch: "Canal", r_mute: "Mudo", r_last: "Comando enviado", r_ready: "Pronto para enviar comandos",
+  sv_title: "Serviços do hotel", sv_note: "Informações para sua estadia. Para pedir algo, disque {x} no telefone do quarto.", sv_open: "Aberto", sv_closed: "Fechado", sv_hours: "Horário", sv_where: "Onde", sv_24h: "24 horas",
+  sv_restaurant: "Restaurante", sv_restaurant_d: "Café da manhã buffet, almoço e jantar à la carte com vista para o mar.",
+  sv_spa: "Spa e bem-estar", sv_spa_d: "Massagens e tratamentos. Reserve no balcão do spa.",
+  sv_gym: "Academia", sv_gym_d: "Equipamentos de última geração e toalhas à disposição.",
+  sv_pool: "Piscina", sv_pool_d: "Piscina principal e área infantil. Toalhas no módulo da piscina.",
+  sv_activities: "Atividades", sv_activities_d: "Caiaque, stand up paddle e snorkel. Passe pelo centro de atividades da praia.",
+  sv_reception: "Recepção", sv_reception_d: "Atendimento 24 horas: chaves, informações e assistência.",
+  pl_lobby: "Lobby", pl_f2: "Andar 2", pl_pool: "Área da piscina", pl_beach: "Em frente à praia",
+  ho_gal: "Galeria", ho_title: "O hotel", ho_tv: "Ver na TV", ho_more: "Ler mais", ho_less: "Ler menos",
+  wf_title: "Wi‑Fi do hotel", wf_hint: "Abra a câmera e aponte para o código para entrar na rede.",
+  st_title: "Ajustes", st_lang: "Idioma", st_lang_note: "Sua TV indicou qual usar. Você pode mudar quando quiser.", st_stay: "Sua estadia",
+  st_stay_note: "Este app não pede usuário nem senha. Ele se desvincula sozinho quando sua estadia termina.", st_about: "Sobre", st_ver: "Versão", st_src: "Conteúdo e dados do hotel, por meio do seu operador.", st_linked: "Vinculado à TV do quarto {r}",
+  e_title: "Sua estadia terminou", e_text: "Obrigado pela visita. A conexão com a TV do quarto {r} foi encerrada. Esperamos vê-lo em breve.", e_ok: "Entendi",
+  back: "Voltar", na: "Esta função não está ativa neste hotel.",
+},
+fr: {
+  n_title: "Scannez le QR sur la télévision de votre hôtel pour voir le contenu",
+  n_sub: "Il s'affiche sur l'écran de votre chambre. Cela ne prend que quelques secondes.",
+  n_scan: "Scanner le code QR", n_type: "Saisir le code à 6 chiffres", n_foot: "Ni identifiant ni mot de passe.",
+  s_hint: "Pointez la caméra vers le code QR de la TV", s_tap: "Touchez le viseur pour simuler la lecture", s_manual: "Saisir le code",
+  c_title: "Code de la TV", c_sub: "Il est sous le QR, sur l'écran de votre chambre. Il expire après 10 minutes.", c_go: "Connecter",
+  k_conn: "Connexion…", k_s1: "Lecture du code", k_s2: "Vérification auprès de l'hôtel", k_s3: "Réception des données de votre chambre", k_got: "Votre TV a envoyé",
+  h_hotel: "Hôtel", h_room: "Chambre", h_lang: "Langue", h_guest: "Client", h_look: "Logo, fond et couleurs", h_none: "Pas encore de nom", cancel: "Annuler", h_logo: "Logo", h_colors: "Couleurs", h_font: "Police", h_wifi: "Wi‑Fi", h_wx: "Météo", h_msg: "Accueil", h_svc: "Services", h_info: "Fiche", h_n_svc: "{n} services", h_n_photos: "{n} photos",
+  w_hello: "Bienvenue", w_hello_n: "Bienvenue, {n}", w_room: "Chambre {r}", w_go: "Commencer",
+  w_msg: "Tout votre séjour : chaînes, films, la télécommande de votre TV et les infos de l'hôtel.",
+  hi: "Bonjour", hi_n: "Bonjour, {n}", tvOn: "TV connectée", tvRoom: "TV chambre {r}",
+  t_remote: "Télécommande", t_live: "Chaînes", t_vod: "Films", t_wifi: "Wi‑Fi", t_weather: "Météo", t_services: "Services", t_hotel: "L'hôtel", t_settings: "Réglages",
+  nowTv: "En ce moment", sendTv: "Envoyer à la TV", sentTv: "Envoyé à la TV", network: "Réseau", password: "Mot de passe", copy: "Copier", copied: "Copié", watching: "Ce que vous regardez",
+  c_sun: "Ensoleillé", c_part: "Partiellement nuageux", hi_t: "Max", lo_t: "Min", hum: "Humidité", wind: "Vent", uv: "UV", sea: "Mer", hourly: "Heure par heure", next5: "Jours suivants", now: "Maint.",
+  tab_live: "Chaînes", tab_guide: "Guide", tab_vod: "Films", live: "EN DIRECT", after: "Ensuite", g_drama: "Drame", g_comedy: "Comédie", g_action: "Action", g_doc: "Documentaire", g_kids: "Enfants", all: "Tout", min: "min", featured: "À la une",
+  r_ok: "OK", r_back: "Retour", r_home: "Accueil", r_guide: "Guide", r_hotel: "L'hôtel", r_vol: "Volume", r_ch: "Chaîne", r_mute: "Muet", r_last: "Commande envoyée", r_ready: "Prêt à envoyer des commandes",
+  sv_title: "Services de l'hôtel", sv_note: "Informations pour votre séjour. Pour commander, composez le {x} depuis le téléphone de la chambre.", sv_open: "Ouvert", sv_closed: "Fermé", sv_hours: "Horaires", sv_where: "Où", sv_24h: "24 h/24",
+  sv_restaurant: "Restaurant", sv_restaurant_d: "Petit-déjeuner buffet, déjeuner et dîner à la carte face à la mer.",
+  sv_spa: "Spa et bien-être", sv_spa_d: "Massages et soins. Réservation au comptoir du spa.",
+  sv_gym: "Salle de sport", sv_gym_d: "Équipements dernier cri et serviettes à disposition.",
+  sv_pool: "Piscine", sv_pool_d: "Piscine principale et espace enfants. Serviettes au poste de la piscine.",
+  sv_activities: "Activités", sv_activities_d: "Kayak, paddle et snorkeling. Passez au centre d'activités de la plage.",
+  sv_reception: "Réception", sv_reception_d: "Ouverte 24 h/24 : clés, informations et assistance.",
+  pl_lobby: "Hall", pl_f2: "2e étage", pl_pool: "Espace piscine", pl_beach: "Face à la plage",
+  ho_gal: "Galerie", ho_title: "L'hôtel", ho_tv: "Voir sur la TV", ho_more: "Lire la suite", ho_less: "Réduire",
+  wf_title: "Wi‑Fi de l'hôtel", wf_hint: "Ouvrez la caméra et pointez le code pour rejoindre le réseau.",
+  st_title: "Réglages", st_lang: "Langue", st_lang_note: "Votre TV nous a indiqué laquelle utiliser. Vous pouvez la changer à tout moment.", st_stay: "Votre séjour",
+  st_stay_note: "Cette app ne demande ni identifiant ni mot de passe. Elle se dissocie toute seule à la fin de votre séjour.", st_about: "À propos", st_ver: "Version", st_src: "Contenu et données de l'hôtel, via votre opérateur.", st_linked: "Liée à la TV de la chambre {r}",
+  e_title: "Votre séjour est terminé", e_text: "Merci de votre visite. La connexion avec la TV de la chambre {r} est fermée. À bientôt !", e_ok: "Compris",
+  back: "Retour", na: "Cette fonction n'est pas active dans cet hôtel.",
+},
+de: {
+  n_title: "Scannen Sie den QR-Code auf dem Fernseher Ihres Hotels, um die Inhalte zu sehen",
+  n_sub: "Er erscheint auf dem Bildschirm in Ihrem Zimmer. Es dauert nur wenige Sekunden.",
+  n_scan: "QR-Code scannen", n_type: "6-stelligen Code eingeben", n_foot: "Kein Benutzername, kein Passwort.",
+  s_hint: "Richten Sie die Kamera auf den QR-Code am Fernseher", s_tap: "Tippen Sie auf den Sucher, um das Scannen zu simulieren", s_manual: "Code eingeben",
+  c_title: "TV-Code", c_sub: "Er steht unter dem QR auf dem Bildschirm Ihres Zimmers. Er läuft nach 10 Minuten ab.", c_go: "Verbinden",
+  k_conn: "Verbinde…", k_s1: "Code wird gelesen", k_s2: "Prüfung mit dem Hotel", k_s3: "Zimmerdaten werden empfangen", k_got: "Ihr Fernseher sendet",
+  h_hotel: "Hotel", h_room: "Zimmer", h_lang: "Sprache", h_guest: "Gast", h_look: "Logo, Hintergrund und Farben", h_none: "Noch kein Name", cancel: "Abbrechen", h_logo: "Logo", h_colors: "Farben", h_font: "Schrift", h_wifi: "WLAN", h_wx: "Wetter", h_msg: "Willkommen", h_svc: "Services", h_info: "Hotelseite", h_n_svc: "{n} Services", h_n_photos: "{n} Fotos",
+  w_hello: "Willkommen", w_hello_n: "Willkommen, {n}", w_room: "Zimmer {r}", w_go: "Los geht's",
+  w_msg: "Alles für Ihren Aufenthalt: Sender, Filme, die Fernbedienung Ihres TVs und Hotelinfos.",
+  hi: "Hallo", hi_n: "Hallo, {n}", tvOn: "TV verbunden", tvRoom: "TV Zimmer {r}",
+  t_remote: "Fernbedienung", t_live: "Sender", t_vod: "Filme", t_wifi: "WLAN", t_weather: "Wetter", t_services: "Services", t_hotel: "Das Hotel", t_settings: "Einstellungen",
+  nowTv: "Jetzt im TV", sendTv: "An den TV senden", sentTv: "An den TV gesendet", network: "Netzwerk", password: "Passwort", copy: "Kopieren", copied: "Kopiert", watching: "Das sehen Sie gerade",
+  c_sun: "Sonnig", c_part: "Teils bewölkt", hi_t: "Max", lo_t: "Min", hum: "Feuchte", wind: "Wind", uv: "UV", sea: "Meer", hourly: "Stündlich", next5: "Nächste Tage", now: "Jetzt",
+  tab_live: "Sender", tab_guide: "Guide", tab_vod: "Filme", live: "LIVE", after: "Danach", g_drama: "Drama", g_comedy: "Komödie", g_action: "Action", g_doc: "Doku", g_kids: "Kinder", all: "Alle", min: "Min", featured: "Empfohlen",
+  r_ok: "OK", r_back: "Zurück", r_home: "Start", r_guide: "Guide", r_hotel: "Das Hotel", r_vol: "Lautstärke", r_ch: "Sender", r_mute: "Stumm", r_last: "Befehl gesendet", r_ready: "Bereit für Befehle",
+  sv_title: "Hotelservices", sv_note: "Infos für Ihren Aufenthalt. Zum Bestellen wählen Sie {x} am Zimmertelefon.", sv_open: "Geöffnet", sv_closed: "Geschlossen", sv_hours: "Zeiten", sv_where: "Wo", sv_24h: "Rund um die Uhr",
+  sv_restaurant: "Restaurant", sv_restaurant_d: "Frühstücksbuffet, Mittagessen und Abendessen à la carte mit Meerblick.",
+  sv_spa: "Spa & Wellness", sv_spa_d: "Massagen und Anwendungen. Buchung an der Spa-Rezeption.",
+  sv_gym: "Fitnessstudio", sv_gym_d: "Modernste Geräte und Handtücher stehen bereit.",
+  sv_pool: "Pool", sv_pool_d: "Hauptpool und Kinderbereich. Handtücher am Poolmodul.",
+  sv_activities: "Aktivitäten", sv_activities_d: "Kajak, Stand-up-Paddling und Schnorcheln. Aktivitätszentrum am Strand.",
+  sv_reception: "Rezeption", sv_reception_d: "Rund um die Uhr: Schlüssel, Auskünfte und Hilfe.",
+  pl_lobby: "Lobby", pl_f2: "2. Etage", pl_pool: "Poolbereich", pl_beach: "Am Strand",
+  ho_gal: "Galerie", ho_title: "Das Hotel", ho_tv: "Auf dem TV ansehen", ho_more: "Mehr lesen", ho_less: "Weniger",
+  wf_title: "Hotel-WLAN", wf_hint: "Öffnen Sie die Kamera und richten Sie sie auf den Code, um dem Netzwerk beizutreten.",
+  st_title: "Einstellungen", st_lang: "Sprache", st_lang_note: "Ihr Fernseher hat uns die Sprache mitgeteilt. Sie können sie jederzeit ändern.", st_stay: "Ihr Aufenthalt",
+  st_stay_note: "Diese App verlangt weder Benutzername noch Passwort. Sie trennt sich von selbst, wenn Ihr Aufenthalt endet.", st_about: "Über", st_ver: "Version", st_src: "Inhalte und Daten des Hotels, über Ihren Betreiber.", st_linked: "Mit dem TV in Zimmer {r} verbunden",
+  e_title: "Ihr Aufenthalt ist beendet", e_text: "Danke für Ihren Besuch. Die Verbindung zum TV in Zimmer {r} wurde beendet. Wir freuen uns auf ein Wiedersehen.", e_ok: "Verstanden",
+  back: "Zurück", na: "Diese Funktion ist in diesem Hotel nicht aktiv.",
+},
+};
+
+/* =====================================================================================
+   Código del mockup. Nada de abajo es contenido: lee CONFIG y los textos de STR.
+   ===================================================================================== */
+const $ = (s, r = document) => r.querySelector(s);
+const S = { brand: "generic", lang: "es", op: {}, feat: {}, preset: "brand", custom: null, zoom: null };
+/* features del handoff + los interruptores del panel (liveTv, vod, hotelInfo, remoteControl; por defecto remoteControl = true) */
+const FE = () => ({ remoteControl: true, ...BR().features, ...S.feat });
+const BR = () => CONFIG.brands[S.brand];
+const t = (k, v) => { let s = (STR[S.lang] && STR[S.lang][k]) ?? STR.es[k] ?? k; if (v) for (const x in v) s = s.replace("{" + x + "}", v[x]); return s; };
+const loc = o => o ? (o[S.lang] || o.en || o.es || Object.values(o)[0]) : "";
+const pad2 = n => String(n).padStart(2, "0");
+const hhmm = m => `${Math.floor(m / 60)}:${pad2(m % 60)}`;
+const mmss = s => `${Math.floor(s / 60)}:${pad2(Math.floor(s % 60))}`;
+
+/* ---------- iconos (trazo, 24×24) ---------- */
+const ICONS = {
+  remote: '<rect x="7" y="2.5" width="10" height="19" rx="3"/><circle cx="12" cy="8.5" r="2.2"/><path d="M10 14h4M10 17.5h4"/>',
+  tv: '<rect x="3" y="5" width="18" height="12" rx="2.5"/><path d="M8 21h8M12 17v4"/>',
+  play: '<path d="M8 5.5v13l11-6.5z" fill="currentColor"/>',
+  pause: '<rect x="6.5" y="5" width="4" height="14" rx="1.2" fill="currentColor" stroke="none"/><rect x="13.5" y="5" width="4" height="14" rx="1.2" fill="currentColor" stroke="none"/>',
+  film: '<rect x="3" y="4" width="18" height="16" rx="2.5"/><path d="M7 4v16M17 4v16M3 9h4M3 15h4M17 9h4M17 15h4"/>',
+  guide: '<rect x="3" y="4" width="18" height="16" rx="2.5"/><path d="M3 9.5h18M9 9.5V20"/>',
+  wifi: '<path d="M2.5 9a14 14 0 0 1 19 0M5.5 12.5a9.5 9.5 0 0 1 13 0M8.6 16a5 5 0 0 1 6.8 0"/><circle cx="12" cy="19.2" r="1.1" fill="currentColor"/>',
+  sun: '<circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.4M12 19.1v2.4M2.5 12h2.4M19.1 12h2.4M5.3 5.3l1.7 1.7M17 17l1.7 1.7M18.7 5.3L17 7M7 17l-1.7 1.7"/>',
+  cloudsun: '<circle cx="8.5" cy="8.5" r="3"/><path d="M8.5 2.8v1.4M2.8 8.5h1.4M4.4 4.4l1 1M12.6 4.4l-1 1"/><path d="M8 20h9a3.5 3.5 0 0 0 .4-7A5 5 0 0 0 8 14.2 3 3 0 0 0 8 20z"/>',
+  bell: '<path d="M3 17h18M5 17a7 7 0 0 1 14 0M12 7.5V10M10 7.5h4M2.5 20.5h19"/>',
+  building: '<path d="M5 21V4.5A1.5 1.5 0 0 1 6.5 3h8A1.5 1.5 0 0 1 16 4.5V21M16 9h2.5a1.5 1.5 0 0 1 1.5 1.5V21M3 21h18M8.5 7.5h4M8.5 11h4M8.5 14.5h4"/>',
+  sliders: '<path d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2"/><circle cx="9" cy="17" r="2"/>',
+  globe: '<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3 3 15 0 18M12 3c-3 3-3 15 0 18"/>',
+  qr: '<rect x="3.5" y="3.5" width="7" height="7" rx="1.3"/><rect x="13.5" y="3.5" width="7" height="7" rx="1.3"/><rect x="3.5" y="13.5" width="7" height="7" rx="1.3"/><path d="M14 14h2.5v2.5M20.5 14v.1M14 20.5h.1M17.5 18v2.5h3"/>',
+  keyboard: '<rect x="2.5" y="6" width="19" height="12" rx="2.5"/><path d="M6.5 10h.1M10 10h.1M13.5 10h.1M17 10h.1M7 14h10"/>',
+  chevL: '<path d="M15 5l-7 7 7 7"/>', chevR: '<path d="M9 5l7 7-7 7"/>', chevU: '<path d="M5 15l7-7 7 7"/>', chevD: '<path d="M5 9l7 7 7-7"/>',
+  vol: '<path d="M4 9.5v5h3.5L12 18.5v-13L7.5 9.5z" fill="currentColor"/><path d="M15.5 9a4 4 0 0 1 0 6M18 6.5a7.5 7.5 0 0 1 0 11"/>',
+  mute: '<path d="M4 9.5v5h3.5L12 18.5v-13L7.5 9.5z" fill="currentColor"/><path d="M16 9.5l5 5M21 9.5l-5 5"/>',
+  plus: '<path d="M12 5v14M5 12h14"/>', minus: '<path d="M5 12h14"/>',
+  cast: '<path d="M3 8V6.5A2.5 2.5 0 0 1 5.5 4h13A2.5 2.5 0 0 1 21 6.5v11a2.5 2.5 0 0 1-2.5 2.5H13"/><path d="M3 12a8 8 0 0 1 8 8M3 16a4 4 0 0 1 4 4"/><circle cx="3.6" cy="19.6" r=".7" fill="currentColor"/>',
+  home: '<path d="M4 11l8-7 8 7v9a1 1 0 0 1-1 1h-4v-6H9v6H5a1 1 0 0 1-1-1z"/>',
+  back: '<path d="M9 7L4 12l5 5M4 12h10a6 6 0 0 1 6 6"/>',
+  info: '<circle cx="12" cy="12" r="9"/><path d="M12 11v5.5M12 7.6v.1"/>',
+  clock: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/>',
+  pin: '<path d="M12 21s7-6.2 7-11.5A7 7 0 0 0 5 9.5C5 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/>',
+  phone: '<path d="M6.5 3.5l3 .5 1 4-2 1.5a11 11 0 0 0 5 5l1.5-2 4 1 .5 3a2.5 2.5 0 0 1-2.5 2.5A15.5 15.5 0 0 1 4 6a2.5 2.5 0 0 1 2.5-2.5z"/>',
+  check: '<path d="M5 12.5l4.5 4.5L19 7.5"/>',
+  copy: '<rect x="8" y="8" width="12" height="12" rx="2.5"/><path d="M16 8V6.5A2.5 2.5 0 0 0 13.5 4h-7A2.5 2.5 0 0 0 4 6.5v7A2.5 2.5 0 0 0 6.5 16H8"/>',
+  restaurant: '<path d="M7 3v8M4.5 3v5a2.5 2.5 0 0 0 5 0V3M7 11v10M17 21V3c-2.5 1.5-3.5 4.5-3.5 8H17"/>',
+  spa: '<path d="M12 20c-5 0-8-3-8-8 5 0 8 3 8 8zM12 20c5 0 8-3 8-8-5 0-8 3-8 8zM12 20c-2.5-2-3-6 0-10 3 4 2.5 8 0 10z"/>',
+  gym: '<path d="M6.5 6.5v11M17.5 6.5v11M3.5 9v6M20.5 9v6M6.5 12h11"/>',
+  pool: '<path d="M3 16c2-2 4-2 6 0s4 2 6 0 4-2 6 0M3 20.5c2-2 4-2 6 0s4 2 6 0 4-2 6 0M8 13V6a2 2 0 0 1 4 0M14 13V6a2 2 0 0 1 4 0M8 9.5h6"/>',
+  activities: '<path d="M12 3v14M12 4l7 11h-7M12 8l-5 7h5M4 20c2-1.5 4-1.5 6 0s4 1.5 6 0 3-1 4-.5"/>',
+  reception: '<path d="M3 17h18M5 17a7 7 0 0 1 14 0M12 7.5V10M10 7.5h4M2.5 20.5h19"/>',
+  drop: '<path d="M12 3s6 6.5 6 11a6 6 0 0 1-12 0c0-4.5 6-11 6-11z"/>',
+  windi: '<path d="M3 9h11a3 3 0 1 0-3-3M3 15h15a3 3 0 1 1-3 3M3 12h7"/>',
+  waves: '<path d="M3 9c2-2 4-2 6 0s4 2 6 0 4-2 6 0M3 15c2-2 4-2 6 0s4 2 6 0 4-2 6 0"/>',
+  bolt: '<path d="M13 2.5L5 13.5h6l-1 8 8-11h-6z"/>',
+  backsp: '<path d="M21 5H9l-6 7 6 7h12z"/><path d="M12.5 9.5l5 5M17.5 9.5l-5 5"/>',
+  x: '<path d="M6 6l12 12M18 6L6 18"/>',
+  full: '<path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/>',
+  lock: '<rect x="5" y="10.5" width="14" height="10" rx="2.5"/><path d="M8 10.5V8a4 4 0 0 1 8 0v2.5"/>',
+  door: '<path d="M14 21V4.5L5 6.5V19zM14 21h5V4h-5M10.5 12.5v.1"/>',
+};
+const ic = (n, sz = 22, sw = 1.8) => `<svg class="ic" viewBox="0 0 24 24" width="${sz}" height="${sz}" fill="none" stroke="currentColor" stroke-width="${sw}" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[n]}</svg>`;
+
+/* ---------- logos vectoriales de ejemplo (el operador sube el suyo: X_APP_LOGO_MOBILE) ---------- */
+const MARKS = {
+  wave: '<path d="M3 20c3.5-4 6.5-4 10 0s6.5 4 10 0 4-3 6-3"/><path d="M3 13.5c3.5-4 6.5-4 10 0s6.5 4 10 0 4-3 6-3" opacity=".55"/><circle cx="24" cy="6" r="2.6" fill="currentColor" stroke="none"/>',
+  crown: '<path d="M5 25h22M6 23.5L4.5 11l6.5 6 5-9 5 9 6.5-6L26 23.5z" stroke-linejoin="round"/>',
+  chevron: '<path d="M6 13l10 10 10-10"/><path d="M6 5.5l10 10 10-10" opacity=".5"/>',
+};
+const isImg = id => id.startsWith("img:");
+const mark = (id, sz = 26) => isImg(id) ? `<span class="mk"><img class="mkimg" alt="" src="${id.slice(4)}" style="height:${Math.round(sz * .6)}px"></span>` : `<span class="mk"><svg viewBox="0 0 32 32" width="${sz}" height="${sz}" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true">${MARKS[id]}</svg></span>`;
+
+/* ---------- QR de mentira (patrón estable a partir de un texto; no es un QR real) ---------- */
+function rng(seed) { let h = 1779033703 ^ seed.length; for (let i = 0; i < seed.length; i++) { h = Math.imul(h ^ seed.charCodeAt(i), 3432918353); h = h << 13 | h >>> 19; } return () => { h = Math.imul(h ^ h >>> 16, 2246822507); h = Math.imul(h ^ h >>> 13, 3266489909); return ((h ^= h >>> 16) >>> 0) / 4294967296; }; }
+function qrPath(seed, N = 25) {
+  const r = rng(seed), m = Array.from({ length: N }, () => Array.from({ length: N }, () => r() > .52 ? 1 : 0));
+  const finder = (ox, oy) => { for (let y = -1; y < 8; y++) for (let x = -1; x < 8; x++) { const X = ox + x, Y = oy + y; if (X < 0 || Y < 0 || X >= N || Y >= N) continue; const on = x >= 0 && x < 7 && y >= 0 && y < 7 && (x === 0 || x === 6 || y === 0 || y === 6 || (x >= 2 && x <= 4 && y >= 2 && y <= 4)); m[Y][X] = on ? 1 : 0; } };
+  finder(0, 0); finder(N - 7, 0); finder(0, N - 7);
+  for (let i = 8; i < N - 8; i++) { m[6][i] = i % 2 ? 0 : 1; m[i][6] = i % 2 ? 0 : 1; }
+  let d = ""; for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) if (m[y][x]) d += `M${x} ${y}h1v1h-1z`;
+  return d;
+}
+const qrSvg = (seed, fg = "#0d1114") => `<svg viewBox="-1 -1 27 27" shape-rendering="crispEdges" aria-hidden="true"><path d="${qrPath(seed)}" fill="${fg}"/></svg>`;
+
+/* ---------- color ---------- */
+const rgb = h => { h = h.replace("#", ""); return [0, 2, 4].map(i => parseInt(h.substr(i, 2), 16)); };
+const rgba = (h, a) => `rgba(${rgb(h).join(",")},${a})`;
+const lumi = h => { const [r, g, b] = rgb(h).map(v => { v /= 255; return v <= .03928 ? v / 12.92 : Math.pow((v + .055) / 1.055, 2.4); }); return .2126 * r + .7152 * g + .0722 * b; };
+const inkOn = h => lumi(h) > .4 ? "#17120f" : "#ffffff";
+
+/* ---------- direcciones visuales (tokens de HospitalityColors.kt) ---------- */
+const DIRS = {
+  RESORT: { label: "Resort", tr: 1, sh: "0 10px 24px -12px rgba(0,0,0,.55)", c: { bg: "#0E2E32", surface: "#163F42", border: "#2A5457", text: "#F2F6EC", text2: "#B9D4CE", muted: "#7E9C94", accent: "#F08055", dark: true } },
+  CINEMATIC: { label: "Cinematic", tr: .72, sh: "none", c: { bg: "#0B0B0C", surface: "#17171A", border: "#2A2A2E", text: "#F5F2EA", text2: "#B8B3A7", muted: "#8A857B", accent: "#D4AF6A", dark: true } },
+  MINIMAL: { label: "Minimal", tr: 1.05, sh: "0 1px 2px rgba(20,25,30,.06),0 12px 26px -14px rgba(20,25,30,.22)", c: { bg: "#F7F7F5", surface: "#FFFFFF", border: "#E3E3DF", text: "#1A1C1E", text2: "#4A4F55", muted: "#7A8087", accent: "#2F6FDE", dark: false } },
+  LOBBY: { label: "Lobby (como la TV)", tr: .55, sh: "none", c: null },
+};
+const NEUTRAL = { bg: "#F2F1EC", surface: "#FFFFFF", border: "#DEDCD4", text: "#17191C", text2: "#4F545B", muted: "#80858B", accent: "#3D5A6C", dark: false };
+
+/* Colores del operador (X_APP_*): el hotel manda; la dirección visual solo completa lo que no define. */
+const OPCOLS = [["confirm", "Confirmar", "X_APP_CONFIRM_COLOR"], ["cancel", "Cancelar", "X_APP_CANCEL_COLOR"], ["text", "Texto", "X_APP_TEXT_COLOR"], ["card", "Tarjetas y widgets", "X_APP_CARD_COLOR"], ["player", "Control del player", "X_APP_PLAYER_CONTROL_COLOR"]];
+const opColor = k => S.op[k] || BR().handoff.colors[k] || null;
+function brandTokens() {
+  const b = BR(), dk = b.direction, d = DIRS[dk];   // la dirección es la de la marca (brand.json): no se elige desde la barra
+  const c = { ...DIRS[dk === "LOBBY" ? "RESORT" : dk].c }; const { tr, sh } = d;
+  const bc = b.brandColors || {};   // "colors" de brand.json
+  if (bc.background) c.bg = bc.background; if (bc.surface) c.surface = bc.surface; if (bc.accent) c.accent = bc.accent;
+  let tile = c.surface, tileb = c.border;
+  if (dk === "LOBBY") { c.border = "rgba(255,255,255,.16)"; tile = "rgba(255,255,255,.09)"; tileb = "rgba(255,255,255,.14)"; }   // vidrio de la home Lobby
+  const src = {};
+  OPCOLS.forEach(([k]) => src[k] = opColor(k) ? "op" : k === "cancel" || k === "player" ? "acento" : (k === "confirm" && bc.accent) || (k === "card" && bc.surface) ? "brand" : "dir");
+  if (opColor("confirm")) c.accent = opColor("confirm");
+  c.cancel = opColor("cancel") || c.accent;   // igual que la TV: sin X_APP_CANCEL_COLOR, Cancelar usa el acento
+  if (opColor("text")) { const x = opColor("text"); c.text = x; c.text2 = rgba(x, .78); c.muted = rgba(x, .6); }
+  if (opColor("card")) { const x = opColor("card"); c.surface = x; tile = dk === "LOBBY" ? rgba(x, .88) : x; tileb = "transparent"; }
+  c.player = opColor("player") || c.accent;
+  return { c, tr, sh, tile, tileb, dk, src };
+}
+const neutralTokens = () => ({ c: { ...NEUTRAL, cancel: NEUTRAL.accent, player: NEUTRAL.accent }, tr: 1, sh: "none", tile: "#fff", tileb: NEUTRAL.border, dk: "NEUTRAL", src: {} });
+function setVars(el, tk) {
+  const c = tk.c, v = { "--bg": c.bg, "--surface": c.surface, "--tile": tk.tile, "--tileb": tk.tileb, "--text": c.text, "--text2": c.text2, "--muted": c.muted, "--accent": c.accent, "--ink": inkOn(c.accent), "--border": c.border, "--cancel": c.cancel, "--pctl": c.player, "--tr": tk.tr, "--sh": tk.sh };
+  for (const k in v) el.style.setProperty(k, v[k]);
+}
+/* Fondo del celular: color liso (token de fondo de la dirección). Un fondo propio del celular quedaría como parámetro aparte. */
+const bgLayer = () => `<div class="bg"></div>`;
+function logoHtml(big) {
+  const h = BR().handoff;
+  return `<span class="logo ${big ? "big" : ""}">${mark(h.logo, big ? 46 : 30)}${isImg(h.logo) ? "" : `<span class="wm">${h.hotelName}</span>`}</span>`;
+}
+
+/* ---------- contenido de Panaccess (simulado) ---------- */
+function progs(ch) { let s = ch.from; return ch.p.map(([title, d]) => { const o = { title, start: s, dur: d, end: s + d }; s += d; return o; }); }
+function nowOn(ch) { const m = CONFIG.nowMin, ps = progs(ch); const p = ps.find(x => m < x.end) || ps[ps.length - 1]; return { ...p, pct: Math.max(0, Math.min(1, (m - p.start) / p.dur)), idx: ps.indexOf(p), all: ps }; }
+const chHue = ch => ch.hue;
+const chBg = h => `hsl(${h} 52% 26%)`;
+const chVars = h => `--c1:hsl(${h} 78% 50%);--c2:hsl(${(h + 55) % 360} 70% 40%);--c3:hsl(${(h + 320) % 360} 80% 62%)`;
+const posterBg = v => `hsl(${v.h1} 55% 32%)`;
+
+/* ---------- tiles de la home ---------- */
+const SIZE_ORDER = ["S", "M", "W"];
+const TILES = {
+  remote: { screen: "remote", label: "t_remote", sizes: ["S", "M", "W"], fill: true, feat: f => f.remoteControl !== false },
+  live: { screen: "content", tab: "live", label: "t_live", sizes: ["S", "M", "W"], feat: f => f.liveTv },
+  vod: { screen: "content", tab: "vod", label: "t_vod", sizes: ["S", "M", "W"], feat: f => f.vod },
+  wifi: { screen: "wifi", label: "t_wifi", sizes: ["S", "M", "W"] },
+  weather: { screen: "weather", label: "t_weather", sizes: ["S", "M", "W"] },
+  services: { screen: "services", label: "t_services", sizes: ["S", "M", "W"], feat: () => BR().services.length > 0 },
+  hotel: { screen: "hotel", label: "t_hotel", sizes: ["S", "M", "W"], feat: f => f.hotelInfo },
+  settings: { screen: "settings", label: "t_settings", sizes: ["S"] },
+};
+function layoutNow() { return S.custom || (S.preset === "brand" ? BR().home : CONFIG.layoutPresets[S.preset].tiles); }
+function activeTiles() {
+  const f = FE(), seen = new Set(), out = [];
+  layoutNow().forEach(x => {
+    const d = TILES[x.id]; if (!d || seen.has(x.id) || (d.feat && !d.feat(f))) return; seen.add(x.id);
+    let size = x.size; if (!d.sizes.includes(size)) { const want = SIZE_ORDER.indexOf(size); size = [...d.sizes].reverse().find(s => SIZE_ORDER.indexOf(s) <= want) || d.sizes[0]; }
+    out.push({ id: x.id, size });
+  });
+  return out;
+}
+const mdp = (sz) => `<div class="mdp" style="width:${sz}px;height:${sz}px"><i class="u">${ic("chevU", sz * .2, 2.4)}</i><i class="d">${ic("chevD", sz * .2, 2.4)}</i><i class="l">${ic("chevL", sz * .2, 2.4)}</i><i class="r">${ic("chevR", sz * .2, 2.4)}</i><i class="o">OK</i></div>`;
+const wk = (icon, label) => `<div class="wk">${ic(icon, 14, 2)}<span>${label}</span></div>`;
+function hotelImg() { const h = BR().hotel; return h && h.images && h.images.length ? h.images[Math.min(7, h.images.length - 1)].url : null; }
+function wxIcon(c) { return c === "c_sun" ? "sun" : "cloudsun"; }
+
+const WIDGET = {
+  remote(size, p) {
+    const room = BR().handoff.room;
+    if (size === "S") return `<span class="sq">${ic("remote", 30, 1.7)}</span>`;
+    if (size === "M") return `<div class="wi">${wk("remote", t("t_remote"))}<div class="sub" style="margin-top:6px;display:flex;gap:6px;align-items:center"><span class="dot" style="background:var(--ink);box-shadow:none"></span>${t("tvRoom", { r: room })}</div><div style="flex:1"></div><div style="align-self:center;margin-bottom:-4px">${mdp(98)}</div></div>`;
+    return `<div class="wi" style="flex-direction:row;align-items:center;gap:14px"><div style="flex:1;min-width:0;display:flex;flex-direction:column;height:100%">${wk("remote", t("t_remote"))}<div class="big" style="margin-top:10px">${t("tvOn")}</div><div class="sub" style="display:flex;gap:6px;align-items:center"><span class="dot" style="background:var(--ink);box-shadow:none"></span>${t("tvRoom", { r: room })}</div><div style="flex:1"></div><div style="display:flex;gap:7px"><span class="pill" style="background:#00000024;border:0;color:var(--ink);backdrop-filter:none;height:32px;padding:0 10px">${ic("vol", 15, 2)}<b style="font-weight:600">+ −</b></span><span class="pill" style="background:#00000024;border:0;color:var(--ink);backdrop-filter:none;height:32px;padding:0 10px">${ic("tv", 15, 2)}<b style="font-weight:600">CH</b></span></div></div>${mdp(134)}</div>`;
+  },
+  live(size, p) {
+    const ch = CONFIG.channels[p.ch], n = nowOn(ch);
+    if (size === "S") return `<span class="sq">${ic("tv", 30, 1.7)}<small style="color:#E5484D;font-size:8.5px">● LIVE</small></span>`;
+    const body = `<div class="scrim"></div><div class="wi ontv" style="padding:14px"><div style="display:flex;justify-content:space-between;align-items:flex-start"><span class="livebadge"><i></i>${t("nowTv").toUpperCase()}</span></div>${size === "M" ? `<div style="position:absolute;left:0;right:0;top:34px;text-align:center;font:600 34px/1 var(--ft);opacity:.3">${ch.abbr}</div>` : ""}<div style="flex:1"></div><div class="kick" style="opacity:.8">${ch.n} · ${ch.name}</div><div class="big" style="margin-top:3px;${size === "W" ? "font-size:26px" : "font-size:17px"}">${n.title}</div><div class="pbar"><i style="width:${n.pct * 100}%"></i></div></div>`;
+    if (size === "M") return `<div class="photo" style="position:absolute;inset:0;background:${chBg(ch.hue)}"></div>${body}`;
+    const others = [1, 2, 3].map(i => CONFIG.channels[(p.ch + i) % CONFIG.channels.length]);
+    return `<div class="photo" style="position:absolute;inset:0;background:${chBg(ch.hue)}"></div>${body}<div class="chip3" style="position:absolute;right:12px;top:14px;width:136px">${others.map(o => `<span><b style="opacity:.7">${o.n}</b>${nowOn(o).title}</span>`).join("")}</div>`;
+  },
+  vod(size) {
+    const V = CONFIG.vod;
+    if (size === "S") return `<span class="sq">${ic("film", 30, 1.7)}</span>`;
+    if (size === "M") return `<div class="wi">${wk("film", t("t_vod"))}<div style="flex:1;position:relative;margin-top:8px"><div class="poster" style="position:absolute;left:4px;bottom:-26px;width:64px;height:96px;background:${posterBg(V[1])};transform:rotate(-8deg)"></div><div class="poster" style="position:absolute;left:44px;bottom:-24px;width:64px;height:96px;background:${posterBg(V[0])};transform:rotate(-1deg);box-shadow:-6px 0 14px #0006"></div><div class="poster" style="position:absolute;left:86px;bottom:-26px;width:64px;height:96px;background:${posterBg(V[4])};transform:rotate(7deg);box-shadow:-6px 0 14px #0006"></div></div></div>`;
+    return `<div class="wi">${wk("film", t("t_vod"))}<div style="display:flex;gap:10px;margin-top:10px">${[0, 4, 2, 7].map(i => `<div class="poster" style="flex:1;height:96px;background:${posterBg(V[i])};display:flex;align-items:flex-end;padding:7px;color:#fff;font:600 12px/1.05 var(--ft)">${V[i].t}</div>`).join("")}</div></div>`;
+  },
+  wifi(size) {
+    const w = BR().wifi;
+    if (size === "S") return `<span class="sq">${ic("wifi", 30, 1.7)}</span>`;
+    if (size === "M") return `<div class="wi">${wk("wifi", t("wf_title"))}<div style="margin-top:8px;font-weight:600;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${w.ssid}</div><div style="flex:1"></div><div style="display:flex;align-items:flex-end;justify-content:space-between"><div style="font:600 10.5px ui-monospace,Menlo,monospace;color:var(--text2);max-width:70px;word-break:break-all;line-height:1.35">${w.password}</div><div class="qrbox" style="width:74px;height:74px">${qrSvg("wifi" + w.ssid)}</div></div></div>`;
+    return `<div class="wi" style="flex-direction:row;align-items:center;gap:16px"><div style="flex:1;min-width:0;display:flex;flex-direction:column;height:100%">${wk("wifi", t("wf_title"))}<div style="flex:1"></div><div class="kick" style="color:var(--text2);font-size:9.5px">${t("network")}</div><div style="font:600 18px/1.1 var(--ft);margin-bottom:8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${w.ssid}</div><div class="kick" style="color:var(--text2);font-size:9.5px">${t("password")}</div><div style="font:600 13px ui-monospace,Menlo,monospace;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${w.password}</div></div><div class="qrbox" style="width:124px;height:124px;padding:7px">${qrSvg("wifi" + w.ssid)}</div></div>`;
+  },
+  weather(size) {
+    const w = BR().weather, city = BR().handoff.city;
+    if (size === "S") return `<span class="sq sky" style="color:#fff;background:#4a97d2;border:0">${ic(wxIcon(w.cond), 24, 1.8)}<b style="color:#fff;font-size:17px;margin-top:2px">${w.temp}°</b></span>`;
+    const days = [0, 1, 2, 3].map(i => { const d = new Date(2026, 10, 26 + i); return `<div style="text-align:center"><div style="font-size:10.5px;opacity:.85;text-transform:capitalize">${d.toLocaleDateString(S.lang, { weekday: "short" }).replace(".", "")}</div><div style="margin:5px 0">${ic(i === 1 ? "cloudsun" : "sun", 20, 1.8)}</div><b style="font-size:13px">${w.hi - (i === 2 ? 2 : 0) + (i === 3 ? 1 : 0)}°</b></div>`; }).join("");
+    if (size === "M") return `<div class="wi">${wk("pin", city)}<div style="font:600 46px/1 var(--ft);margin-top:8px">${w.temp}°</div><div style="font-size:13px;font-weight:600;margin-top:2px">${t(w.cond)}</div><div style="flex:1"></div><div style="font-size:12px;opacity:.9">${t("hi_t")} ${w.hi}° · ${t("lo_t")} ${w.lo}°</div></div>`;
+    return `<div class="wi" style="flex-direction:row;gap:12px"><div style="flex:1;display:flex;flex-direction:column;height:100%">${wk("pin", city)}<div style="font:600 52px/1 var(--ft);margin-top:8px">${w.temp}°</div><div style="font-size:13px;font-weight:600;margin-top:2px">${t(w.cond)}</div><div style="flex:1"></div><div style="font-size:12px;opacity:.9">${t("hi_t")} ${w.hi}° · ${t("lo_t")} ${w.lo}°</div></div><div style="display:flex;gap:12px;align-items:center;padding-top:18px">${days}</div></div>`;
+  },
+  services(size) {
+    const S4 = BR().services.slice(0, 4);
+    if (size === "S") return `<span class="sq">${ic("bell", 30, 1.7)}</span>`;
+    const chips = S4.map(s => `<span>${ic(s[0], 17, 1.9)}<em>${t("sv_" + s[0])}</em></span>`).join("");
+    if (size === "M") return `<div class="wi">${wk("bell", t("t_services"))}<div class="mini4" style="margin-top:10px;grid-template-columns:1fr 1fr;flex:1;align-content:start;gap:6px">${chips}</div></div>`;
+    return `<div class="wi">${wk("bell", t("sv_title"))}<div class="mini4" style="margin-top:12px;grid-template-columns:1fr 1fr;gap:8px">${chips}</div></div>`;
+  },
+  hotel(size) {
+    const b = BR(), img = hotelImg();
+    if (size === "S") return `<span class="sq" style="color:var(--accent)">${mark(b.handoff.logo, 34)}</span>`;
+    const bg = img ? `background-image:url('${img}')` : `background:color-mix(in srgb,var(--surface) 80%,#000)`;
+    return `<div class="photo" style="position:absolute;inset:0;${bg}"></div><div class="scrim"></div><div class="wi ontv">${img ? "" : `<div style="position:absolute;right:16px;top:14px;color:var(--accent);opacity:.9">${mark(b.handoff.logo, size === "W" ? 54 : 40)}</div>`}<div style="flex:1"></div><div class="kick" style="opacity:.85">${t("t_hotel")}${b.handoff.city ? " · " + b.handoff.city : ""}</div><div class="big" style="font-size:${size === "W" ? 28 : 21}px;margin-top:3px">${b.handoff.hotelName}</div></div>`;
+  },
+  settings(size) { return `<span class="sq">${ic("sliders", 28, 1.7)}<small>${S.lang.toUpperCase()}</small></span>`; },
+};
+function tileHtml(x, p) {
+  const d = TILES[x.id], inner = WIDGET[x.id](x.size, p);
+  const attrs = `role="button" tabindex="0" data-act="open" data-s="${d.screen}" ${d.tab ? `data-tab="${d.tab}"` : ""}`;
+  if (x.size === "S") return `<div class="tile S ${d.fill ? "fill" : ""}" ${attrs}>${inner}<span class="lbl">${t(d.label)}</span></div>`;
+  const cls = x.id === "weather" ? "sky" : "";
+  return `<div class="tile wd ${x.size} ${d.fill ? "fill" : ""} ${cls}" ${attrs}>${inner}</div>`;
+}
+
+/* ---------- catálogo de pantallas / teléfonos ---------- */
+const SPECS = [
+  { sec: "pre", key: "neutral", screen: "neutral", paired: false, title: "1 · Primera pantalla, neutra", desc: "Antes de emparejar no se sabe de qué hotel es: no hay marca, ni sesión, ni login." },
+  { sec: "pre", key: "scan", screen: "scan", paired: false, title: "2 · Escanear el QR de la TV", desc: "El QR lleva solo el código de 6 dígitos. Toca el visor para simular la lectura." },
+  { sec: "pre", key: "code", screen: "code", paired: false, code: "4829", title: "2b · Escribir el código", desc: "Alternativa sin cámara. Cualquier código de 6 dígitos sirve en la versión de prueba." },
+  { sec: "pre", key: "conn", screen: "connecting", paired: false, autoplay: true, title: "3 · Conectando y handoff", desc: "La TV le manda al celular los datos del hotel y la app se viste con su marca." },
+  { sec: "app", key: "home", screen: "home", paired: true, title: "4 · Home", desc: "Tiles chicos y grandes, como los widgets de iOS. Orden y tamaño salen de un parámetro." },
+  { sec: "app", key: "remote", screen: "remote", paired: true, title: "5 · Control remoto", desc: "Flechas, OK, volumen, canal y “mandar a la TV”. La TV chica muestra el efecto." },
+  { sec: "app", key: "content", screen: "content", paired: true, ch: 2, title: "6 · Contenido", desc: "Canales, guía y películas (si la marca tiene VOD) con un player simulado." },
+  { sec: "app", key: "services", screen: "services", paired: true, title: "7 · Servicios del hotel", desc: "Solo informativos: horarios y lugar. Sin pedidos." },
+  { sec: "app", key: "hotel", screen: "hotel", paired: true, title: "8 · Ficha del hotel", desc: "Fotos y descripción del hotel, y un botón para verla en la TV." },
+  { sec: "app", key: "wifi", screen: "wifi", paired: true, title: "9 · Wi‑Fi", desc: "Red y clave del hotel, con QR para unirse." },
+  { sec: "app", key: "weather", screen: "weather", paired: true, title: "10 · Clima", desc: "Clima de la ciudad del hotel." },
+  { sec: "app", key: "settings", screen: "settings", paired: true, title: "11 · Ajustes", desc: "Solo idioma e información. No hay “cerrar sesión”." },
+  { sec: "end", key: "ended", screen: "ended", paired: true, title: "12 · Estadía finalizada", desc: "Si la TV desempareja (check-out), la app lo avisa y vuelve a la pantalla neutra." },
+];
+const SECS = {
+  pre: ["Antes de emparejar", "Sin marca todavía. El QR de la TV hace de login: no hay usuario ni contraseña."],
+  app: ["Con el hotel emparejado", "Todo lo de abajo sale del handoff de la TV y de los parámetros de Panaccess (X_APP_*). Cámbialos en “Parámetros” (colores, logo, Wi‑Fi, huésped, features, orden de tiles) y mira el efecto."],
+  end: ["Fin de estadía", "El check-out lo cierra el backend; el huésped no tiene botón de salir."],
+};
+
+/* ---------- el teléfono ---------- */
+const phones = [];
+class Phone {
+  constructor(spec) {
+    this.spec = spec; this.id = spec.key; this.timers = [];
+    this.reset(false);
+    const u = document.createElement("figure"); u.className = "unit";
+    u.innerHTML = `<div class="phone"><div class="screen" data-ph="${this.id}"><div class="island"></div><div class="sbar"><span>${CONFIG.clock}</span><span class="si">
+      <svg width="18" height="12" viewBox="0 0 18 12" fill="currentColor"><rect x="0" y="8" width="3" height="4" rx=".8"/><rect x="5" y="5.5" width="3" height="6.5" rx=".8"/><rect x="10" y="3" width="3" height="9" rx=".8"/><rect x="15" y="0" width="3" height="12" rx=".8"/></svg>
+      <svg width="17" height="12" viewBox="0 0 17 12" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M1.5 4.2a10 10 0 0 1 14 0M4 7a6.4 6.4 0 0 1 9 0"/><circle cx="8.5" cy="10" r="1.1" fill="currentColor" stroke="none"/></svg>
+      <svg width="27" height="13" viewBox="0 0 27 13" fill="none"><rect x=".5" y=".5" width="23" height="12" rx="3.6" stroke="currentColor" opacity=".4"/><rect x="2" y="2" width="17" height="9" rx="2.2" fill="currentColor"/><path d="M25 4.5v4" stroke="currentColor" opacity=".5" stroke-linecap="round"/></svg></span></div>
+      <div class="view"></div><div class="toast"></div><div class="hind"></div></div></div>
+      <figcaption class="cap"><b>${spec.title}</b><span>${spec.desc}</span><div class="acts"></div></figcaption>`;
+    this.unit = u; this.scr = $(".screen", u); this.view = $(".view", u); this.sbar = $(".sbar", u); this.hind = $(".hind", u); this.toastEl = $(".toast", u);
+    this.scr.__ph = this;
+    const acts = $(".acts", u);
+    const add = (label, fn) => { const b = document.createElement("button"); b.textContent = label; b.onclick = fn; acts.appendChild(b); };
+    add("↺ Reiniciar", () => { this.reset(true); this.refresh(); if (spec.autoplay) this.startConnect(); });
+    if (spec.sec !== "pre") add("Simular check-out de la TV", () => this.checkout());
+    this.refresh(); if (spec.autoplay) this.startConnect();
+  }
+  reset(clear = true) {
+    this.timers.forEach(clearTimeout); this.timers = [];
+    const s = this.spec;
+    Object.assign(this, { screen: s.screen, stack: [], paired: s.paired, mode: s.paired ? "brand" : "neutral", code: s.code || "", ch: s.ch ?? 0, tab: "live", vodSel: null, playing: true, el: 0, exp: null, cstep: 0, last: null, more: false, galIdx: 0, bad: false, lock: false,
+      tv: { mode: "live", ch: 0, vod: null, vol: 35, muted: false, osd: false } });
+    if (s.screen === "content") this.tab = "live";
+    if (s.screen === "ended") this.mode = "brand";
+    if (s.autoplay) { this.screen = "neutral"; }
+  }
+  get tk() { return this.mode === "brand" ? brandTokens() : neutralTokens(); }
+  refresh(keep) {
+    const tk = this.tk; setVars(this.scr, tk);
+    const sc = keep ? this.view.querySelector(".scroll,.home") : null, top = sc ? sc.scrollTop : 0;
+    const dark = this.screen === "scan";
+    this.sbar.classList.toggle("force", dark); this.hind.classList.toggle("force", dark);
+    if (this._lm !== this.mode) { this._lm = this.mode; this.view.classList.add("fadebg"); clearTimeout(this._fb); this._fb = setTimeout(() => this.view.classList.remove("fadebg"), 1000); }
+    this.view.innerHTML = this.render(tk);
+    if (keep && top) { const n = this.view.querySelector(".scroll,.home"); if (n) n.scrollTop = top; }
+    this.after();
+  }
+  go(s, o = {}) { this.stack.push(this.screen); this.screen = s; Object.assign(this, o); this.refresh(); }
+  back() { this.screen = this.stack.pop() || (this.paired ? "home" : "neutral"); this.refresh(); }
+  toast(msg, icon = "check") { this.toastEl.innerHTML = ic(icon, 16, 2.2) + msg; this.toastEl.classList.add("on"); clearTimeout(this._tt); this._tt = setTimeout(() => this.toastEl.classList.remove("on"), 1900); }
+  later(fn, ms) { this.timers.push(setTimeout(fn, ms)); }
+
+  /* --- flujo de emparejamiento --- */
+  startConnect() {
+    this.timers.forEach(clearTimeout); this.timers = [];
+    this.mode = "neutral"; this.cstep = 0; this.screen = "connecting"; this.stack = []; this.refresh();
+    this.later(() => { this.cstep = 1; this.refresh(); }, 600);
+    this.later(() => { this.cstep = 2; this.refresh(); }, 1400);
+    this.later(() => { this.cstep = 3; this.mode = "brand"; this.tv = { mode: "live", ch: 0, vod: null, vol: 35, muted: false, osd: false }; this.refresh(); }, 2300);   // llegan los datos: la app se viste con la marca
+    this.later(() => { this.cstep = 4; this.refresh(); }, 4300);
+    this.later(() => { this.screen = "welcome"; this.refresh(); }, 5300);
+  }
+  checkout() { this.timers.forEach(clearTimeout); this.mode = "brand"; this.stack = []; this.screen = "ended"; this.paired = true; this.refresh(); }
+
+  /* --- acciones --- */
+  act(name, el) {
+    const d = el.dataset;
+    switch (name) {
+      case "open": { if (d.tab) this.tab = d.tab; this.go(d.s); break; }
+      case "back": this.back(); break;
+      case "scan": this.go("scan"); break;
+      case "type": this.go("code"); break;
+      case "lock": if (this.lock) break; this.lock = true; { const v = $(".vf", this.view); if (v) v.classList.add("lock"); } this.later(() => { this.lock = false; this.startConnect(); }, 650); break;
+      case "dig": if (this.code.length < 6) { this.code += d.d; this.bad = false; this.refresh(); } break;
+      case "del": this.code = this.code.slice(0, -1); this.refresh(); break;
+      case "go": if (this.code.length === 6) { this.code = ""; this.startConnect(); } else { this.bad = true; this.refresh(); } break;
+      case "enter": this.paired = true; this.stack = []; this.screen = "home"; this.refresh(); break;
+      case "home": this.stack = []; this.screen = "home"; this.refresh(); break;
+      case "lang": S.lang = d.l; refreshAll(); syncBar(); break;
+      case "ended": this.paired = false; this.mode = "neutral"; this.stack = []; this.screen = "neutral"; this.refresh(); break;
+      case "key": this.key(d.k); break;
+      case "send": this.sendTv(); break;
+      case "noop": break;
+      case "cancelconn": this.timers.forEach(clearTimeout); this.timers = []; this.mode = "neutral"; this.screen = "neutral"; this.stack = []; this.refresh(); break;
+      case "pp": { this.playing = !this.playing; const pl = $(".player", this.view); if (pl) { pl.classList.toggle("paused", !this.playing); $(".ppi", pl).innerHTML = ic(this.playing ? "pause" : "play", 15, 2); } break; }
+      case "ch": this.ch = +d.i; this.vodSel = null; this.playing = true; this.el = 0; this.refresh(true); break;
+      case "tab": this.tab = d.tab; this.refresh(); break;
+      case "vod": this.vodSel = +d.i; this.playing = true; this.el = 0; this.refresh(true); break;
+      case "svc": this.exp = this.exp === d.i ? null : d.i; this.refresh(true); break;
+      case "more": this.more = !this.more; this.refresh(true); break;
+      case "gal": { const c = $(".car", this.view); if (c) { c.scrollTo({ left: d.i * c.clientWidth, behavior: "smooth" }); this.view.querySelector(".scroll").scrollTo({ top: 0, behavior: "smooth" }); } break; }
+      case "hotelTv": this.toast(t("sentTv"), "cast"); this.tv.mode = "hotel"; break;
+      case "copy": try { navigator.clipboard && navigator.clipboard.writeText(d.v); } catch (e) { } this.toast(t("copied"), "copy"); break;
+    }
+  }
+  media() {
+    if (this.vodSel != null) { const v = CONFIG.vod[this.vodSel]; return { kind: "vod", title: v.t, sub: `${t(v.g)} · ${v.y} · ${v.m} ${t("min")}`, h: v.h1, wm: v.t.split(" ")[0], dur: v.m * 60, v }; }
+    const c = CONFIG.channels[this.ch], n = nowOn(c); return { kind: "live", title: n.title, sub: `${c.n} · ${c.name} · ${hhmm(n.start)}–${hhmm(n.end)}`, h: c.hue, wm: c.abbr, n, c };
+  }
+  sendTv() {
+    const m = this.media(), tv = this.tv;
+    if (m.kind === "vod") { tv.mode = "vod"; tv.vod = this.vodSel; } else { tv.mode = "live"; tv.ch = this.ch; }
+    this.toast(t("sentTv"), "cast");
+    const bx = $(".tvbox", this.view); if (bx) bx.innerHTML = this.tvBox();
+    this.last = t("sendTv"); const ch = $(".chipc", this.view); if (ch) ch.textContent = this.last;
+  }
+  key(k) {
+    const tv = this.tv; let label = "";
+    const arrows = { up: "↑", down: "↓", left: "←", right: "→" };
+    if (arrows[k]) label = arrows[k]; else if (k === "ok") label = t("r_ok");
+    else if (k === "vup") { tv.vol = Math.min(100, tv.vol + 5); tv.muted = false; tv.osd = true; label = t("r_vol") + " +"; }
+    else if (k === "vdn") { tv.vol = Math.max(0, tv.vol - 5); tv.muted = false; tv.osd = true; label = t("r_vol") + " −"; }
+    else if (k === "mute") { tv.muted = !tv.muted; tv.osd = true; label = t("r_mute"); }
+    else if (k === "chup" || k === "chdn") { const n = CONFIG.channels.length; tv.ch = (tv.ch + (k === "chup" ? 1 : n - 1)) % n; tv.mode = "live"; label = t("r_ch") + (k === "chup" ? " +" : " −"); }
+    else if (k === "back") { tv.mode = "live"; label = t("r_back"); }
+    else if (k === "home") { tv.mode = "home"; label = t("r_home"); }
+    else if (k === "guide") { tv.mode = "guide"; label = t("r_guide"); }
+    else if (k === "hotel") { tv.mode = "hotel"; label = t("r_hotel"); }
+    this.last = label;
+    const bx = $(".tvbox", this.view); if (bx) bx.innerHTML = this.tvBox();
+    clearTimeout(this._osd); if (tv.osd) this._osd = setTimeout(() => { tv.osd = false; const b2 = $(".tvbox", this.view); if (b2) b2.innerHTML = this.tvBox(); }, 1500);
+  }
+  tick() {
+    if (this.screen !== "content" || !this.playing) return;
+    this.el++; this.updPlayer();
+  }
+  updPlayer() {
+    const tm = $(".player .tm", this.view), pb = $(".player .pb i", this.view); if (!tm) return;
+    const m = this.media();
+    if (m.kind === "vod") { const e = 722 + this.el; tm.textContent = `${mmss(e)} / ${mmss(m.dur)}`; pb.style.width = Math.min(100, e / m.dur * 100) + "%"; }
+    else { const s = CONFIG.nowMin * 60 + this.el, p = Math.max(0, Math.min(1, (s - m.n.start * 60) / (m.n.dur * 60))); tm.textContent = `${hhmm(Math.floor(s / 60))}`; pb.style.width = p * 100 + "%"; }
+  }
+  after() { if (this.screen === "content") this.updPlayer(); if (this.screen === "hotel") { const c = $(".car", this.view); if (c) c.onscroll = () => { const i = Math.round(c.scrollLeft / c.clientWidth); $$dots(this.view, i); }; } }
+
+  /* --- render --- */
+  render(tk) {
+    const f = this["s_" + this.screen]; return f ? f.call(this, tk) : "";
+  }
+  topbar(title, right = "") { return `<div class="top"><button class="rb0" data-act="back" aria-label="${t("back")}">${ic("chevL", 20, 2.2)}</button><h1>${title}</h1>${right}</div>`; }
+  inner(tk, body, extra = "") { return `${bgLayer(tk, true)}<div class="scr ${extra}">${body}</div>`; }
+
+  s_neutral(tk) {
+    const phoneIllus = `<svg viewBox="0 0 340 300" fill="none" aria-hidden="true">
+      <circle cx="170" cy="150" r="128" fill="var(--border)" opacity=".55"/><circle cx="170" cy="150" r="92" fill="var(--border)" opacity=".5"/>
+      <rect x="38" y="46" width="264" height="170" rx="16" fill="#1c2327"/><rect x="50" y="58" width="240" height="146" rx="8" fill="#2d3b43"/>
+      <path d="M126 216h88l10 20H116z" fill="#1c2327"/><rect x="104" y="234" width="132" height="6" rx="3" fill="#1c2327"/>
+      <rect x="118" y="72" width="104" height="104" rx="7" fill="#fff"/><g transform="translate(125 79) scale(2.1)"><path d="${qrPath("tv")}" fill="#0d1114"/></g>
+      <text x="170" y="196" text-anchor="middle" font-family="HospBody,sans-serif" font-size="11" font-weight="600" fill="#9db0b9" letter-spacing="3">482 915</text>
+      <g transform="rotate(8 250 220)"><rect x="206" y="148" width="86" height="132" rx="17" fill="var(--bg)" stroke="var(--text)" stroke-width="3.5"/><rect x="214" y="160" width="70" height="104" rx="8" fill="#10171b"/>
+        <g stroke="var(--accent)" stroke-width="3" stroke-linecap="round" fill="none"><path d="M224 178v-8h8M274 178v-8h-8M224 250v8h8M274 250v8h-8"/></g>
+        <rect x="233" y="204" width="32" height="2.5" rx="1.2" fill="var(--accent)"/><rect x="234" y="190" width="30" height="30" rx="3" fill="#fff" opacity=".9"/><g transform="translate(236 192) scale(1.05)"><path d="${qrPath("tv")}" fill="#0d1114"/></g>
+        <rect x="240" y="154" width="18" height="3.6" rx="1.8" fill="var(--text)" opacity=".8"/></g>
+      <path d="M200 150c-6-18-2-34 12-44" stroke="var(--accent)" stroke-width="2.4" stroke-dasharray="1 7" stroke-linecap="round"/></svg>`;
+    return `${bgLayer(tk)}<div class="scr neutral"><div class="brandline"><span class="app">${ic("tv", 17, 2)}</span>${CONFIG.brands.generic.displayName}</div>
+      <div class="illus">${phoneIllus}</div>
+      <h1>${t("n_title")}</h1><p>${t("n_sub")}</p>
+      <div class="btns"><button class="btn pri" data-act="scan">${ic("qr", 22, 1.9)}${t("n_scan")}</button><button class="btn txt" data-act="type">${ic("keyboard", 20, 1.8)}${t("n_type")}</button></div>
+      <div class="foot">${ic("lock", 14, 2)}${t("n_foot")}</div></div>`;
+  }
+  s_scan(tk) {
+    return `<div class="scr cam"><div class="feed"><div class="tvv"><div class="sc"><div class="qrw">${qrSvg("tv")}</div></div></div><div class="tvstand"></div></div><div class="shade"></div>
+      <div class="top"><button class="rb0" data-act="back" aria-label="${t("back")}">${ic("chevL", 20, 2.2)}</button><span style="flex:1"></span><button class="rb0" aria-label="flash">${ic("bolt", 19, 2)}</button></div>
+      <div class="vf ${this.lock ? "lock" : ""}"><i></i><i></i><i></i><i></i><b></b></div><div class="tap" data-act="lock"></div>
+      <div class="bot"><p>${t("s_hint")}</p><small>${t("s_tap")}</small><button class="btn sec" data-act="type" style="position:relative;z-index:3">${ic("keyboard", 20, 1.8)}${t("s_manual")}</button></div></div>`;
+  }
+  s_code(tk) {
+    const c = this.code, cur = Math.min(c.length, 5);
+    const digs = Array.from({ length: 6 }, (_, i) => `<div class="dg ${i === cur && c.length < 6 ? "cur" : ""}">${c[i] || ""}</div>`).join("");
+    const keys = [1, 2, 3, 4, 5, 6, 7, 8, 9].map(n => `<button data-act="dig" data-d="${n}">${n}</button>`).join("") + `<button class="nop" aria-hidden="true"></button><button data-act="dig" data-d="0">0</button><button data-act="del" aria-label="borrar">${ic("backsp", 24, 1.8)}</button>`;
+    return `${bgLayer(tk)}<div class="scr codescr"><div class="top"><button class="rb0" data-act="back" aria-label="${t("back")}">${ic("chevL", 20, 2.2)}</button></div>
+      <div class="mid"><h1>${t("c_title")}</h1><p>${t("c_sub")}</p><div class="digs ${this.bad ? "shake bad" : ""}">${digs}</div>
+      <button class="btn pri" data-act="go" ${c.length < 6 ? 'style="opacity:.45"' : ""}>${t("c_go")}</button></div><div class="pad">${keys}</div></div>`;
+  }
+  s_connecting(tk) {
+    const h = BR().handoff, b = BR(), st = this.cstep, f = FE(), c = tk.c;
+    const step = (n, k) => `<div class="stp ${st >= n ? "on" : ""} ${st > n ? "done" : st === n ? "act" : ""}"><span class="c">${st > n ? ic("check", 13, 3) : ""}</span>${t(k)}</div>`;
+    const msg = h.welcome ? loc(h.welcome) : t("w_msg"), nph = b.hotel ? b.hotel.images.length : 0;
+    const sw = [c.accent, c.cancel, c.text, c.surface, c.player].map(x => `<i style="background:${x}"></i>`).join("");
+    const chips = [
+      [t("h_hotel"), h.hotelName], [t("h_room"), h.room], [t("h_lang"), LANG_NAMES[h.lang]],
+      [t("h_guest"), h.guest || `<span style="font-weight:500;color:var(--text2)">${t("h_none")}</span>`],
+      [t("h_logo"), mark(h.logo, 20)], [t("h_font"), h.font],
+      [t("h_colors"), `<span class="sw2">${sw}</span>`, "w2"],
+      [t("h_wifi"), `${b.wifi.ssid} · ${b.wifi.password}`, "w2"],
+      [t("h_wx"), `${b.weather.temp}° · ${h.city || ""}`], [t("h_svc"), t("h_n_svc", { n: b.services.length })],
+      ...(f.hotelInfo && b.hotel ? [[t("h_info"), nph ? t("h_n_photos", { n: nph }) : "✓"]] : []),
+      [t("h_msg"), msg, "w2 wrap"],
+    ];
+    const pay = st >= 3 ? `<div class="pays">${chips.map((r, i) => `<div class="pc ${r[2] ? r[2].split(" ")[0] : ""}" style="animation-delay:${i * .1}s"><small>${r[0]}</small><b class="${r[2] && r[2].includes("wrap") ? "wrap" : ""}">${r[1]}</b></div>`).join("")}</div>` : "";
+    return `${bgLayer()}<div class="scr conn"><div class="ring ${st >= 3 ? "done sm" : ""}"><svg class="sp" viewBox="0 0 84 84" fill="none"><circle cx="42" cy="42" r="38" stroke="var(--border)" stroke-width="3"/><path d="M42 4a38 38 0 0 1 38 38" stroke="currentColor" stroke-width="3.5" stroke-linecap="round"/></svg>${st >= 3 ? ic("check", 28, 2.4) : ic("tv", 32, 1.7)}</div>
+      <h1>${st >= 3 ? t("k_got") : t("k_conn")}</h1>${st >= 3 ? "" : `<div class="steps">${step(0, "k_s1")}${step(1, "k_s2")}${step(2, "k_s3")}</div>`}${pay}
+      <div style="flex:1"></div>${st < 4 ? `<button class="btn txt cancel" data-act="cancelconn">${t("cancel")}</button>` : ""}</div>`;
+  }
+  s_welcome(tk) {
+    const h = BR().handoff, msg = h.welcome ? loc(h.welcome) : t("w_msg");
+    return `${bgLayer(tk)}<div class="scr welc"><div class="card gl">${logoHtml(true)}<h1 class="anim">${h.guest ? t("w_hello_n", { n: h.guest }) : t("w_hello")}</h1><div class="room">${ic("door", 17, 1.9)}${t("w_room", { r: h.room })}${h.city ? " · " + h.city : ""}</div>
+      <p class="msg">${msg}</p><button class="btn pri" data-act="enter">${t("w_go")}${ic("chevR", 20, 2.2)}</button></div></div>`;
+  }
+  s_home(tk) {
+    const b = BR(), h = b.handoff, tiles = activeTiles();
+    const grid = tiles.map(x => tileHtml(x, { ch: this.ch })).join("");
+    return `${bgLayer(tk)}<div class="scr"><div class="home scroll" style="flex:1"><div class="hero"><div class="hrow"><span class="logoc">${logoHtml()}</span>
+      <span class="right">${FE().remoteControl ? `<span class="pill"><span class="dot"></span>TV ${h.room}</span>` : ""}<button class="rb0" data-act="open" data-s="settings" aria-label="${t("t_settings")}">${ic("sliders", 19, 1.9)}</button></span></div>
+      <div class="greet"><div class="kick">${ic("pin", 13, 2.2)}${t("w_room", { r: h.room })}${h.city ? " · " + h.city : ""}</div><h1>${h.guest ? t("hi_n", { n: h.guest }) : t("hi")}</h1></div></div>
+      <div class="grid">${grid}</div><div class="homefoot"></div></div></div>`;
+  }
+  tvBox() {
+    const tv = this.tv, ch = CONFIG.channels[tv.ch], h = BR().handoff; let bg, big = "", b, a;
+    if (tv.mode === "vod") { const v = CONFIG.vod[tv.vod]; bg = posterBg(v); big = ""; b = v.t; a = `${t(v.g)} · ${v.m} ${t("min")}`; }
+    else if (tv.mode === "guide") { bg = "#10171c"; big = ""; b = t("r_guide"); a = ch.name; }
+    else if (tv.mode === "hotel") { bg = `color-mix(in srgb,var(--accent) 45%,#000)`; b = h.hotelName; a = t("t_hotel"); }
+    else if (tv.mode === "home") { bg = "#101b1f"; b = h.hotelName; a = t("r_home"); }
+    else { const n = nowOn(ch); bg = chBg(ch.hue); big = ch.abbr; b = `${ch.n} · ${ch.name}`; a = n.title; }
+    const grid = tv.mode === "guide" ? `<div style="position:absolute;inset:8px 8px 34px;display:grid;gap:4px;align-content:start">${[0, 1, 2, 3].map(i => `<div style="height:9px;border-radius:2px;background:#ffffff${i === 1 ? "40" : "1c"};width:${60 + i * 9}%;margin-left:${i * 6}%"></div>`).join("")}</div>` : "";
+    const mosaic = tv.mode === "home" ? `<div style="position:absolute;inset:8px 8px 34px;display:grid;grid-template-columns:2fr 1fr 1fr;grid-template-rows:1fr 1fr;gap:3px">${[1, 0, 0, 0, 0].map((o, i) => `<div style="border-radius:3px;background:#ffffff${i === 0 ? "26" : "14"};${i === 0 ? "grid-row:span 2" : ""}"></div>`).join("")}</div>` : "";
+    const vol = tv.muted ? 0 : tv.vol;
+    return `<div class="tvs"><div class="sc" style="background:${bg}">${grid}${mosaic}<div class="big">${big}</div><div class="b">${b}</div><div class="a">${a}</div></div>
+      <div class="osd ${tv.osd ? "on" : ""}">${ic(tv.muted ? "mute" : "vol", 11, 2)}<i><u style="width:${vol}%"></u></i></div></div>
+      <div class="tvinfo"><div class="t">${t("tvRoom", { r: h.room })}</div><div class="s" style="display:flex;gap:6px;align-items:center"><span class="dot"></span>${t("tvOn")}</div><span class="chipc">${this.last ? t("r_last") + ": " + this.last : t("r_ready")}</span></div>`;
+  }
+  s_remote(tk) {
+    const m = this.media(), b = (k, icon, l, extra = "") => `<button class="rb" data-act="key" data-k="${k}" ${extra}>${icon ? ic(icon, 18, 2) : ""}${l}</button>`;
+    const body = `${this.topbar(t("t_remote"))}<div class="scroll" style="flex:1"><div class="card tvbox">${this.tvBox()}</div>
+      <div class="rbody"><div class="rr">${b("back", "back", t("r_back"))}${b("home", "home", t("r_home"))}${b("guide", "guide", t("r_guide"))}</div>
+      <div class="rcl"><div class="rock"><button data-act="key" data-k="vup" aria-label="vol +">${ic("plus", 22, 2.2)}</button><span class="lb">${t("r_vol").slice(0, 3)}</span><button data-act="key" data-k="vdn" aria-label="vol -">${ic("minus", 22, 2.2)}</button></div>
+        <div class="dpad"><button class="u" data-act="key" data-k="up">${ic("chevU", 28, 2.2)}</button><button class="l" data-act="key" data-k="left">${ic("chevL", 28, 2.2)}</button><button class="r" data-act="key" data-k="right">${ic("chevR", 28, 2.2)}</button><button class="d" data-act="key" data-k="down">${ic("chevD", 28, 2.2)}</button><button class="ok" data-act="key" data-k="ok">OK</button></div>
+        <div class="rock"><button data-act="key" data-k="chup" aria-label="canal +">${ic("chevU", 24, 2.2)}</button><span class="lb">${t("r_ch").slice(0, 3)}</span><button data-act="key" data-k="chdn" aria-label="canal -">${ic("chevD", 24, 2.2)}</button></div></div>
+      <div class="rr">${b("mute", "mute", t("r_mute"))}${FE().hotelInfo ? b("hotel", "building", t("r_hotel")) : ""}</div></div>
+      <div class="card sendc" style="margin-top:16px;margin-bottom:34px"><div class="th" style="background:${chBg(m.h)}"><div style="position:absolute;inset:0;display:grid;place-items:center;font:600 15px var(--ft);opacity:.7">${m.wm.slice(0, 4)}</div></div>
+        <div class="tx"><div class="k">${t("watching")}</div><div class="n">${m.title}</div></div><button class="sendb" data-act="send">${ic("cast", 17, 2)}${t("sendTv")}</button></div></div>`;
+    return this.inner(tk, body, "rem");
+  }
+  playerHtml() {
+    const m = this.media(), live = m.kind === "live";
+    return `<div class="player ${this.playing ? "" : "paused"}" data-act="pp" style="${chVars(m.h)}"><div class="vid" style="background:hsl(${m.h} 40% 14%)"><i></i><i></i><i></i></div><div class="wm">${m.wm}</div>
+      <div class="tp">${live ? `<span class="livebadge"><i></i>${t("live")}</span>` : `<span class="livebadge" style="opacity:.85">${t("t_vod").toUpperCase()}</span>`}<span>${live ? hhmm(m.n.start) + " – " + hhmm(m.n.end) : ""}</span></div>
+      <div class="bar3"><span class="ppi">${ic(this.playing ? "pause" : "play", 15, 2)}</span><span class="tm"></span><div class="pb"><i></i></div><span class="ib" data-act="noop">${ic("vol", 17, 1.8)}</span><span class="ib" data-act="noop">${ic("full", 16, 2)}</span></div></div>`;
+  }
+  s_content(tk) {
+    const f = FE(), tabs = [];
+    if (f.liveTv) tabs.push(["live", "tab_live"]); if (f.liveTv && f.guide) tabs.push(["guide", "tab_guide"]); if (f.vod) tabs.push(["vod", "tab_vod"]);
+    if (!tabs.find(x => x[0] === this.tab)) this.tab = tabs[0] ? tabs[0][0] : "live";
+    const m = this.media();
+    let list = "";
+    if (this.tab === "live") {
+      list = `<div class="clist">${CONFIG.channels.map((c, i) => { const n = nowOn(c); return `<div class="crow ${i === this.ch && this.vodSel == null ? "on" : ""}" data-act="ch" data-i="${i}"><div class="clogo" style="background:${chBg(c.hue)}">${c.abbr}</div><div class="tx"><div class="n">${c.name}</div><div class="s">${n.title}</div><div class="pbar"><i style="width:${n.pct * 100}%"></i></div></div><span class="num">${c.n}</span></div>`; }).join("")}</div>`;
+    } else if (this.tab === "guide") {
+      list = `<div class="guide">${CONFIG.channels.map((c, i) => { const n = nowOn(c); return `<div class="grow"><div class="gh"><span class="clogo" style="background:${chBg(c.hue)};width:34px;height:24px;font-size:10px;border-radius:6px">${c.abbr}</span>${c.name}</div><div class="gstrip">${n.all.map((p, j) => `<div class="gp ${j === n.idx ? "now" : ""}" data-act="ch" data-i="${i}"><div class="h">${j === n.idx ? t("now").toUpperCase() + " · " : ""}${hhmm(p.start)}</div><div class="t">${p.title}</div></div>`).join("")}</div></div>`; }).join("")}</div>`;
+    } else {
+      const V = CONFIG.vod, groups = ["g_drama", "g_action", "g_comedy", "g_kids"];
+      list = `<div class="vgrid"><div class="vfeat" style="background:${posterBg(V[0])}" data-act="vod" data-i="0"><div class="in"><div class="kick" style="opacity:.8">${t("featured")}</div><div class="t">${V[0].t}</div><div class="m">${t(V[0].g)} · ${V[0].y} · ${V[0].m} ${t("min")}</div></div></div>
+        <div class="chips"><span class="on">${t("all")}</span>${groups.map(g => `<span>${t(g)}</span>`).join("")}</div>
+        <div class="vrow"><div class="st">${V.map((v, i) => `<div class="vp ${this.vodSel === i ? "on" : ""}" data-act="vod" data-i="${i}"><div class="po" style="background:${posterBg(v)}"><b>${v.t}</b></div><div class="mt">${t(v.g)} · ${v.y}</div></div>`).join("")}</div></div></div>`;
+    }
+    const body = `${this.topbar(this.tab === "vod" ? t("tab_vod") : t("t_live"))}${this.playerHtml()}
+      <div class="nowrow"><div class="tx"><div class="n">${m.title}</div><div class="s">${m.sub}</div></div>${f.remoteControl ? `<button class="sendb" data-act="send">${ic("cast", 17, 2)}${t("sendTv")}</button>` : ""}</div>
+      <div class="tabs">${tabs.map(([k, l]) => `<button class="${this.tab === k ? "on" : ""}" data-act="tab" data-tab="${k}">${t(l)}</button>`).join("")}</div><div class="scroll" style="flex:1">${list}</div>`;
+    return this.inner(tk, body);
+  }
+  s_services(tk) {
+    const b = BR(), h = CONFIG.nowMin / 60;
+    const fmt = x => x === 24 ? "24:00" : `${Math.floor(x)}:${pad2(Math.round((x % 1) * 60))}`;
+    const items = b.services.map(([id, a, z, pl]) => {
+      const open = h >= a && h < z, all = a === 0 && z === 24, hrs = all ? t("sv_24h") : `${fmt(a)} – ${fmt(z)}`;
+      return `<div class="card svc ${this.exp === id ? "open" : ""}" data-act="svc" data-i="${id}"><div class="hd"><div class="ico">${ic(id, 24, 1.7)}</div><div class="tx"><div class="n">${t("sv_" + id)}</div><div class="h">${hrs}</div></div><span class="st2 ${open ? "o" : "c"}"><i></i>${open ? t("sv_open") : t("sv_closed")}</span><span class="chev">${ic("chevD", 18, 2)}</span></div>
+        <div class="ex">${t("sv_" + id + "_d")}<div class="kv">${ic("clock", 16, 2)}${t("sv_hours")}: ${hrs}</div><div class="kv">${ic("pin", 16, 2)}${t("sv_where")}: ${t(pl)}</div></div></div>`;
+    }).join("");
+    return this.inner(tk, `${this.topbar(t("sv_title"))}<div class="scroll" style="flex:1"><div class="svbody"><div class="note">${ic("info", 20, 1.9)}<div>${t("sv_note", { x: `<b>${b.reception}</b>` })}</div></div>${items}</div></div>`);
+  }
+  s_hotel(tk) {
+    const b = BR(); if (!FE().hotelInfo || !b.hotel) return this.inner(tk, `${this.topbar(t("ho_title"))}<div class="svbody"><div class="note">${ic("info", 20, 1.9)}<div>${t("na")}</div></div></div>`);
+    const H = b.hotel, imgs = H.images || [], desc = loc(H.description).split(/\n\n/);
+    const hero = imgs.length ? `<div class="hhero"><div class="car">${imgs.map(i => `<div style="background-image:url('${i.url}')"><div class="cp"><b>${loc(i.title)}</b><span>${loc(i.description)}</span></div></div>`).join("")}</div><div class="dots">${imgs.map((_, i) => `<i class="${i === 0 ? "on" : ""}"></i>`).join("")}</div></div>`
+      : `<div class="hhero card" style="display:grid;place-items:center;color:var(--accent);background:var(--tile)">${mark(b.handoff.logo, 76)}</div>`;
+    const body = `${this.topbar(t("ho_title"))}<div class="scroll" style="flex:1">${hero}<div class="hbody"><h2>${b.handoff.hotelName}</h2><div class="loc">${ic("pin", 14, 2.2)}${b.handoff.city || ""}</div>
+      <div class="clamp ${desc.join("").length > 260 ? "long" : ""} ${this.more ? "open" : ""}">${desc.map(p => `<p>${p}</p>`).join("")}</div>${desc.join("").length > 260 ? `<button class="linkb" data-act="more">${this.more ? t("ho_less") : t("ho_more")}</button>` : ""}
+      ${FE().remoteControl ? `<button class="btn pri" data-act="hotelTv">${ic("cast", 20, 2)}${t("ho_tv")}</button>` : ""}${imgs.length ? `<div class="gt">${t("ho_gal")}</div><div class="gth">${imgs.map((i, k) => `<div data-act="gal" data-i="${k}" style="background-image:url('${i.url}')"><span>${loc(i.title)}</span></div>`).join("")}</div>` : ""}</div></div>`;
+    return this.inner(tk, body);
+  }
+  s_wifi(tk) {
+    const w = BR().wifi;
+    return this.inner(tk, `${this.topbar(t("wf_title"))}<div class="scroll" style="flex:1"><div class="card wfcard"><div class="qrbox">${qrSvg("wifi" + w.ssid)}</div><div><div class="kick" style="color:var(--text2)">${t("network")}</div><div class="ssid">${w.ssid}</div></div>
+      <div class="cred"><div><span><small>${t("password")}</small><b>${w.password}</b></span><button class="cp" data-act="copy" data-v="${w.password}">${ic("copy", 15, 2)}${t("copy")}</button></div></div></div><p class="hint">${t("wf_hint")}</p></div>`);
+  }
+  s_weather(tk) {
+    const w = BR().weather, city = BR().handoff.city || "";
+    const hrs = Array.from({ length: 7 }, (_, i) => { const hh = 9 + i; return `<div class="${i === 0 ? "now" : ""}">${i === 0 ? t("now") : hh + ":00"}${ic(i > 3 ? "cloudsun" : "sun", 22, 1.7)}<b>${w.temp + (i < 4 ? i : 3 - i)}°</b></div>`; }).join("");
+    const days = Array.from({ length: 5 }, (_, i) => { const d = new Date(2026, 10, 25 + i), hi = w.hi - [0, 0, 2, 1, 3][i], lo = w.lo - [0, 1, 1, 0, 2][i]; return `<div><span class="d">${d.toLocaleDateString(S.lang, { weekday: "short" }).replace(".", "")}</span>${ic(i === 1 || i === 3 ? "cloudsun" : "sun", 22, 1.7)}<span class="bar2"><i style="left:${(lo - 22) * 6}%;right:${100 - (hi - 22) * 6 - 12}%"></i></span><span class="tt">${lo}° <b>${hi}°</b></span></div>`; }).join("");
+    const body = `${this.topbar(t("t_weather"))}<div class="scroll" style="flex:1"><div class="wxh"><span class="sunbig">${ic(wxIcon(w.cond), 130, 1.1)}</span><div class="city">${ic("pin", 15, 2.2)}${city}</div><div class="tmp">${w.temp}°</div><div class="cd">${t(w.cond)}</div><div class="hl">${t("hi_t")} ${w.hi}° · ${t("lo_t")} ${w.lo}°</div></div>
+      <div class="wxg"><div>${ic("drop", 20, 1.8)}<b>${w.hum}%</b><span>${t("hum")}</span></div><div>${ic("windi", 20, 1.8)}<b>${w.wind} km/h</b><span>${t("wind")}</span></div><div>${ic("sun", 20, 1.8)}<b>${w.uv}</b><span>${t("uv")}</span></div><div>${ic("waves", 20, 1.8)}<b>${w.sea}°</b><span>${t("sea")}</span></div></div>
+      <div class="wxs"><h4>${t("hourly")}</h4><div class="hours">${hrs}</div></div><div class="wxs" style="padding-bottom:36px"><h4>${t("next5")}</h4><div class="card days" style="padding:6px 16px">${days}</div></div></div>`;
+    return this.inner(tk, body);
+  }
+  s_settings(tk) {
+    const b = BR(), h = b.handoff;
+    const langs = b.languages.map(l => `<button data-act="lang" data-l="${l}"><small>${l.toUpperCase()}</small>${LANG_NAMES[l]}${S.lang === l ? `<span class="cd">${ic("check", 20, 2.4)}</span>` : ""}</button>`).join("");
+    return this.inner(tk, `${this.topbar(t("st_title"))}<div class="scroll" style="flex:1"><div class="sttl" style="margin-top:8px">${t("st_stay")}</div><div class="card linkc">${ic("tv", 26, 1.7)}<div><b>${t("st_linked", { r: h.room })}</b><span>${h.hotelName}${h.city ? " · " + h.city : ""}</span></div></div>
+      <p class="paras" style="margin-top:10px">${t("st_stay_note")}</p>
+      <div class="sttl">${t("st_lang")}</div><div class="card langs">${langs}</div><p class="paras" style="margin-top:10px">${t("st_lang_note")}</p>
+      <div class="sttl">${t("st_about")}</div><div class="card kv2"><div><span>${t("st_ver")}</span><b style="font-weight:500">0.1 (mockup)</b></div><div><span>${t("h_hotel")}</span><b style="font-weight:500">${h.hotelName}</b></div></div><p class="paras" style="margin:10px 18px 40px">${t("st_src")}</p></div>`);
+  }
+  s_ended(tk) {
+    const h = BR().handoff;
+    return `${bgLayer(tk, true)}<div class="scr ended"><div class="card gl">${logoHtml(true)}<div class="ico">${ic("door", 32, 1.7)}</div><h1>${t("e_title")}</h1><p>${t("e_text", { r: h.room })}</p><button class="btn pri" data-act="ended">${t("e_ok")}</button></div></div>`;
+  }
+}
+function $$dots(root, i) { root.querySelectorAll(".dots i").forEach((d, k) => d.classList.toggle("on", k === i)); }
+
+/* ---------- barra superior ---------- */
+function refreshAll() { phones.forEach(p => { p.refresh(true); }); updatePanel(); }
+function buildBar() {
+  const mk = (id, items, get, set) => { const el = $(id); el.innerHTML = ""; items.forEach(([v, l]) => { const b = document.createElement("button"); b.textContent = l; b.setAttribute("aria-pressed", get() === v); b.onclick = () => { set(v); syncBar(); refreshAll(); }; el.appendChild(b); }); };
+  const sl = $("#selLang"); sl.innerHTML = BR().languages.map(l => `<option value="${l}" ${S.lang === l ? "selected" : ""}>${LANG_NAMES[l]}</option>`).join("");
+  const ly = $("#selLayout"); ly.innerHTML = `<option value="brand">De la marca (${BR().id})</option>` + Object.entries(CONFIG.layoutPresets).map(([k, v]) => `<option value="${k}">${v.name}</option>`).join("") + (S.custom ? `<option value="custom">Personalizado (JSON)</option>` : ""); ly.value = S.custom ? "custom" : S.preset;
+  buildOp();
+}
+function syncBar() { buildBar(); }
+const SRCLBL = { op: "operador", dir: "dirección", brand: "brand.json", acento: "acento (por defecto)" };
+function opEff(tk) { return { confirm: tk.c.accent, cancel: tk.c.cancel, text: tk.c.text, card: tk.c.surface, player: tk.c.player }; }
+function buildOp() {
+  const tk = brandTokens(), eff = opEff(tk), box = $("#ops"); box.innerHTML = "";
+  OPCOLS.forEach(([k, name, param]) => {
+    const row = document.createElement("div"); row.className = "op";
+    const hex = /^#[0-9a-f]{6}$/i.test(eff[k]) ? eff[k] : "#888888";
+    row.innerHTML = `<input type="color" value="${hex}" aria-label="${name}"><div><b>${name}</b><small>${param}</small></div><em class="${tk.src[k] === "op" ? "o" : ""}">${SRCLBL[tk.src[k]]}</em><a href="#" title="usar el de la dirección" aria-label="quitar">×</a>`;
+    const em = $("em", row);
+    $("input", row).oninput = e => { S.op[k] = e.target.value; em.textContent = "operador"; em.className = "o"; refreshAll(); };
+    $("a", row).onclick = e => { e.preventDefault(); delete S.op[k]; if (BR().handoff.colors[k]) BR().handoff.colors[k] = BR().handoff.colors[k]; refreshAll(); buildOp(); };
+    box.appendChild(row);
+  });
+  const fe = FE(); ["remoteControl", "vod", "hotelInfo", "liveTv"].forEach(k => $("#chk_" + k).checked = !!fe[k]);
+  const h = BR().handoff; $("#dHotel").value = h.hotelName; $("#dCity").value = h.city || ""; $("#dRoom").value = h.room; $("#dGuest").value = h.guest || "";
+  $("#dSsid").value = BR().wifi.ssid; $("#dPass").value = BR().wifi.password; $("#dLogo").value = h.logo;
+}
+function updatePanel() {
+  const ta = $("#layoutJson"); if (!S.custom && document.activeElement !== ta) ta.value = "[\n" + layoutNow().map(x => `  { "id": "${x.id}", "size": "${x.size}" }`).join(",\n") + "\n]";
+  const b = BR(), h = b.handoff, tk = brandTokens(), nph = b.hotel ? b.hotel.images.length : 0;
+  $("#handoffJson").textContent = JSON.stringify({
+    direction: b.direction, features: FE(),
+    handoff: {
+      hotel: h.hotelName, room: h.room, lang: h.lang, guest: h.guest, logo: "vector:" + h.logo + " (X_APP_LOGO_MOBILE)", font: h.font,
+      colors: opEff(tk), wifi: b.wifi, weather: { city: h.city, ...b.weather },
+      welcome: h.welcome ? "{es,en,pt,fr,de}" : "texto por defecto", services: b.services.length + " ítems", hotelInfo: FE().hotelInfo ? nph + " fotos" : null,
+    },
+  }, null, 1);
+}
+function init() {
+  const main = $("#main");
+  ["pre", "app", "end"].forEach(sec => {
+    const s = document.createElement("section"); s.innerHTML = `<div class="sec"><h2>${SECS[sec][0]}</h2><p>${SECS[sec][1]}</p></div><div class="stage"></div>`; main.appendChild(s);
+    const st = $(".stage", s); SPECS.filter(x => x.sec === sec).forEach(sp => { const p = new Phone(sp); phones.push(p); st.appendChild(p.unit); });
+  });
+  main.addEventListener("click", e => {
+    const el = e.target.closest("[data-act]"); if (!el) return; const sc = el.closest(".screen"); if (!sc) return; sc.__ph.act(el.dataset.act, el);
+  });
+  main.addEventListener("keydown", e => { if ((e.key === "Enter" || e.key === " ") && e.target.matches("[role=button]")) { e.preventDefault(); e.target.click(); } });
+  $("#selLang").onchange = e => { S.lang = e.target.value; refreshAll(); };
+  $("#selLayout").onchange = e => { const v = e.target.value; if (v !== "custom") { S.custom = null; S.preset = v; } refreshAll(); syncBar(); };
+  ["remoteControl", "vod", "hotelInfo", "liveTv"].forEach(k => $("#chk_" + k).onchange = e => { S.feat[k] = e.target.checked; refreshAll(); });
+  const bind = (id, fn) => $(id).oninput = e => { fn(e.target.value); refreshAll(); };
+  bind("#dHotel", v => BR().handoff.hotelName = v); bind("#dCity", v => BR().handoff.city = v); bind("#dRoom", v => BR().handoff.room = v);
+  bind("#dGuest", v => BR().handoff.guest = v.trim() || null); bind("#dSsid", v => BR().wifi.ssid = v); bind("#dPass", v => BR().wifi.password = v);
+  $("#dLogo").onchange = e => { BR().handoff.logo = e.target.value; refreshAll(); };
+  $("#btnPanel").onclick = () => { const p = $("#panel"); p.classList.toggle("on"); $("#btnPanel").textContent = p.classList.contains("on") ? "Parámetros ▴" : "Parámetros ▾"; updatePanel(); };
+  $("#applyLayout").onclick = () => {
+    const m = $("#layoutMsg"); m.className = "msg";
+    try {
+      const a = JSON.parse($("#layoutJson").value); if (!Array.isArray(a)) throw new Error("tiene que ser una lista [...]");
+      a.forEach((x, i) => { if (!TILES[x.id]) throw new Error(`tile ${i + 1}: id “${x.id}” no existe (${CONFIG.tileIds.join(", ")})`); if (!SIZE_ORDER.includes(x.size)) throw new Error(`tile ${i + 1}: size debe ser S, M o W`); });
+      S.custom = a; S.preset = "custom"; m.textContent = "Aplicado a todos los teléfonos."; m.classList.add("ok"); syncBar(); refreshAll();
+    } catch (err) { m.textContent = "No se pudo aplicar: " + err.message; }
+  };
+  $("#resetLayout").onclick = () => { S.custom = null; S.preset = "brand"; $("#layoutMsg").textContent = ""; syncBar(); refreshAll(); updatePanel(); };
+  const z = $("#zoom"), setZ = v => document.documentElement.style.setProperty("--z", v / 100);
+  const auto = Math.max(40, Math.min(100, Math.floor((innerWidth - 48) / (4 * 434) * 100)));
+  z.value = auto; setZ(auto); z.oninput = () => setZ(z.value);
+  buildBar(); updatePanel();
+  setInterval(() => phones.forEach(p => p.tick()), 1000);
+}
+document.addEventListener("DOMContentLoaded", init);
+
+</script>
+</body>
+</html>

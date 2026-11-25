@@ -98,6 +98,16 @@ data class UiText(
     val openHotelOnTv: String,
     val sentToTv: String,
     val demoNote: String,
+    /** Wi-Fi del hotel (QR de la home, X_APP_WIFI): título de la pieza y del diálogo. */
+    val wifiTitle: String,
+    /** Frase de ayuda junto al QR del Wi-Fi. */
+    val wifiScanHint: String,
+    /** Rótulo del nombre de la red. */
+    val wifiNetwork: String,
+    /** Rótulo de la clave de la red (no es la contraseña del login de la TV, [password]). */
+    val wifiPassword: String,
+    /** En lugar de la clave, cuando la red es abierta. */
+    val wifiOpen: String,
 ) {
     companion object {
         private val es = UiText(
@@ -167,6 +177,8 @@ data class UiText(
             openHotelOnTv = "Ver el hotel en la TV",
             sentToTv = "Enviado a la TV",
             demoNote = "Modo de prueba: la conexión real con la TV llega con el backend.",
+            wifiTitle = "Wi-Fi del hotel", wifiScanHint = "Escaneá para conectarte", wifiNetwork = "Red", wifiPassword = "Clave",
+            wifiOpen = "Red abierta, sin clave",
         )
         private val en = UiText(
             chooseLanguage = "Choose your language",
@@ -235,6 +247,8 @@ data class UiText(
             openHotelOnTv = "Show the hotel on the TV",
             sentToTv = "Sent to the TV",
             demoNote = "Test mode: the real TV connection comes with the backend.",
+            wifiTitle = "Hotel Wi-Fi", wifiScanHint = "Scan to connect", wifiNetwork = "Network", wifiPassword = "Password",
+            wifiOpen = "Open network, no password",
         )
         private val pt = UiText(
             chooseLanguage = "Escolha seu idioma",
@@ -303,6 +317,8 @@ data class UiText(
             openHotelOnTv = "Ver o hotel na TV",
             sentToTv = "Enviado para a TV",
             demoNote = "Modo de teste: a conexão real com a TV chega com o backend.",
+            wifiTitle = "Wi-Fi do hotel", wifiScanHint = "Escaneie para conectar", wifiNetwork = "Rede", wifiPassword = "Senha",
+            wifiOpen = "Rede aberta, sem senha",
         )
         private val fr = UiText(
             chooseLanguage = "Choisissez votre langue",
@@ -371,6 +387,8 @@ data class UiText(
             openHotelOnTv = "Voir l'hôtel sur la TV",
             sentToTv = "Envoyé à la TV",
             demoNote = "Mode test : la vraie connexion à la TV arrive avec le backend.",
+            wifiTitle = "Wi-Fi de l'hôtel", wifiScanHint = "Scannez pour vous connecter", wifiNetwork = "Réseau", wifiPassword = "Mot de passe",
+            wifiOpen = "Réseau ouvert, sans mot de passe",
         )
         private val de = UiText(
             chooseLanguage = "Wählen Sie Ihre Sprache",
@@ -439,6 +457,8 @@ data class UiText(
             openHotelOnTv = "Hotel auf dem TV zeigen",
             sentToTv = "An den TV gesendet",
             demoNote = "Testmodus: Die echte TV-Verbindung kommt mit dem Backend.",
+            wifiTitle = "Hotel-WLAN", wifiScanHint = "Zum Verbinden scannen", wifiNetwork = "Netzwerk", wifiPassword = "Passwort",
+            wifiOpen = "Offenes Netzwerk, ohne Passwort",
         )
 
         private val byLanguage = mapOf("es" to es, "en" to en, "pt" to pt, "fr" to fr, "de" to de)

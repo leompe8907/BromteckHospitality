@@ -65,6 +65,7 @@ import com.networkbroadcast.hospitality.services.ServicesText
 import com.networkbroadcast.hospitality.services.formatPrice
 import com.networkbroadcast.hospitality.services.label
 import com.networkbroadcast.hospitality.services.localized
+import com.networkbroadcast.hospitality.services.priceText
 import com.networkbroadcast.hospitality.tv.R
 import kotlinx.coroutines.launch
 import java.text.DateFormat
@@ -97,10 +98,10 @@ fun ServicesScreen(
             Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().padding(end = 12.dp)) {
                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     Text(text.title, style = HospitalityTheme.typography.title, color = colors.textPrimary)
-                    Text(text.subtitleTv, style = HospitalityTheme.typography.body, color = colors.textSecondary)
+                    Text(if (services.canOrder) text.subtitleTv else text.infoOnly, style = HospitalityTheme.typography.body, color = colors.textSecondary)
                 }
                 val open = orders.count { it.status.isOpen }
-                FocusCard(onClick = onMyOrders, modifier = Modifier.size(width = 220.dp, height = 64.dp)) {
+                if (services.canOrder) FocusCard(onClick = onMyOrders, modifier = Modifier.size(width = 220.dp, height = 64.dp)) {
                     Row(Modifier.fillMaxSize().padding(horizontal = 16.dp), verticalAlignment = Alignment.CenterVertically) {
                         Icon(painterResource(R.drawable.ic_bell), contentDescription = null, tint = colors.accent, modifier = Modifier.size(24.dp))
                         Text(text.myOrders, style = HospitalityTheme.typography.label, color = colors.textPrimary, modifier = Modifier.padding(start = 12.dp).weight(1f))
@@ -333,9 +334,43 @@ fun BoxScope.OrderStatusBanner(message: String?) {
     }
 }
 
-/** Precio (o "Sin cargo") y, si tiene, la duración: "MX$1,800 · 60 min". */
+/** Precio (o "Sin cargo"; nada si el catálogo no trae precio) y, si tiene, la duración: "MX$1,800 · 60 min". */
 private fun priceLine(item: ServiceItem, catalog: ServiceCatalog, text: ServicesText, language: String): String =
-    listOfNotNull(formatPrice(item.price, catalog.currency, language, text.free), item.durationMin?.let { "$it ${text.minutes}" }).joinToString(" · ")
+    listOfNotNull(item.priceText(catalog.currency, language, text.free), item.durationMin?.let { "$it ${text.minutes}" }).joinToString(" · ")
+
+/**
+ * Ficha de un servicio cuando no se puede pedir (catálogo solo informativo, ver
+ * [GuestServices.canOrder]): foto, nombre, descripción, precio y duración, y cerrar. Ni cantidad ni
+ * cargo a la habitación.
+ */
+@Composable
+fun ServiceInfoDialog(
+    item: ServiceItem,
+    services: GuestServices,
+    text: ServicesText,
+    language: String,
+    onDismiss: () -> Unit,
+) {
+    val colors = HospitalityTheme.colors
+    val catalog by produceState<ServiceCatalog?>(null) { value = services.catalog() }
+    val first = rememberInitialFocus("info")
+    Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+        Row(Modifier.width(820.dp).height(380.dp).clip(RoundedCornerShape(18.dp)).background(colors.background)) {
+            ItemImage(item, Modifier.width(300.dp).fillMaxHeight())
+            Column(Modifier.weight(1f).padding(28.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text(item.name.localized(language), style = HospitalityTheme.typography.title, color = colors.textPrimary, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                val line = catalog?.let { priceLine(item, it, text, language) }.orEmpty()
+                if (line.isNotEmpty()) Text(line, style = HospitalityTheme.typography.label, color = colors.accent)
+                if (item.description.isNotEmpty()) {
+                    Text(item.description.localized(language), style = HospitalityTheme.typography.body, color = colors.textSecondary, maxLines = 6, overflow = TextOverflow.Ellipsis)
+                }
+                Spacer(Modifier.weight(1f))
+                Text(text.infoOnly, style = HospitalityTheme.typography.body, color = colors.textMuted)
+                DialogButton(text.close, colors.textPrimary, Modifier.focusRequester(first), onDismiss)
+            }
+        }
+    }
+}
 
 @Composable
 private fun ItemImage(item: ServiceItem, modifier: Modifier) {

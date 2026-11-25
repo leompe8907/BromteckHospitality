@@ -1,6 +1,7 @@
 package com.networkbroadcast.hospitality.mobile
 
 import android.app.Application
+import android.content.pm.ApplicationInfo
 import com.networkbroadcast.hospitality.brand.BrandConfig
 import com.networkbroadcast.hospitality.brand.BrandLoader
 import com.networkbroadcast.hospitality.companion.CompanionLink
@@ -9,16 +10,90 @@ import com.networkbroadcast.hospitality.hotel.AssetHotelRepository
 import com.networkbroadcast.hospitality.hotel.FallbackHotelRepository
 import com.networkbroadcast.hospitality.hotel.HotelRepository
 import com.networkbroadcast.hospitality.hotel.UrlHotelRepository
+import com.networkbroadcast.hospitality.panaccess.PanaccessClient
+import com.networkbroadcast.hospitality.panaccess.PanaccessEndpoint
+import com.networkbroadcast.hospitality.panaccess.PanaccessEntertainmentSource
+import com.networkbroadcast.hospitality.panaccess.PanaccessSession
+import com.networkbroadcast.hospitality.panaccess.SessionOutcome
+import com.panaccess.android.streaming.shared.epg.EpgApiCredentials
 import com.networkbroadcast.hospitality.services.AssetServiceCatalog
 import com.networkbroadcast.hospitality.services.DemoGuestServices
 import com.networkbroadcast.hospitality.services.GuestServices
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
+
+/** Estado de la sesión de Panaccess del celular. Sin sesión se muestra la pantalla neutra (escanear el QR). */
+sealed interface MobileSession {
+    data object Checking : MobileSession
+    data object NoSession : MobileSession
+    data object Ready : MobileSession
+    data class Failed(val detail: String) : MobileSession
+}
 
 class MobileApplication : Application() {
 
     val brand: BrandConfig by lazy { BrandLoader.load(this) }
+
+    val isDebuggable: Boolean get() = applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE != 0
+
+    /**
+     * Sesión de Panaccess propia del celular, para ver el contenido. Cómo la recibe del QR de la TV
+     * todavía no está definido (ver docs/emparejamiento.md, "Decisiones abiertas"): mientras tanto
+     * solo se abre con [debugLogin], que existe únicamente en builds de depuración.
+     */
+    val panaccess: PanaccessSession by lazy {
+        PanaccessSession(
+            this,
+            PanaccessClient(
+                context = this,
+                endpoint = brand.panaccess.let { PanaccessEndpoint(it.vendor, it.branding, it.discoveryMode, it.discoveryHint) },
+                appVersion = packageManager.getPackageInfo(packageName, 0).versionName ?: "0",
+                debug = isDebuggable,
+            ),
+        )
+    }
+
+    val entertainment: PanaccessEntertainmentSource by lazy {
+        PanaccessEntertainmentSource(
+            this,
+            panaccess,
+            EpgApiCredentials(brand.panaccess.epgApiToken, brand.panaccess.epgApiKey),
+            showEmptyBouquetsForPreview = isDebuggable,
+        )
+    }
+
+    private val _session = MutableStateFlow<MobileSession>(MobileSession.Checking)
+    val session: StateFlow<MobileSession> = _session.asStateFlow()
+
+    /** Al abrir la app: si ya había una sesión guardada se retoma, si no queda la pantalla neutra. */
+    fun restoreSession() {
+        if (_session.value !is MobileSession.Checking) return
+        appScope.launch {
+            _session.value = if (panaccess.isOpen) MobileSession.Ready
+            else if (panaccess.hasSavedLogin) panaccess.restore().toState()
+            else MobileSession.NoSession
+        }
+    }
+
+    /** Solo depuración: entra con una cuenta de prueba y la licencia de [room] (nombre de licencia). */
+    fun debugLogin(user: String, password: String, room: String?) {
+        check(isDebuggable) { "debugLogin solo existe en builds de depuración" }
+        _session.value = MobileSession.Checking
+        appScope.launch {
+            _session.value = panaccess.login(user, password, preferredLicenseName = room?.takeIf { it.isNotBlank() }).toState()
+        }
+    }
+
+    private fun SessionOutcome.toState(): MobileSession = when (this) {
+        SessionOutcome.Ok -> MobileSession.Ready
+        is SessionOutcome.Failed -> MobileSession.Failed(detail)
+        is SessionOutcome.ChooseLicense -> MobileSession.Failed(detail)
+    }
 
     /**
      * Emparejamiento con la TV. Hoy la versión de PRUEBA (acepta cualquier código de 6 dígitos);

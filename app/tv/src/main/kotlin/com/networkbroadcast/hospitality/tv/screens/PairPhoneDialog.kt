@@ -12,11 +12,9 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -30,28 +28,19 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.networkbroadcast.hospitality.brand.UiText
-import com.networkbroadcast.hospitality.companion.PairingCode
-import com.networkbroadcast.hospitality.companion.TvPairing
+import com.networkbroadcast.hospitality.companion.SharedPairingCode
 import com.networkbroadcast.hospitality.designsystem.FocusCard
 import com.networkbroadcast.hospitality.designsystem.HospitalityTheme
 import com.networkbroadcast.hospitality.designsystem.qrImageBitmap
-import kotlinx.coroutines.delay
 
 /**
  * "Conectar celular": código de 6 dígitos + QR para la app del celular. El código lo da el backend
- * ([TvPairing]); vence, y se pide uno nuevo solo.
+ * ([SharedPairingCode], el mismo que ve el tile del Lobby); vence, y se pide uno nuevo solo.
  */
 @Composable
-fun PairPhoneDialog(pairing: TvPairing, text: UiText, onDismiss: () -> Unit) {
+fun PairPhoneDialog(pairing: SharedPairingCode, text: UiText, onDismiss: () -> Unit) {
     val colors = HospitalityTheme.colors
-    var code by remember { mutableStateOf<PairingCode?>(null) }
-    LaunchedEffect(pairing) {
-        while (true) {
-            code = pairing.requestCode()
-            val ttl = code?.let { it.expiresAtEpochSec - System.currentTimeMillis() / 1000 } ?: 60
-            delay(ttl.coerceAtLeast(30) * 1000)
-        }
-    }
+    val code by pairing.code.collectAsState()
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
         val focus = rememberInitialFocus()
         Row(

@@ -1,0 +1,172 @@
+{
+  "hotelInfo": {
+    "name": {
+      "es": "Resort Aqua Caribe",
+      "en": "Aqua Caribbean Resort",
+      "pt": "Resort Aqua Caribe",
+      "fr": "Resort Aqua Caraïbes",
+      "de": "Aqua Karibik Resort"
+    },
+    "description": {
+      "es": "Un paraíso todo incluido frente al mar Caribe que combina relax, diversión y gastronomía de primer nivel.",
+      "en": "An all-inclusive paradise on the Caribbean Sea that combines relaxation, fun, and top-tier cuisine.",
+      "pt": "Um paraíso all-inclusive em frente ao mar do Caribe que combina relaxamento, diversão e alta gastronomia.",
+      "fr": "Un paradis tout compris en bord de mer des Caraïbes combinant détente, divertissement et gastronomie de haut niveau.",
+      "de": "Ein All-inclusive-Paradies am Karibischen Meer mit Entspannung, Spaß und erstklassiger Küche."
+    }
+  },
+  "images": [
+    {
+      "id": 1,
+      "title": {
+        "es": "Actividades acuáticas",
+        "en": "Water Activities",
+        "pt": "Atividades aquáticas",
+        "fr": "Activités aquatiques",
+        "de": "Wasseraktivitäten"
+      },
+      "description": {
+        "es": "Kayak, snorkel y paddle en aguas cristalinas. Pedí tu equipo en el centro de actividades de la playa.",
+        "en": "Kayaking, snorkeling, and paddleboarding in crystal-clear water. Get your gear at the beach activity center.",
+        "pt": "Caiaque, snorkel e stand up paddle em águas cristalinas. Retire seu equipamento no centro de atividades da praia.",
+        "fr": "Kayak, snorkeling et paddle dans une eau cristalline. Demandez votre équipement au centre d'activités de la plage.",
+        "de": "Kajak, Schnorcheln und Stand-up-Paddling in kristallklarem Wasser. Ausrüstung gibt es im Aktivitätszentrum am Strand."
+      },
+      "url": "asset:hotel/1-actividades-acuaticas.jpg",
+      "thumbnailUrl": "asset:hotel/1-actividades-acuaticas.jpg"
+    },
+    {
+      "id": 2,
+      "title": {
+        "es": "Noches temáticas",
+        "en": "Theme Nights",
+        "pt": "Noites temáticas",
+        "fr": "Soirées à thème",
+        "de": "Themenabende"
+      },
+      "description": {
+        "es": "Disfrutá de espectáculos únicos con música en vivo y ambientaciones sorprendentes.",
+        "en": "Enjoy unique shows with live music and stunning settings.",
+        "pt": "Desfrute de shows únicos com música ao vivo e cenários impressionantes.",
+        "fr": "Profitez de spectacles uniques avec de la musique live et des décors étonnants.",
+        "de": "Genießen Sie einzigartige Shows mit Live-Musik und atemberaubender Kulisse."
+      },
+      "url": "asset:hotel/2-noches-tematicas.jpg",
+      "thumbnailUrl": "asset:hotel/2-noches-tematicas.jpg"
+    },
+    {
+      "id": 3,
+      "title": {
+        "es": "Piscina infantil",
+        "en": "Kids Pool",
+        "pt": "Piscina infantil",
+        "fr": "Piscine pour enfants",
+        "de": "Kinderbecken"
+      },
+      "description": {
+        "es": "Piscina con toboganes para que los más chicos se diviertan con seguridad.",
+        "en": "Pool with water slides for kids to have safe fun.",
+        "pt": "Piscina com escorregadores para as crianças se divertirem com segurança.",
+        "fr": "Piscine avec toboggans pour que les enfants s'amusent en toute sécurité.",
+        "de": "Pool mit Wasserrutschen, damit Kinder sicher Spaß haben können."
+      },
+      "url": "asset:hotel/3-piscina-infantil.jpg",
+      "thumbnailUrl": "asset:hotel/3-piscina-infantil.jpg"
+    },
+    {
+      "id": 4,
+      "title": {
+        "es": "Gimnasio moderno",
+        "en": "Modern Gym",
+        "pt": "Academia moderna",
+        "fr": "Salle de sport moderne",
+        "de": "Modernes Fitnessstudio"
+      },
+      "description": {
+        "es": "Entrená en nuestro gimnasio totalmente equipado con máquinas de última generación.",
+        "en": "Train in our fully equipped gym with state-of-the-art machines.",
+        "pt": "Treine na nossa academia totalmente equipada com máquinas de última geração.",
+        "fr": "Entraînez-vous dans notre salle de sport entièrement équipée avec des machines modernes.",
+        "de": "Trainieren Sie in unserem voll ausgestatteten Fitnessstudio mit modernsten Geräten."
+      },
+      "url": "asset:hotel/4-gimnasio.jpg",
+      "thumbnailUrl": "asset:hotel/4-gimnasio.jpg"
+    },
+    {
+      "id": 5,
+      "title": {
+        "es": "Spa & Bienestar",
+        "en": "Spa & Wellness",
+        "pt": "Spa & Bem-estar",
+        "fr": "Spa et bien-être",
+        "de": "Spa & Wellness"
+      },
+      "description": {
+        "es": "Relajate con nuestros tratamientos de spa en un entorno de total tranquilidad.",
+        "en": "Relax with our spa treatments in a completely peaceful setting.",
+        "pt": "Relaxe com nossos tratamentos de spa em um ambiente totalmente tranquilo.",
+        "fr": "Détendez-vous avec nos soins de spa dans un cadre de tranquillité totale.",
+        "de": "Entspannen Sie sich mit unseren Spa-Behandlungen in einer absolut ruhigen Umgebung."
+      },
+      "url": "asset:hotel/5-spa.jpg",
+      "thumbnailUrl": "asset:hotel/5-spa.jpg"
+    },
+    {
+      "id": 6,
+      "title": {
+        "es": "Gastronomía gourmet",
+        "en": "Gourmet Dining",
+        "pt": "Gastronomia gourmet",
+        "fr": "Gastronomie gourmet",
+        "de": "Gourmetküche"
+      },
+      "description": {
+        "es": "Descubrí sabores internacionales en nuestros restaurantes de alta categoría.",
+        "en": "Discover international flavors at our high-end restaurants.",
+        "pt": "Descubra sabores internacionais em nossos restaurantes de alto padrão.",
+        "fr": "Découvrez des saveurs internationales dans nos restaurants haut de gamme.",
+        "de": "Entdecken Sie internationale Aromen in unseren erstklassigen Restaurants."
+      },
+      "url": "asset:hotel/6-gastronomia.jpg",
+      "thumbnailUrl": "asset:hotel/6-gastronomia.jpg"
+    },
+    {
+      "id": 7,
+      "title": {
+        "es": "Pool party",
+        "en": "Pool Party",
+        "pt": "Festa na piscina",
+        "fr": "Fête à la piscine",
+        "de": "Poolparty"
+      },
+      "description": {
+        "es": "Viví una auténtica fiesta con música en vivo, espuma y diversión en la piscina.",
+        "en": "Experience a real party with live music, foam, and poolside fun.",
+        "pt": "Viva uma verdadeira festa com música ao vivo, espuma e diversão na piscina.",
+        "fr": "Vivez une vraie fête avec de la musique live, de la mousse et du plaisir à la piscine.",
+        "de": "Erleben Sie eine echte Party mit Live-Musik, Schaum und Spaß am Pool."
+      },
+      "url": "asset:hotel/7-pool-party.jpg",
+      "thumbnailUrl": "asset:hotel/7-pool-party.jpg"
+    },
+    {
+      "id": 8,
+      "title": {
+        "es": "Piscina frente al mar",
+        "en": "Oceanfront Pool",
+        "pt": "Piscina à beira-mar",
+        "fr": "Piscine en bord de mer",
+        "de": "Pool am Meer"
+      },
+      "description": {
+        "es": "Relajate en nuestras piscinas infinitas con vista directa al mar Caribe.",
+        "en": "Relax in our infinity pools with a direct view of the Caribbean Sea.",
+        "pt": "Relaxe em nossas piscinas infinitas com vista direta para o mar do Caribe.",
+        "fr": "Détendez-vous dans nos piscines à débordement avec vue directe sur la mer des Caraïbes.",
+        "de": "Entspannen Sie sich in unseren Infinity-Pools mit direktem Blick auf das Karibische Meer."
+      },
+      "url": "asset:hotel/8-piscina-frente-al-mar.jpg",
+      "thumbnailUrl": "asset:hotel/8-piscina-frente-al-mar.jpg"
+    }
+  ]
+}

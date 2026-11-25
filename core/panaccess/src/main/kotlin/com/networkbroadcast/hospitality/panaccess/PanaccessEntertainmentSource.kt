@@ -295,6 +295,7 @@ class PanaccessEntertainmentSource(
             backdropUrl = VodImages.header(server, item),
             synopsis = item.synopsis,
             durationMinutes = (item.durationSeconds / 60).takeIf { it > 0 },
+            isSeries = item.isSeries,
         )
         val shelves = VodShelves.all(result.groups, result.items).map { s -> VodShelf(s.category.name, s.items.map(::map)) }
             // Sin categorías utilizables: una sola fila con todo, para no dejar el catálogo vacío.
@@ -303,6 +304,18 @@ class PanaccessEntertainmentSource(
         cachedVod = mapped
         withContext(Dispatchers.IO) { catalogCache.writeVod(mapped) }
         return mapped
+    }
+
+    /** Temporadas ya pedidas por serie: la ficha de una serie no cambia mientras dura la sesión. */
+    private val seasonsCache = ConcurrentHashMap<String, List<com.networkbroadcast.hospitality.entertainment.Season>>()
+
+    override suspend fun seasons(seriesId: String): List<com.networkbroadcast.hospitality.entertainment.Season> {
+        seasonsCache[seriesId]?.let { return it }
+        val id = seriesId.toIntOrNull() ?: return emptyList()
+        val raw = vod.seriesInfo(id) ?: return emptyList()
+        val parsed = parseSeasons(raw, session.client.responsibleServer())
+        if (parsed.isNotEmpty()) seasonsCache[seriesId] = parsed
+        return parsed
     }
 
     override suspend fun playbackUrl(target: Playable): String? {
@@ -351,6 +364,7 @@ class PanaccessEntertainmentSource(
         catchupLock.withLock { cachedCatchup = null; cachedCatchupAtMillis = 0L }
         lock.withLock { cachedChannels = null; streams = emptyList(); epg.clear() }
         vodLock.withLock { cachedVod = null }
+        seasonsCache.clear()
         scheduleLocks.clear()
         scheduleCache.clear()
         prefetchLock.withLock { prefetched = null }

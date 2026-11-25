@@ -77,14 +77,16 @@ fun MobileServicesScreen(
     spot: OrderLocation?,
     onOpenItem: (ServiceItem) -> Unit,
     onMyOrders: () -> Unit,
+    onBack: () -> Unit,
 ) {
     val colors = HospitalityTheme.colors
     val orders by services.orders.collectAsState()
+    Column(Modifier.fillMaxSize()) {
+    TopBar(text.title, onBack)
     Column(
-        Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp, vertical = 24.dp),
+        Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp, vertical = 8.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
-        Text(text.title, style = HospitalityTheme.typography.title, color = colors.textPrimary)
         Text(text.subtitleMobile, style = HospitalityTheme.typography.body, color = colors.textSecondary)
         spot?.let { SpotBanner(text.youAreAt.format(it.label(catalog, text, language))) }
         FocusCard(onClick = onMyOrders, modifier = Modifier.fillMaxWidth().height(60.dp)) {
@@ -116,6 +118,7 @@ fun MobileServicesScreen(
         }
         if (services is DemoGuestServices) Text(text.demoGuest, style = HospitalityTheme.typography.body, color = colors.textMuted)
         Spacer(Modifier.height(16.dp))
+    }
     }
 }
 
@@ -159,9 +162,7 @@ fun MobileOrderScreen(
     Column(Modifier.fillMaxSize().imePadding().verticalScroll(rememberScrollState())) {
         Box(Modifier.fillMaxWidth().height(200.dp)) {
             ItemThumb(item, Modifier.fillMaxSize())
-            FocusCard(onClick = onBack, modifier = Modifier.padding(12.dp).size(width = 96.dp, height = 40.dp)) {
-                Text(text.back, style = HospitalityTheme.typography.body, color = colors.textPrimary, modifier = Modifier.align(Alignment.Center))
-            }
+            BackButton(onBack, Modifier.padding(start = 16.dp, top = 10.dp))
         }
         Column(Modifier.padding(horizontal = 20.dp, vertical = 20.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
             Text(item.name.localized(language), style = HospitalityTheme.typography.title, color = colors.textPrimary)
@@ -255,27 +256,30 @@ fun MobileOrderScreen(
 
 /** Pedidos de la estadía con su estado; el recién hecho se puede cancelar. */
 @Composable
-fun MobileOrdersScreen(services: GuestServices, catalog: ServiceCatalog?, text: ServicesText, language: String) {
+fun MobileOrdersScreen(services: GuestServices, catalog: ServiceCatalog?, text: ServicesText, language: String, onBack: () -> Unit) {
     val colors = HospitalityTheme.colors
     val scope = rememberCoroutineScope()
     val orders by services.orders.collectAsState()
+    Column(Modifier.fillMaxSize()) {
+    TopBar(text.myOrders, onBack)
     Column(
-        Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp, vertical = 24.dp),
+        Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp, vertical = 8.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
-        Text(text.myOrders, style = HospitalityTheme.typography.title, color = colors.textPrimary)
         if (orders.isEmpty()) Text(text.noOrders, style = HospitalityTheme.typography.body, color = colors.textSecondary)
         orders.forEach { order ->
             OrderCard(order, catalog, text, language) { scope.launch { services.cancel(order.id) } }
         }
         if (services is DemoGuestServices) Text(text.demoGuest, style = HospitalityTheme.typography.body, color = colors.textMuted)
     }
+    }
 }
 
 @Composable
 private fun OrderCard(order: ServiceOrder, catalog: ServiceCatalog?, text: ServicesText, language: String, onCancel: () -> Unit) {
     val colors = HospitalityTheme.colors
-    val time = remember(order.createdAtMillis) { DateFormat.getTimeInstance(DateFormat.SHORT).format(Date(order.createdAtMillis)) }
+    val locale = LocalAppLocale.current
+    val time = remember(order.createdAtMillis, locale) { DateFormat.getTimeInstance(DateFormat.SHORT, locale).format(Date(order.createdAtMillis)) }
     Column(
         Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(colors.surface).border(1.dp, colors.surfaceBorder, RoundedCornerShape(16.dp)).padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp),

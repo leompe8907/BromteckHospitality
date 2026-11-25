@@ -10,6 +10,7 @@ import coil3.memory.MemoryCache
 import com.networkbroadcast.hospitality.brand.BrandConfig
 import com.networkbroadcast.hospitality.brand.BrandLoader
 import com.networkbroadcast.hospitality.companion.DemoTvPairing
+import com.networkbroadcast.hospitality.companion.SharedPairingCode
 import com.networkbroadcast.hospitality.companion.TvPairing
 import com.networkbroadcast.hospitality.hotel.AssetHotelRepository
 import com.networkbroadcast.hospitality.hotel.FallbackHotelRepository
@@ -69,6 +70,9 @@ class HospitalityApplication : Application(), SingletonImageLoader.Factory {
      * backend propio se reemplaza acá por su implementación.
      */
     val tvPairing: TvPairing by lazy { DemoTvPairing() }
+
+    /** El código que muestran a la vez el tile del Lobby y el diálogo: uno solo para toda la TV. */
+    val pairingCode: SharedPairingCode by lazy { SharedPairingCode(tvPairing, appScope) }
 
     /** Trabajo que tiene que seguir aunque se cierre una pantalla (p. ej. el avance de un pedido de prueba). */
     val appScope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)

@@ -102,7 +102,7 @@ fun HomeScreen(
     /** Nombre del abonado que manda Panaccess en getClientConfig (OperatorConfig.subscriberName); null = no vino. */
     subscriberName: String? = null,
     /** PRUEBA Lobby: emparejamiento para mostrar el QR en la home, e idioma actual. */
-    pairing: com.networkbroadcast.hospitality.companion.TvPairing? = null,
+    pairing: com.networkbroadcast.hospitality.companion.SharedPairingCode? = null,
     languageCode: String? = null,
     /** Red Wi-Fi del hotel (X_APP_WIFI) para el QR de la home; null = el operador no la cargó. */
     wifi: com.networkbroadcast.hospitality.hotel.WifiNetwork? = null,

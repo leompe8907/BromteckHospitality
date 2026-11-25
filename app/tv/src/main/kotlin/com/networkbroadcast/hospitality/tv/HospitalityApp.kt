@@ -603,7 +603,7 @@ fun HospitalityApp(
                     guideLogos = channelList.mapNotNull { it.logoUrl },
                     vodBackdropUrl = vod?.shelves?.firstOrNull()?.items?.firstNotNullOfOrNull { it.backdropUrl ?: it.posterUrl },
                 ),
-                pairing = if (brand.features.companion) app.tvPairing else null,
+                pairing = if (brand.features.companion) app.pairingCode else null,
                 languageCode = current,
                 focusOn = lastHomeAction,
                 onAction = { action ->
@@ -776,7 +776,7 @@ fun HospitalityApp(
             )
         }
 
-        if (showingPairing) PairPhoneDialog(app.tvPairing, text) { showingPairing = false }
+        if (showingPairing) PairPhoneDialog(app.pairingCode, text) { showingPairing = false }
         app.wifi?.takeIf { showingWifi }?.let { WifiDialog(it, text, lobby = lobbyTest) { showingWifi = false } }
 
         val service = selectedService

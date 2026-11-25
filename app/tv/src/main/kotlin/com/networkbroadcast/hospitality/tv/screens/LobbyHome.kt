@@ -23,6 +23,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.remember
@@ -105,7 +106,7 @@ fun LobbyHome(
     onOpenWidget: (HomeWidget) -> Unit,
     focusOn: HomeAction?,
     onAction: (HomeAction) -> Unit,
-    pairing: com.networkbroadcast.hospitality.companion.TvPairing? = null,
+    pairing: com.networkbroadcast.hospitality.companion.SharedPairingCode? = null,
     languageCode: String? = null,
     /** Red Wi-Fi del hotel (X_APP_WIFI): si el operador la cargó, su QR ocupa el lugar de "Conectar celular". */
     wifi: WifiNetwork? = null,
@@ -359,16 +360,9 @@ private fun HomeAction.lobbyIcon(): Int = when (this) {
 /* ---- piezas con contenido propio (feedback de Enrique: no dejarlas vacías) ---- */
 
 @Composable
-private fun BoxScope.PairTile(pairing: com.networkbroadcast.hospitality.companion.TvPairing, text: UiText, big: Boolean) {
+private fun BoxScope.PairTile(pairing: com.networkbroadcast.hospitality.companion.SharedPairingCode, text: UiText, big: Boolean) {
     val c = HospitalityTheme.colors
-    var code by remember { androidx.compose.runtime.mutableStateOf<com.networkbroadcast.hospitality.companion.PairingCode?>(null) }
-    androidx.compose.runtime.LaunchedEffect(pairing) {
-        while (true) {
-            code = pairing.requestCode()
-            val ttl = code?.let { it.expiresAtEpochSec - System.currentTimeMillis() / 1000 } ?: 60
-            kotlinx.coroutines.delay(ttl.coerceAtLeast(30) * 1000)
-        }
-    }
+    val code by pairing.code.collectAsState()
     Row(Modifier.fillMaxSize().padding(12.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
         val qrSize = if (big) 82.dp else 78.dp
         Box(Modifier.size(qrSize).clip(RoundedCornerShape(7.dp)).background(Color.White).padding(5.dp), contentAlignment = Alignment.Center) {

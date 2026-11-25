@@ -30,6 +30,10 @@ class VodService(private val client: PanaccessClient) {
         return Catalog(items, groups, null)
     }
 
+    /** `getVodSeriesInfo`: el JSON crudo de la serie (temporadas y episodios), o null si falla. Ver [parseSeasons]. */
+    suspend fun seriesInfo(seriesId: Int): String? =
+        (client.call("getVodSeriesInfo", mapOf("seriesId" to "$seriesId")) as? CasResult.Success)?.rawJson
+
     private fun describe(r: CasResult) = when (r) {
         is CasResult.Success -> "ok"
         is CasResult.Failure -> r.message ?: r.code ?: "sin detalle"

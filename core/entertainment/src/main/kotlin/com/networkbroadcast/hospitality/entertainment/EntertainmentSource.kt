@@ -34,6 +34,12 @@ interface EntertainmentSource {
     suspend fun refreshVodShelves(): VodResult = vodShelves()
 
     /**
+     * Temporadas y episodios de una serie ([VodItem.isSeries]); vacío si no es una serie, si el
+     * proveedor no las informa o si falla. Los episodios se reproducen con [Playable.Vod].
+     */
+    suspend fun seasons(seriesId: String): List<Season> = emptyList()
+
+    /**
      * URL lista para el player. Se pide en cada reproducción y en cada reintento: en Panaccess va
      * atada a la sesión actual del DRM y no sirve guardarla. null si no se puede ver.
      */
@@ -126,6 +132,21 @@ data class VodItem(
     val year: Int? = null,
     val synopsis: String? = null,
     val durationMinutes: Int? = null,
+    /** true si es una serie: sus episodios salen de [EntertainmentSource.seasons]. */
+    val isSeries: Boolean = false,
+)
+
+/** Una temporada de una serie, con sus episodios en orden. */
+data class Season(val number: Int, val title: String?, val episodes: List<Episode>)
+
+/** Un episodio: se reproduce como [Playable.Vod] con su [id]. */
+data class Episode(
+    val id: String,
+    val number: Int,
+    val title: String,
+    val synopsis: String? = null,
+    val durationMinutes: Int? = null,
+    val imageUrl: String? = null,
 )
 
 /** Programa actual y siguiente de una programación. */

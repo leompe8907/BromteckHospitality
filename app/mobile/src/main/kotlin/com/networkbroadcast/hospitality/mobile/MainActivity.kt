@@ -70,6 +70,9 @@ class MainActivity : ComponentActivity() {
                         } else {
                             NeutralScreen(
                                 text = NeutralText.of(language),
+                                brand = app.brand,
+                                // Todavía no hay panel conectado: sin él el logo solo llega con la sesión (ver NeutralScreen).
+                                logoUrl = null,
                                 session = session,
                                 debugLogin = if (app.isDebuggable) app::debugLogin else null,
                             )

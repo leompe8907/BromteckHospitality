@@ -58,6 +58,8 @@ class PanaccessSession(context: Context, val client: PanaccessClient) {
     val isOpen: Boolean get() = license != null
 
     val username: String? get() = prefs.getString(KEY_USER, null)
+    /** true si esta sesión es de un celular emparejado (abierta con [loginForPhone]) y no una de depuración o de TV. */
+    val isPhoneSession: Boolean get() = prefs.getString(KEY_PHONE_ROOM, null) != null
     val hasSavedLogin: Boolean get() = username != null && prefs.getString(KEY_PASS_MD5, null) != null
 
     /** Último X_APP_SPLASH que trajo getClientConfig, cacheado en disco -- operatorConfig recién
@@ -76,12 +78,22 @@ class PanaccessSession(context: Context, val client: PanaccessClient) {
         return open(user, md5, preferredLicenseName)
     }
 
+    /**
+     * Login de un CELULAR con el login del hotel que le dio el backend al emparejar (`HotelLogin`): usuario y md5. Solo
+     * toma una licencia de celular de [room] sin robarle ninguna a otro (ver [LoginService.loginForPhone]). Sin
+     * licencia libre devuelve [SessionOutcome.Failed] y el celular sigue como control remoto, sin video. Recuerda que
+     * es un celular: [restore] y [recover] siguen la misma regla.
+     */
+    suspend fun loginForPhone(username: String, md5: String, room: String): SessionOutcome =
+        openAsPhone(username.trim(), md5, room.trim(), saved = false)
+
     /** Reintenta con lo guardado. Si el servidor rechaza las credenciales, se olvidan. */
     suspend fun restore(): SessionOutcome {
         val user = prefs.getString(KEY_USER, null)
         val md5 = prefs.getString(KEY_PASS_MD5, null)
         if (user == null || md5 == null) return SessionOutcome.Failed(LoginError.InvalidCredentials, "sin sesión guardada")
-        val outcome = open(user, md5)
+        val phoneRoom = prefs.getString(KEY_PHONE_ROOM, null)
+        val outcome = if (phoneRoom != null) openAsPhone(user, md5, phoneRoom, saved = true) else open(user, md5)
         if (outcome is SessionOutcome.Failed && outcome.error == LoginError.InvalidCredentials) forget()
         return outcome
     }
@@ -100,6 +112,19 @@ class PanaccessSession(context: Context, val client: PanaccessClient) {
     fun forget() = prefs.edit().clear().apply()
 
     /**
+     * Cierra la sesión de ESTE equipo: olvida el login y la licencia y suelta las credenciales del DRM. Es lo que hace un
+     * celular al hacer check-out. La TV no lo usa (nunca cierra sesión). Ojo: no hay una llamada conocida que le diga a
+     * Panaccess que libere la licencia; si queda "en uso" hasta que venza la sesión del lado de Panaccess está sin
+     * confirmar (ver docs/plan-emparejamiento-celular.md).
+     */
+    suspend fun close() {
+        forget()
+        license = null
+        operatorConfig = null
+        runCatching { client.reinitialize() }
+    }
+
+    /**
      * Recuperación de sesión, como CasFunctionHelper.checkIfLoggedInAndRelogin del base (modo
      * contraseña): `loggedIn` → verifyLoginCredentials → volver a habilitar la licencia. Una sola a
      * la vez; si se intentó hace menos de 30 s no se repite (evita bucles con el servidor caído).
@@ -113,10 +138,29 @@ class PanaccessSession(context: Context, val client: PanaccessClient) {
         if (loggedIn == CasResult.Timeout) { lastRecoveryOk = false; return false }
         val stillIn = (loggedIn as? CasResult.Success)?.let { CasEnvelope.answer(it.rawJson)?.toString() == "true" } ?: false
         val verified = client.verifyLoginCredentials(10_000) is CasResult.Success
+        // Es la licencia que este equipo ya venía usando: puede figurar en uso por su propia sesión caída.
         val enabled = verified && loginService.enable(current, failIfInUse = false) is CasResult.Success
         Log.i(TAG, "recuperación de sesión: loggedIn=$stillIn, verificada=$verified, licencia=$enabled")
         lastRecoveryOk = enabled
         enabled
+    }
+
+    private suspend fun openAsPhone(user: String, md5: String, room: String, saved: Boolean): SessionOutcome {
+        val result = loginService.loginForPhone(
+            user, md5, room, savedLicenseKey = prefs.getString(KEY_LICENSE, null).takeIf { saved },
+        )
+        // Las credenciales sirvieron aunque no haya licencia libre: se guardan para reintentar al volver a abrir la app.
+        val credentialsWork = result is LoginResult.Success ||
+            (result is LoginResult.Failure && result.step in setOf("phoneLicenses", "setStreamingLicense"))
+        if (credentialsWork) {
+            prefs.edit().putString(KEY_USER, user).putString(KEY_PASS_MD5, md5).putString(KEY_PHONE_ROOM, room).apply()
+        }
+        return when (result) {
+            is LoginResult.Success -> onLicenseEnabled(result.license)
+            // Nunca "elegir licencia": un celular no elige a mano, y la lista incluiría la de la TV.
+            is LoginResult.NeedsLicenseSelection -> SessionOutcome.Failed(LoginError.Unknown("phone"), "elegir licencia")
+            is LoginResult.Failure -> SessionOutcome.Failed(result.error, "${result.step}: ${result.detail}")
+        }
     }
 
     private suspend fun open(user: String, md5: String, preferredLicenseName: String? = null): SessionOutcome {
@@ -249,6 +293,8 @@ class PanaccessSession(context: Context, val client: PanaccessClient) {
         const val KEY_USER = "user"
         const val KEY_PASS_MD5 = "pass_md5"
         const val KEY_LICENSE = "license_key"
+        /** Presente solo en un celular: la habitación cuyas licencias `-mN` puede usar. */
+        const val KEY_PHONE_ROOM = "phone_room"
         const val KEY_SPLASH_URL = "splash_url"
     }
 }

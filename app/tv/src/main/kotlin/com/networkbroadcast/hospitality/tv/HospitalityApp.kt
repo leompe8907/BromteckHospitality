@@ -831,7 +831,7 @@ fun HospitalityApp(
                     // Check-out del huésped: borra su sesión y desempareja sus celulares. La de
                     // Panaccess (la TV) queda.
                     session.clear()
-                    scope.launch { app.tvPairing.unpairAll() }
+                    scope.launch { app.tvPairing.checkOut() }
                     scope.launch { guestServices?.endStay() }
                     knownStatuses.clear()
                     confirmingCheckout = false

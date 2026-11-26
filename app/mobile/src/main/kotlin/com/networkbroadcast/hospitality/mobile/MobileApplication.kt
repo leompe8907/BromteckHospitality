@@ -19,7 +19,9 @@ import com.panaccess.android.streaming.shared.epg.EpgApiCredentials
 import com.networkbroadcast.hospitality.services.AssetServiceCatalog
 import com.networkbroadcast.hospitality.services.DemoGuestServices
 import com.networkbroadcast.hospitality.services.GuestServices
+import com.networkbroadcast.hospitality.companion.LinkState
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -72,11 +74,53 @@ class MobileApplication : Application() {
 
     /** Al abrir la app: si ya había una sesión guardada se retoma, si no queda la pantalla neutra. */
     fun restoreSession() {
+        bindCompanionSession()
+        // Antes de usar el login guardado se pregunta si la vinculación sigue vigente (si hubo check-out, la desvincula).
+        appScope.launch { companion.refresh() }
         if (_session.value !is MobileSession.Checking) return
         appScope.launch {
             _session.value = if (panaccess.isOpen) MobileSession.Ready
             else if (panaccess.hasSavedLogin) panaccess.restore().toState()
             else MobileSession.NoSession
+        }
+    }
+
+    private var companionBridge: Job? = null
+
+    /**
+     * Une el emparejamiento con la sesión de Panaccess. Idempotente.
+     * - Al quedar vinculado con un login del hotel (`Linked.tv.login`, que el backend manda UNA sola vez), el celular entra solo a
+     *   Panaccess con una licencia de celular de su habitación, sin robarle ninguna a otro. Sin licencia libre queda sin video
+     *   ([MobileSession.Failed]) pero sigue siendo control remoto. Si ya hay una sesión guardada, [restoreSession] se ocupa.
+     * - Al pasar a desvinculado (check-out, o la TV lo desvinculó) cierra la sesión de Panaccess, borra el login y vuelve a la
+     *   pantalla neutra (escanear el QR de la TV).
+     */
+    fun bindCompanionSession() {
+        if (companionBridge != null) return
+        companionBridge = appScope.launch {
+            var wasLinked = false
+            companion.state.collect { link ->
+                when (link) {
+                    is LinkState.Linked -> {
+                        wasLinked = true
+                        val login = link.tv.login
+                        val room = link.tv.roomNumber
+                        if (login != null && room != null && !panaccess.isOpen && !panaccess.hasSavedLogin) {
+                            _session.value = MobileSession.Checking
+                            _session.value = panaccess.loginForPhone(login.username, login.passwordMd5, room).toState()
+                        }
+                    }
+                    LinkState.Unlinked -> if (wasLinked) {
+                        wasLinked = false
+                        // Solo la sesión que abrió el emparejamiento: una de depuración (debugLogin) no se toca.
+                        if (panaccess.isPhoneSession) {
+                            panaccess.close()
+                            _session.value = MobileSession.NoSession
+                        }
+                    }
+                    else -> Unit
+                }
+            }
         }
     }
 

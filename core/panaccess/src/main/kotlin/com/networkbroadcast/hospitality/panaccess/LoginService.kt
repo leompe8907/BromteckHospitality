@@ -53,6 +53,44 @@ class LoginService(private val client: PanaccessClient) {
         return selectLicense(licenses, autoUseFirstAvailableLicense, savedLicenseKey, preferredLicenseName)
     }
 
+    /**
+     * Login de un CELULAR del hotel, con el login que le dio el backend al emparejar. A diferencia de [login], NUNCA
+     * prueba cualquier licencia de la cuenta (la cuenta es del hotel entero: estarían la de la TV y las de otras
+     * habitaciones): solo las de celular de [room] (`PhoneLicenses`), en orden y con `failIfInUse = true`, o sea sin
+     * robarle la licencia a otro celular. Si ninguna está libre devuelve un [LoginResult.Failure] **sin** `licenses`
+     * (el celular abre sin video, como control remoto). La licencia que este celular ya usaba ([savedLicenseKey]) se
+     * prueba primero con `failIfInUse = false`: es la propia, y puede figurar en uso por su sesión anterior.
+     */
+    suspend fun loginForPhone(username: String, password: String, room: String, savedLicenseKey: String? = null): LoginResult {
+        authenticate(username, password)?.let { return it }
+        val licenses = when (val listing = fetchLicenses()) {
+            is Listing.Loaded -> listing.licenses
+            is Listing.Failed -> return listing.result
+        }
+        val candidates = PhoneLicenses.candidates(licenses, room).filter { it.hasUsablePin }
+        if (candidates.isEmpty()) {
+            return LoginResult.Failure("phoneLicenses", LoginError.Unknown("no-phone-license"), "no hay licencias de celular para la habitación $room")
+        }
+        savedLicenseKey?.let { key ->
+            candidates.firstOrNull { it.key == key }?.let { own ->
+                if (enable(own, failIfInUse = false) is CasResult.Success) return LoginResult.Success(own)
+            }
+        }
+        var lastError: LoginError = LoginError.LicenseInUse
+        var lastDetail = "todas las licencias de celular de la habitación están en uso"
+        candidates.forEach { license ->
+            when (val r = enable(license, failIfInUse = true)) {
+                is CasResult.Success -> return LoginResult.Success(license)
+                is CasResult.Failure -> {
+                    lastError = if (r.message.isNullOrBlank()) LoginError.LicenseInUse else LoginErrorMapper.fromMessage(r.message)
+                    lastDetail = r.message ?: "licencia en uso"
+                }
+                CasResult.Timeout -> { lastError = LoginError.Network; lastDetail = "timeout" }
+            }
+        }
+        return LoginResult.Failure("setStreamingLicense", lastError, lastDetail)
+    }
+
     /** null si quedó verificado. */
     private suspend fun authenticate(username: String, password: String): LoginResult? {
         var cleanupAttempted = false

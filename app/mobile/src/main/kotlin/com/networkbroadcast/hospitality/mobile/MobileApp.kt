@@ -2,6 +2,8 @@ package com.networkbroadcast.hospitality.mobile
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -40,6 +42,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.networkbroadcast.hospitality.brand.UiText
 import com.networkbroadcast.hospitality.companion.LinkState
+import com.networkbroadcast.hospitality.companion.TvCommand
 import com.networkbroadcast.hospitality.companion.isValidPairingCode
 import com.networkbroadcast.hospitality.designsystem.FocusCard
 import com.networkbroadcast.hospitality.designsystem.HospitalityTheme
@@ -62,7 +65,7 @@ import kotlinx.coroutines.launch
  * El idioma es el de la cuenta de la TV (X_DEFAULT_LANGUAGE de Panaccess, o el de la marca).
  */
 /** Pantallas de la app; se apilan y "atrás" vuelve a la anterior. */
-private enum class MobileScreen { Home, Pair, Services, Order, Orders, Content, Widget, Wifi, Hotel }
+private enum class MobileScreen { Home, Pair, Services, Order, Orders, Content, Widget, Wifi, Hotel, Remote }
 
 @Composable
 fun MobileApp(
@@ -115,16 +118,43 @@ fun MobileApp(
     }
     val contentText = ContentText.of(language)
     var contentTab by remember { mutableStateOf(ContentTab.Live) }
+
+    // Control remoto: si se está en la app hay vinculación, así que siempre está. Cada orden va al backend y la TV la
+    // levanta en su próxima consulta; el resultado se ve en el chip del control y, al mandar algo para ver, en un aviso.
+    val remoteText = RemoteText.of(language)
+    val scope = rememberCoroutineScope()
+    var lastCommand by remember { mutableStateOf<LastCommand?>(null) }
+    var toast by remember { mutableStateOf<String?>(null) }
+    LaunchedEffect(toast) { if (toast != null) { kotlinx.coroutines.delay(1_900); toast = null } }
+    fun sendToTv(command: TvCommand, label: String, announce: Boolean = false) {
+        scope.launch {
+            val delivered = app.companion.send(command)
+            lastCommand = LastCommand(label, delivered)
+            if (announce || !delivered) toast = if (delivered) remoteText.sentTv else remoteText.notSent
+        }
+    }
+    fun sendNowPlaying(now: NowPlaying) = sendToTv(now.command, now.title, announce = true)
+    var confirmingCheckout by remember { mutableStateOf(false) }
     // La pantalla de contenido usa "atrás" para salir de la pantalla completa o de una serie.
     var contentHandlesBack by remember { mutableStateOf(false) }
 
     // Qué tiles hay y en qué orden: el parámetro propuesto X_APP_MOBILE_TILES o, sin él, el orden del mockup.
     // Solo se dibuja lo que la marca tiene prendido y lo que la cuenta tiene (ver resolveHomeTiles).
-    val wifi = remember(operatorConfig) { parseOperatorWifi(operatorConfig?.wifiRaw) }
-    val tiles = remember(operatorConfig, widgets, wifi, hotel, services, brand) {
+    val wifi = remember(operatorConfig) {
+        parseOperatorWifi(operatorConfig?.wifiRaw).also { parsed ->
+            // Sin el valor (lleva la clave de la red): solo si está y si se pudo leer, para saber por qué no hay tile.
+            val state = when { operatorConfig?.wifiRaw == null -> "sin configurar"; parsed == null -> "configurado pero no se pudo leer"; else -> "ok" }
+            runCatching { android.util.Log.i("Hospitality.Session", "wifi: X_APP_WIFI $state") }
+        }
+    }
+    // Películas solo si Panaccess trae alguna: sin contenido no hay tile (ni pantalla a la que entrar).
+    LaunchedEffect(content) { if (brand.features.vod) content.load() }
+    val hasVod = content.vod?.shelves?.any { it.items.isNotEmpty() } == true
+    val tiles = remember(operatorConfig, widgets, wifi, hotel, services, brand, hasVod) {
         val available = buildSet {
+            add(TileIds.REMOTE)
             if (brand.features.liveTv) add(TileIds.LIVE)
-            if (brand.features.vod) add(TileIds.VOD)
+            if (brand.features.vod && hasVod) add(TileIds.VOD)
             if (wifi != null) add(TileIds.WIFI)
             if (operatorConfig?.weatherText != null) add(TileIds.WEATHER)
             if (services != null) add(TileIds.SERVICES)
@@ -150,20 +180,37 @@ fun MobileApp(
                             logoUrl = operatorConfig?.hotelLogoUrl,
                         ),
                         model = content, language = language, text = text, contentText = contentText, servicesText = servicesText,
+                        remoteText = remoteText,
                         hotelName = hotelName,
                         actions = HomeActions(
+                            onRemote = { open(MobileScreen.Remote) },
                             onLive = { contentTab = ContentTab.Live; open(MobileScreen.Content) },
                             onVod = { contentTab = ContentTab.Vod; open(MobileScreen.Content) },
                             onWifi = { open(MobileScreen.Wifi) },
                             onServices = { open(MobileScreen.Services) },
                             onHotel = { open(MobileScreen.Hotel) },
                             onWidget = { selectedWidget = it; open(MobileScreen.Widget) },
+                            onCheckout = if (brand.features.checkout) ({ confirmingCheckout = true }) else null,
                         ),
                     )
                     MobileScreen.Content -> ContentScreen(
                         content, app.entertainment, text, contentText, app.brand.features, contentTab,
                         placeholderUrl = operatorConfig?.placeholderImageUrl,
+                        sendToTvLabel = remoteText.sendTv,
+                        onSendToTv = ::sendNowPlaying,
                         onHandlesBack = { contentHandlesBack = it },
+                        onBack = { back() },
+                    )
+                    MobileScreen.Remote -> RemoteScreen(
+                        text = remoteText,
+                        roomNumber = roomNumber,
+                        showGuide = brand.features.liveTv && brand.features.guide,
+                        // Misma marca que la TV: si la TV tiene la ficha del hotel, la tiene prendida acá también.
+                        showHotel = brand.features.hotelInfo,
+                        nowPlaying = content.nowPlaying,
+                        last = lastCommand,
+                        onSend = { command, label -> sendToTv(command, label) },
+                        onSendNowPlaying = ::sendNowPlaying,
                         onBack = { back() },
                     )
                     MobileScreen.Pair -> if (link is LinkState.Linked) {
@@ -202,6 +249,16 @@ fun MobileApp(
                     if (stack.last() == MobileScreen.Pair) onCodeConsumed()
                     back()
                 }
+                TvToast(toast)
+                if (confirmingCheckout) CheckoutDialog(
+                    text,
+                    onConfirm = {
+                        confirmingCheckout = false
+                        // Si llegó, la app vuelve sola a la pantalla neutra (MobileApplication.checkOut).
+                        scope.launch { if (!app.checkOut()) toast = remoteText.notSent }
+                    },
+                    onDismiss = { confirmingCheckout = false },
+                )
             }
         }
     }
@@ -242,6 +299,47 @@ private fun HotelFicha(
                         }
                     }
                 }
+            }
+        }
+    }
+}
+
+/** Textos de la confirmación del check-out del celular (los de la TV hablan de "esta TV"). */
+private data class CheckoutText(val title: String, val detail: String) {
+    companion object {
+        fun of(language: String) = when (language) {
+            "es" -> CheckoutText("¿Terminar estadía?", "Se realizará el check-out de la habitación.")
+            "pt" -> CheckoutText("Encerrar a estadia?", "Será feito o check-out do quarto.")
+            "fr" -> CheckoutText("Terminer le séjour ?", "Le check-out de la chambre sera effectué.")
+            "de" -> CheckoutText("Aufenthalt beenden?", "Das Zimmer wird ausgecheckt.")
+            else -> CheckoutText("End your stay?", "The room will be checked out.")
+        }
+    }
+}
+
+/** Confirmar el check-out: título, una línea, Cancelar y Confirmar (este en el color de acento). */
+@Composable
+private fun CheckoutDialog(text: UiText, onConfirm: () -> Unit, onDismiss: () -> Unit) {
+    val colors = HospitalityTheme.colors
+    val checkout = CheckoutText.of(LocalAppLocale.current.language)
+    val ink = com.networkbroadcast.hospitality.designsystem.HospitalityColors.readableTextColor(colors.accent)
+    androidx.compose.ui.window.Dialog(onDismissRequest = onDismiss) {
+        Column(
+            Modifier.fillMaxWidth().clip(RoundedCornerShape(rad(22))).background(colors.background).border(1.dp, colors.surfaceBorder, RoundedCornerShape(rad(22))).padding(22.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Text(checkout.title, color = colors.textPrimary, style = HospitalityTheme.typography.label.copy(fontSize = 19.sp, lineHeight = 23.sp, fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold))
+            Text(checkout.detail, color = colors.textSecondary, style = HospitalityTheme.typography.body.copy(fontSize = 13.sp, lineHeight = 18.sp))
+            androidx.compose.foundation.layout.Row(Modifier.padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                val shape = RoundedCornerShape(rad(23, 2))
+                Box(
+                    Modifier.weight(1f).height(46.dp).clip(shape).border(1.dp, colors.surfaceBorder, shape).clickable(onClick = onDismiss),
+                    contentAlignment = androidx.compose.ui.Alignment.Center,
+                ) { Text(text.cancel, color = colors.textPrimary, style = HospitalityTheme.typography.label.copy(fontSize = 14.sp)) }
+                Box(
+                    Modifier.weight(1f).height(46.dp).clip(shape).background(colors.accent).clickable(onClick = onConfirm),
+                    contentAlignment = androidx.compose.ui.Alignment.Center,
+                ) { Text(text.confirm, color = ink, style = HospitalityTheme.typography.label.copy(fontSize = 14.sp)) }
             }
         }
     }

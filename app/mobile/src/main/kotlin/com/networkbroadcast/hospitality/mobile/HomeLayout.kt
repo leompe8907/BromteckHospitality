@@ -31,8 +31,9 @@ object TileIds {
     const val SERVICES = "services"
     const val HOTEL = "hotel"
     const val WIDGETS = "widgets"
-    // Existen en el mockup pero hoy no se dibujan: no hay canal celular-TV (remote) ni pantalla de ajustes (settings).
+    // El control remoto siempre está: si se está en la app del celular, hay vinculación con la TV.
     const val REMOTE = "remote"
+    // Existe en el mockup pero hoy no se dibuja: no hay pantalla de ajustes.
     const val SETTINGS = "settings"
 }
 

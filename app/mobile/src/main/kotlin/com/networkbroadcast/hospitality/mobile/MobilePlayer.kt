@@ -328,16 +328,16 @@ fun MobilePlayer(
                 )
             }
             // Barra de abajo (.bar3): ícono chico de pausa/reproducir, tiempo, avance, audio/subtítulos y pantalla completa.
+            // En vivo no hay tiempo ni barra: el canal no se puede adelantar ni atrasar (igual que el player de la TV).
             Row(
                 Modifier.align(Alignment.BottomStart).fillMaxWidth().height(38.dp).background(Color(0x80000000)).padding(horizontal = 12.dp),
                 verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp),
             ) {
                 BarIcon(if (playing) R.drawable.ic_pause else R.drawable.ic_play, if (playing) text.pause else text.play, 15.dp, control, ::togglePlayPause)
-                val clock = if (live) overlay.clock.orEmpty() else "${formatClock(position)} / ${formatClock(duration)}"
-                if (clock.isNotEmpty()) Text(clock, style = barText, color = Color.White, maxLines = 1)
                 if (live) {
-                    ProgressTrack(overlay.progress ?: 0f, control, Modifier.weight(1f))
+                    Spacer(Modifier.weight(1f))
                 } else {
+                    Text("${formatClock(position)} / ${formatClock(duration)}", style = barText, color = Color.White, maxLines = 1)
                     SeekBar(
                         fraction = if (duration > 0) (position.toFloat() / duration).coerceIn(0f, 1f) else 0f,
                         enabled = seekable && duration > 0, color = control,
@@ -490,8 +490,4 @@ data class PlayerOverlay(
     val badge: String,
     /** En vivo: horario del programa al aire ("09:00 – 10:00"). */
     val range: String? = null,
-    /** En vivo: cuánto va del programa (0..1). */
-    val progress: Float? = null,
-    /** En vivo: la hora actual. */
-    val clock: String? = null,
 )

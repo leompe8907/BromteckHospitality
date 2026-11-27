@@ -62,6 +62,8 @@ import androidx.core.view.WindowInsetsControllerCompat
 import coil3.compose.AsyncImage
 import coil3.compose.rememberAsyncImagePainter
 import com.networkbroadcast.hospitality.brand.Features
+import com.networkbroadcast.hospitality.brand.LobbyText
+import com.networkbroadcast.hospitality.companion.TvCommand
 import com.networkbroadcast.hospitality.brand.UiText
 import com.networkbroadcast.hospitality.brand.imageModel
 import com.networkbroadcast.hospitality.designsystem.HospitalityTheme
@@ -80,7 +82,9 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.sync.withPermit
 import java.text.DateFormat
 import java.util.Date
@@ -89,19 +93,17 @@ import java.util.Date
 enum class ContentTab { Live, Guide, Catchup, Vod }
 
 /**
- * Qué pestañas ofrece la marca: canales y guía con liveTv (la guía además con guide), películas
- * con vod. "Eventos anteriores" (catch-up) es de la guía y solo aparece si Panaccess devolvió
- * algo para ver en diferido ([hasCatchup]).
+ * Qué pestañas ofrece la marca según por dónde se entró ([entry]). Desde TV en vivo: canales y guía con liveTv (la
+ * guía además con guide); "Eventos anteriores" (catch-up) es de la guía y solo aparece si Panaccess devolvió algo para
+ * ver en diferido ([hasCatchup]). Películas no va ahí: tiene su propio tile en la home y se abre sola, sin pestañas.
  */
-fun contentTabs(features: Features, hasCatchup: Boolean = false): List<ContentTab> = buildList {
-    if (features.liveTv) add(ContentTab.Live)
-    if (features.liveTv && features.guide) add(ContentTab.Guide)
-    if (features.liveTv && features.guide && hasCatchup) add(ContentTab.Catchup)
-    if (features.vod) add(ContentTab.Vod)
-}
-
-/** Las entradas de la home: las pestañas que se ven sin esperar a la red (sin catch-up). */
-fun availableTabs(features: Features): List<ContentTab> = contentTabs(features, hasCatchup = false)
+fun contentTabs(features: Features, hasCatchup: Boolean = false, entry: ContentTab = ContentTab.Live): List<ContentTab> =
+    if (entry == ContentTab.Vod) listOfNotNull(ContentTab.Vod.takeIf { features.vod })
+    else buildList {
+        if (features.liveTv) add(ContentTab.Live)
+        if (features.liveTv && features.guide) add(ContentTab.Guide)
+        if (features.liveTv && features.guide && hasCatchup) add(ContentTab.Catchup)
+    }
 
 private const val REFRESH_EVERY_MS = 10 * 60 * 1000L
 private const val SCHEDULE_TTL_MS = 30 * 60 * 1000L
@@ -126,6 +128,8 @@ class ContentModel(
         private set
     var resume by mutableStateOf(if (vodEnabled) resumeStore?.load().orEmpty() else emptyList())
         private set
+    /** Lo último que se puso a ver en el celular, para "Mandar a la TV" del control remoto. */
+    var nowPlaying by mutableStateOf<NowPlaying?>(null)
     private var refreshedAt by mutableLongStateOf(0L)
     private val schedules = HashMap<String, Pair<Long, List<Program>>>()
     // La guía de decenas de canales visibles a la vez no se pide toda junta (la TV hace igual).
@@ -135,7 +139,12 @@ class ContentModel(
     val hasCatchup: Boolean
         get() = catchup?.programsByChannel?.values?.any { list -> list.any { it.catchupId != null } } == true
 
-    suspend fun load() {
+    // La home y la pantalla de contenido piden la carga a la vez: la segunda espera y usa lo que trajo la primera.
+    private val loadLock = Mutex()
+
+    suspend fun load() { loadLock.withLock { loadLocked() } }
+
+    private suspend fun loadLocked() {
         if (channels == null) channels = attempt { source.cachedChannels() }
         if (vodEnabled && vod == null) vod = attempt { source.cachedVodShelves() }
         if (catchupEnabled && catchup == null) catchup = attempt { source.cachedCatchupCatalog() }
@@ -283,11 +292,14 @@ fun ContentScreen(
     features: Features,
     initialTab: ContentTab,
     placeholderUrl: String?,
+    /** Texto de "Mandar a la TV"; el botón sale con un canal o una película (un evento anterior no se puede mandar). */
+    sendToTvLabel: String,
+    onSendToTv: (NowPlaying) -> Unit,
     onHandlesBack: (Boolean) -> Unit,
     onBack: () -> Unit,
 ) {
     val colors = HospitalityTheme.colors
-    val tabs = contentTabs(features, model.hasCatchup)
+    val tabs = contentTabs(features, model.hasCatchup, entry = initialTab)
     if (tabs.isEmpty()) return
     var tab by remember { mutableStateOf(initialTab.takeIf { it in tabs } ?: tabs.first()) }
     var selected by remember { mutableStateOf<PlayRequest?>(null) }
@@ -300,6 +312,7 @@ fun ContentScreen(
     val selectedVodId = (selected?.target as? Playable.Vod)?.vodId
     val placeholder = rememberPlaceholder(placeholderUrl)
     val locale = LocalAppLocale.current
+    val lobbyText = remember(locale) { LobbyText.of(locale.language) }
 
     FullscreenEffect(fullscreen)
     val handlesBack = fullscreen || openSeries != null
@@ -309,10 +322,12 @@ fun ContentScreen(
 
     fun playChannel(channel: Channel) {
         selected = PlayRequest(Playable.Live(channel.id), "${channel.number}  ${channel.name}", live = true)
+        model.nowPlaying = NowPlaying(channel.name, channel.logoUrl, TvCommand.PlayChannel(channel.id))
     }
     fun playVod(id: String, title: String, subtitle: String?, description: String?, poster: String?, startMs: Long = 0L) {
         model.track(id, title, subtitle, poster)
         selected = PlayRequest(Playable.Vod(id), title, subtitle = subtitle, description = description, live = false, startMs = startMs)
+        model.nowPlaying = NowPlaying(title, poster, TvCommand.PlayVod(id))
     }
     fun openVod(item: VodItem) {
         if (item.isSeries) { openSeries = item; return }
@@ -332,6 +347,7 @@ fun ContentScreen(
             subtitle = "${channel.name} · ${DateFormat.getDateTimeInstance(DateFormat.SHORT, DateFormat.SHORT, locale).format(Date(program.startEpochSec * 1000))}",
             description = program.description, live = false,
         )
+        model.nowPlaying = null
     }
 
     // Programa al aire del canal que se ve (para el título, el horario y la barra del player).
@@ -351,8 +367,6 @@ fun ContentScreen(
                     request.live -> PlayerOverlay(
                         badge = contentText.liveBadge,
                         range = liveNow?.let { "${clock(it.startEpochSec)} – ${clock(it.endEpochSec)}" },
-                        progress = liveNow?.progress(now),
-                        clock = clock(now),
                     )
                     request.target is Playable.Catchup -> PlayerOverlay(badge = text.catchUp)
                     else -> PlayerOverlay(badge = contentText.tileMovies)
@@ -369,32 +383,40 @@ fun ContentScreen(
                     )
                     if (!fullscreen) {
                         // "Ahora": título del programa (19 sp) y debajo canal y horario (12 sp); "Siguiente" abajo.
-                        Column(Modifier.padding(top = 12.dp)) {
-                            Text(
-                                if (request.live) liveNow?.title ?: request.title else request.title,
-                                style = HospitalityTheme.typography.label.copy(fontSize = 19.sp, lineHeight = 22.sp, fontWeight = FontWeight.SemiBold),
-                                color = colors.textPrimary, maxLines = 2, overflow = TextOverflow.Ellipsis,
-                            )
-                            if (request.live) {
-                                val sub = listOfNotNull(request.title, liveNow?.let { "${clock(it.startEpochSec)}–${clock(it.endEpochSec)}" }).joinToString(" · ")
-                                Text(sub, style = HospitalityTheme.typography.body.copy(fontSize = 12.sp, lineHeight = 16.sp), color = colors.textSecondary, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(top = 3.dp))
-                                liveNext?.let {
-                                    Text("${text.nextLabel}: ${it.title} · ${clock(it.startEpochSec)}", style = HospitalityTheme.typography.body.copy(fontSize = 12.sp, lineHeight = 16.sp), color = colors.textMuted, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(top = 2.dp))
+                        // A la derecha, "Mandar a la TV" (`.nowrow` del mockup).
+                        Row(Modifier.padding(top = 12.dp), horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Column(Modifier.weight(1f)) {
+                                Text(
+                                    if (request.live) liveNow?.title ?: request.title else request.title,
+                                    style = HospitalityTheme.typography.label.copy(fontSize = 19.sp, lineHeight = 22.sp, fontWeight = FontWeight.SemiBold),
+                                    color = colors.textPrimary, maxLines = 2, overflow = TextOverflow.Ellipsis,
+                                )
+                                if (request.live) {
+                                    val sub = listOfNotNull(request.title, liveNow?.let { "${clock(it.startEpochSec)}–${clock(it.endEpochSec)}" }).joinToString(" · ")
+                                    Text(sub, style = HospitalityTheme.typography.body.copy(fontSize = 12.sp, lineHeight = 16.sp), color = colors.textSecondary, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(top = 3.dp))
+                                    liveNext?.let {
+                                        Text("${text.nextLabel}: ${it.title} · ${clock(it.startEpochSec)}", style = HospitalityTheme.typography.body.copy(fontSize = 12.sp, lineHeight = 16.sp), color = colors.textMuted, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(top = 2.dp))
+                                    }
+                                } else {
+                                    request.subtitle?.let { Text(it, style = HospitalityTheme.typography.body.copy(fontSize = 12.sp, lineHeight = 16.sp), color = colors.textSecondary, maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(top = 3.dp)) }
+                                    request.description?.let { Text(it, style = smallStyle(), color = colors.textSecondary, maxLines = 3, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(top = 4.dp)) }
                                 }
-                            } else {
-                                request.subtitle?.let { Text(it, style = HospitalityTheme.typography.body.copy(fontSize = 12.sp, lineHeight = 16.sp), color = colors.textSecondary, maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(top = 3.dp)) }
-                                request.description?.let { Text(it, style = smallStyle(), color = colors.textSecondary, maxLines = 3, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(top = 4.dp)) }
                             }
+                            model.nowPlaying?.takeIf { request.target !is Playable.Catchup }?.let { now -> SendToTvButton(sendToTvLabel) { onSendToTv(now) } }
                         }
                     }
                 }
+            }
+            // Antes de elegir un canal, la vista previa del Lobby del primero; tocarla lo pone en el mismo lugar.
+            if (selected == null && tab == ContentTab.Live) {
+                model.channels?.channels?.firstOrNull()?.let { first -> LobbyLivePreview(model, first, text, now) { playChannel(first) } }
             }
             if (!fullscreen) {
                 if (tabs.size > 1) TabBar(tabs, tab, text, contentText) { tab = it; openSeries = null }
                 Box(Modifier.weight(1f).fillMaxWidth()) {
                     when (tab) {
-                        ContentTab.Live -> ChannelsList(model, text, now, selectedChannelId, ::playChannel)
-                        ContentTab.Guide -> GuideList(model, text, now, ::playChannel)
+                        ContentTab.Live -> LobbyLiveList(model, text, lobbyText, now, selectedChannelId, ::playChannel)
+                        ContentTab.Guide -> LobbyGuideList(model, text, lobbyText, now, ::playChannel, ::playCatchup)
                         ContentTab.Catchup -> CatchupList(model, text, ::playCatchup)
                         ContentTab.Vod -> {
                             val series = openSeries
@@ -458,109 +480,6 @@ private fun Message(message: String) {
 private fun ChannelLogo(channel: Channel, width: Int, height: Int) {
     Box(Modifier.size(width.dp, height.dp).clip(RoundedCornerShape(9.dp))) {
         PlaceholderImage(channel.logoUrl, channel.name, ContentScale.Fit, Modifier.fillMaxSize().padding(2.dp))
-    }
-}
-
-@Composable
-private fun ChannelsList(model: ContentModel, text: UiText, now: Long, selectedId: String?, onPlay: (Channel) -> Unit) {
-    val result = model.channels ?: return Message(text.loading)
-    val rows = result.toRows(text.liveTv)
-    if (rows.isEmpty()) return Message(result.failure?.let { "${text.noChannels} ($it)" } ?: text.noChannels)
-    LazyColumn(
-        Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 40.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        rows.forEach { row ->
-            // Con un solo grupo el título repetiría el de la pantalla.
-            if (rows.size > 1) item(key = "h/${row.title}") {
-                Text(row.title, style = sectionStyle(), color = HospitalityTheme.colors.textSecondary, modifier = Modifier.padding(top = 8.dp))
-            }
-            // El mismo canal puede estar en varios bouquets: la clave lleva el del grupo.
-            items(row.channels, key = { "${row.title}/${it.id}" }) { channel ->
-                ChannelItem(model, channel, now, channel.id == selectedId) { onPlay(channel) }
-            }
-        }
-    }
-}
-
-@Composable
-private fun ChannelItem(model: ContentModel, channel: Channel, now: Long, selected: Boolean, onClick: () -> Unit) {
-    val colors = HospitalityTheme.colors
-    val schedule by produceState(model.cachedSchedule(channel.id), channel.id) { value = model.schedule(channel.id) }
-    val current = schedule.orEmpty().nowAndNext(now).first
-    // Fila del mockup (.crow): logo de 48x34, nombre, programa y barra de avance en el color del control, número a la derecha.
-    val shape = RoundedCornerShape(rad(16, 2))
-    Row(
-        Modifier.fillMaxWidth().clip(shape).background(colors.surface)
-            .border(if (selected) 2.dp else 1.dp, if (selected) colors.accent else colors.surfaceBorder, shape)
-            .clickable(onClick = onClick).padding(start = 9.dp, end = 12.dp, top = 9.dp, bottom = 9.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
-    ) {
-        ChannelLogo(channel, 48, 34)
-        Column(Modifier.weight(1f)) {
-            Text(channel.name, style = rowTitleStyle().copy(fontSize = 14.sp, fontWeight = FontWeight.SemiBold), color = colors.textPrimary, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            current?.let {
-                Text(it.title, style = smallStyle().copy(fontSize = 12.sp, lineHeight = 16.sp), color = colors.textSecondary, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                Box(Modifier.fillMaxWidth().padding(top = 6.dp).height(3.dp).clip(RoundedCornerShape(2.dp)).background(colors.surfaceBorder)) {
-                    Box(Modifier.fillMaxWidth(it.progress(now)).height(3.dp).background(LocalPlayerColor.current))
-                }
-            }
-        }
-        Text("${channel.number}", style = captionStyle().copy(fontSize = 11.sp, fontWeight = FontWeight.Bold), color = colors.textMuted, textAlign = TextAlign.End, modifier = Modifier.width(18.dp))
-    }
-}
-
-@Composable
-private fun GuideList(model: ContentModel, text: UiText, now: Long, onPlay: (Channel) -> Unit) {
-    val result = model.channels ?: return Message(text.loading)
-    if (result.channels.isEmpty()) return Message(result.failure?.let { "${text.noChannels} ($it)" } ?: text.noChannels)
-    val locale = LocalAppLocale.current
-    val timeFormat = remember(locale) { DateFormat.getTimeInstance(DateFormat.SHORT, locale) }
-    LazyColumn(
-        Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(top = 12.dp, bottom = 40.dp),
-        verticalArrangement = Arrangement.spacedBy(14.dp),
-    ) {
-        items(result.channels, key = { it.id }) { channel ->
-            val colors = HospitalityTheme.colors
-            val schedule by produceState<List<Program>?>(model.cachedSchedule(channel.id), channel.id) { value = model.schedule(channel.id) }
-            Column {
-                Row(Modifier.padding(start = 16.dp, end = 16.dp, bottom = 7.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    ChannelLogo(channel, 34, 24)
-                    Text(channel.name, style = rowTitleStyle().copy(fontSize = 13.sp, fontWeight = FontWeight.SemiBold), color = colors.textPrimary, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                }
-                val upcoming = schedule.orEmpty().upcoming(now, limit = 12)
-                if (upcoming.isEmpty()) {
-                    Text(
-                        if (schedule == null) text.loading else text.noSchedule,
-                        style = smallStyle(), color = colors.textMuted, modifier = Modifier.padding(horizontal = 16.dp),
-                    )
-                } else {
-                    // Tira del mockup (.gstrip / .gp): tarjetas de 136 dp; la que está al aire va con el borde de acento.
-                    LazyRow(contentPadding = PaddingValues(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(7.dp)) {
-                        items(upcoming, key = { "${it.startEpochSec}/${it.title}" }) { program ->
-                            val live = program.isLive(now)
-                            val shape = RoundedCornerShape(rad(14, 2))
-                            Column(
-                                Modifier.width(136.dp).clip(shape)
-                                    .background(if (live) colors.accent.copy(alpha = 0.14f).compositeOver(colors.surface) else colors.surface)
-                                    .border(1.dp, if (live) colors.accent else colors.surfaceBorder, shape)
-                                    .clickable { onPlay(channel) }.padding(horizontal = 11.dp, vertical = 9.dp),
-                            ) {
-                                Text(
-                                    (if (live) "${text.nowLabel.uppercase()} · " else "") + timeFormat.format(Date(program.startEpochSec * 1000)),
-                                    style = captionStyle().copy(fontSize = 10.5.sp, fontWeight = FontWeight.Bold, letterSpacing = 0.42.sp),
-                                    color = if (live) colors.accent else colors.textMuted, maxLines = 1,
-                                )
-                                Text(program.title, style = smallStyle().copy(fontSize = 12.5.sp, lineHeight = 15.6.sp, fontWeight = FontWeight.SemiBold), color = colors.textPrimary, maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(top = 2.dp))
-                            }
-                        }
-                    }
-                }
-            }
-        }
     }
 }
 

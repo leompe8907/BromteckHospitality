@@ -93,12 +93,15 @@ class HomeData(
 
 /** A dónde lleva cada tile. */
 class HomeActions(
+    val onRemote: () -> Unit,
     val onLive: () -> Unit,
     val onVod: () -> Unit,
     val onWifi: () -> Unit,
     val onServices: () -> Unit,
     val onHotel: () -> Unit,
     val onWidget: (HomeWidget) -> Unit,
+    /** Check-out (termina la estadía); null si la marca no lo ofrece. */
+    val onCheckout: (() -> Unit)? = null,
 )
 
 @Composable
@@ -109,6 +112,7 @@ fun HomeScreen(
     text: UiText,
     contentText: ContentText,
     servicesText: ServicesText,
+    remoteText: RemoteText,
     hotelName: String?,
     actions: HomeActions,
 ) {
@@ -118,19 +122,33 @@ fun HomeScreen(
     val now by produceState(System.currentTimeMillis() / 1000) { while (true) { delay(30_000); value = System.currentTimeMillis() / 1000 } }
 
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
-        // Cabecera (.hero): logo del hotel y saludo.
+        // Cabecera (.hero): logo del hotel, la TV de la habitación (abre el control) y el saludo.
         Column(Modifier.padding(start = 18.dp, end = 18.dp, top = 10.dp)) {
-            if (data.logoUrl != null || hotelName != null) {
-                Row(
-                    Modifier.height(38.dp).clip(RoundedCornerShape(19.dp)).background(colors.surface).border(1.dp, colors.surfaceBorder, RoundedCornerShape(19.dp))
-                        .padding(start = 11.dp, end = 13.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    if (data.logoUrl != null) {
-                        AsyncImage(model = imageModel(data.logoUrl), contentDescription = hotelName, contentScale = ContentScale.Fit, modifier = Modifier.height(24.dp).width(110.dp))
-                    } else {
-                        Text(hotelName.orEmpty(), color = colors.textPrimary, maxLines = 1, overflow = TextOverflow.Ellipsis,
-                            style = HospitalityTheme.typography.label.copy(fontSize = 17.sp, fontWeight = FontWeight.SemiBold, letterSpacing = 0.34.sp))
+            if (data.logoUrl != null || hotelName != null || data.roomNumber != null) Row(Modifier.fillMaxWidth().height(38.dp), verticalAlignment = Alignment.CenterVertically) {
+                if (data.logoUrl != null || hotelName != null) {
+                    Row(
+                        Modifier.height(38.dp).clip(RoundedCornerShape(19.dp)).background(colors.surface).border(1.dp, colors.surfaceBorder, RoundedCornerShape(19.dp))
+                            .padding(start = 11.dp, end = 13.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        if (data.logoUrl != null) {
+                            AsyncImage(model = imageModel(data.logoUrl), contentDescription = hotelName, contentScale = ContentScale.Fit, modifier = Modifier.height(24.dp).width(110.dp))
+                        } else {
+                            Text(hotelName.orEmpty(), color = colors.textPrimary, maxLines = 1, overflow = TextOverflow.Ellipsis,
+                                style = HospitalityTheme.typography.label.copy(fontSize = 17.sp, fontWeight = FontWeight.SemiBold, letterSpacing = 0.34.sp))
+                        }
+                    }
+                }
+                Spacer(Modifier.weight(1f))
+                data.roomNumber?.let { room ->
+                    // `.pill` del mockup: "TV 101" con el punto de conectada.
+                    Row(
+                        Modifier.height(30.dp).clip(RoundedCornerShape(15.dp)).background(colors.surface).border(1.dp, colors.surfaceBorder, RoundedCornerShape(15.dp))
+                            .clickable(onClick = actions.onRemote).padding(horizontal = 12.dp),
+                        horizontalArrangement = Arrangement.spacedBy(7.dp), verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        StatusDot(colors.accent)
+                        Text("TV $room", color = colors.textPrimary, maxLines = 1, style = HospitalityTheme.typography.label.copy(fontSize = 12.sp, fontWeight = FontWeight.SemiBold))
                     }
                 }
             }
@@ -161,19 +179,31 @@ fun HomeScreen(
                 data.tiles.forEachIndexed { i, tile ->
                     val p = placements[i]
                     Box(Modifier.offset(x = (colW + COL_GAP) * p.col, y = (ROW_H + ROW_GAP) * p.row).size(wOf(p.size), hOf(p.size))) {
-                        TileContent(tile, data, model, language, text, contentText, servicesText, hotelName, actions, now, wOf(p.size), hOf(p.size))
+                        TileContent(tile, data, model, language, text, contentText, servicesText, remoteText, hotelName, actions, now, wOf(p.size), hOf(p.size))
                     }
                 }
             }
         }
         Spacer(Modifier.height(70.dp))   // .homefoot: lugar para los rótulos de la última fila
+        actions.onCheckout?.let { onCheckout ->
+            // Al final de la home, en el color de confirmar (X_APP_CONFIRM_COLOR; sin él, el acento de la marca) para que se
+            // vea. Pide confirmación antes de terminar la estadía.
+            val shape = RoundedCornerShape(rad(25, 2))
+            Box(
+                Modifier.padding(start = 18.dp, end = 18.dp, bottom = 40.dp).fillMaxWidth().height(50.dp).clip(shape)
+                    .background(colors.accent).clickable(onClick = onCheckout),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(text.checkout, color = HospitalityColors.readableTextColor(colors.accent), style = HospitalityTheme.typography.label.copy(fontSize = 14.sp, fontWeight = FontWeight.SemiBold))
+            }
+        }
     }
 }
 
 @Composable
 private fun TileContent(
     tile: HomeTile, data: HomeData, model: ContentModel, language: String, text: UiText, contentText: ContentText,
-    servicesText: ServicesText, hotelName: String?, actions: HomeActions, now: Long, w: Dp, h: Dp,
+    servicesText: ServicesText, remoteText: RemoteText, hotelName: String?, actions: HomeActions, now: Long, w: Dp, h: Dp,
 ) {
     when (tile) {
         is HomeTile.Widget -> {
@@ -188,6 +218,7 @@ private fun TileContent(
             }
         }
         is HomeTile.Builtin -> when (tile.id) {
+            TileIds.REMOTE -> RemoteTile(tile.size, data.roomNumber, remoteText, actions.onRemote, w, h)
             TileIds.LIVE -> LiveTile(tile.size, model, now, text, contentText, w, h, actions.onLive)
             TileIds.VOD -> VodTile(tile.size, model, contentText, actions.onVod, w, h)
             TileIds.WIFI -> data.wifi?.let { WifiTile(tile.size, it, text, contentText, actions.onWifi, w, h) }
@@ -202,11 +233,15 @@ private fun TileContent(
 
 /** Tile S (`.tile .sq`): cuadrado con el ícono en el color de acento y el rótulo debajo, en el hueco entre filas. */
 @Composable
-private fun SmallTile(label: String, w: Dp, h: Dp, onClick: () -> Unit, content: @Composable BoxScope.() -> Unit) {
+private fun SmallTile(label: String, w: Dp, h: Dp, onClick: () -> Unit, fill: Color? = null, content: @Composable BoxScope.() -> Unit) {
     val colors = HospitalityTheme.colors
-    val shape = RoundedCornerShape(rad(19))
+    val shape = RoundedCornerShape(rad(15))
     Box(Modifier.size(w, h)) {
-        Box(Modifier.fillMaxSize().clip(shape).background(colors.surface).border(1.dp, colors.surfaceBorder, shape).clickable(onClick = onClick), contentAlignment = Alignment.Center, content = content)
+        Box(
+            Modifier.fillMaxSize().clip(shape).background(fill ?: colors.surface).then(if (fill == null) Modifier.border(1.dp, colors.surfaceBorder, shape) else Modifier)
+                .clickable(onClick = onClick),
+            contentAlignment = Alignment.Center, content = content,
+        )
         Text(
             label, color = colors.textPrimary, maxLines = 1, overflow = TextOverflow.Ellipsis, textAlign = androidx.compose.ui.text.style.TextAlign.Center,
             style = HospitalityTheme.typography.label.copy(fontSize = 11.5.sp, fontWeight = FontWeight.Medium),
@@ -219,7 +254,7 @@ private fun SmallTile(label: String, w: Dp, h: Dp, onClick: () -> Unit, content:
 @Composable
 private fun WidgetTile(onClick: (() -> Unit)?, fill: Color? = null, borderless: Boolean = false, content: @Composable BoxScope.() -> Unit) {
     val colors = HospitalityTheme.colors
-    val shape = RoundedCornerShape(rad(26))
+    val shape = RoundedCornerShape(rad(20))
     Box(
         Modifier.fillMaxSize().clip(shape).background(fill ?: colors.surface)
             .then(if (borderless) Modifier else Modifier.border(1.dp, colors.surfaceBorder, shape))
@@ -274,6 +309,66 @@ private fun TileIcon(icon: Int, size: Dp = 30.dp) {
 }
 
 /* ---------------------------------------------------------------- tiles ---------------------------------------------------------------- */
+
+/** Control remoto (`remote`, `.fill` del mockup): en el color de acento, con las flechas en chico y la TV de la habitación. */
+@Composable
+private fun RemoteTile(size: TileSize, roomNumber: String?, text: RemoteText, onClick: () -> Unit, w: Dp, h: Dp) {
+    val colors = HospitalityTheme.colors
+    val ink = HospitalityColors.readableTextColor(colors.accent)
+    if (size == TileSize.S) {
+        SmallTile(text.title, w, h, onClick, fill = colors.accent) {
+            Icon(painterResource(R.drawable.ic_remote), contentDescription = null, tint = ink, modifier = Modifier.size(30.dp))
+        }
+        return
+    }
+    val sub = roomNumber?.let(text::tvRoom) ?: text.tvOn
+    WidgetTile(onClick, fill = colors.accent, borderless = true) {
+        if (size == TileSize.M) {
+            Column(Modifier.fillMaxSize().padding(14.dp)) {
+                Kicker(text.title, R.drawable.ic_remote, color = ink.copy(alpha = 0.85f), iconColor = ink)
+                Box(Modifier.padding(top = 6.dp)) { InkStatus(sub, ink) }
+                Spacer(Modifier.weight(1f))
+                Box(Modifier.align(Alignment.CenterHorizontally).offset(y = 4.dp)) { MiniDpad(98.dp, ink) }
+            }
+        } else {
+            Row(Modifier.fillMaxSize().padding(14.dp), horizontalArrangement = Arrangement.spacedBy(14.dp), verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f).fillMaxHeight()) {
+                    Kicker(text.title, R.drawable.ic_remote, color = ink.copy(alpha = 0.85f), iconColor = ink)
+                    Text(text.tvOn, color = ink, maxLines = 1, overflow = TextOverflow.Ellipsis,
+                        style = HospitalityTheme.typography.label.copy(fontSize = 19.sp, lineHeight = 22.sp, fontWeight = FontWeight.SemiBold), modifier = Modifier.padding(top = 10.dp))
+                    if (roomNumber != null) InkStatus(sub, ink)
+                    Spacer(Modifier.weight(1f))
+                    Row(horizontalArrangement = Arrangement.spacedBy(7.dp)) {
+                        InkPill(R.drawable.ic_volume, "+ −", ink)
+                        InkPill(R.drawable.ic_tv, "CH", ink)
+                    }
+                }
+                MiniDpad(134.dp, ink)
+            }
+        }
+    }
+}
+
+/** Punto y "TV de la habitación 101" sobre el acento del tile del control. */
+@Composable
+private fun InkStatus(label: String, ink: Color) {
+    Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
+        Box(Modifier.size(7.dp).clip(CircleShape).background(ink))
+        Text(label, color = ink.copy(alpha = 0.78f), maxLines = 1, overflow = TextOverflow.Ellipsis, style = HospitalityTheme.typography.label.copy(fontSize = 12.sp))
+    }
+}
+
+/** Pastilla sobre el acento del tile del control (`.pill` con fondo `#00000024`). */
+@Composable
+private fun InkPill(icon: Int, label: String, ink: Color) {
+    Row(
+        Modifier.height(32.dp).clip(RoundedCornerShape(16.dp)).background(Color.Black.copy(alpha = 0.14f)).padding(horizontal = 10.dp),
+        horizontalArrangement = Arrangement.spacedBy(7.dp), verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(painterResource(icon), contentDescription = null, tint = ink, modifier = Modifier.size(15.dp))
+        Text(label, color = ink, style = HospitalityTheme.typography.label.copy(fontSize = 12.sp, fontWeight = FontWeight.SemiBold))
+    }
+}
 
 @Composable
 private fun nowProgramOf(model: ContentModel, channel: Channel?, now: Long): com.networkbroadcast.hospitality.entertainment.Program? {
@@ -432,7 +527,7 @@ private fun WeatherTile(size: TileSize, temp: Int?, description: String?, conten
     // Solo hay temperatura y descripción (Panaccess); no hay pantalla de clima ni más datos, así que el tile no se toca.
     val label = contentText.tileWeather
     if (size == TileSize.S) {
-        val shape = RoundedCornerShape(rad(19))
+        val shape = RoundedCornerShape(rad(15))
         Box(Modifier.size(w, h)) {
             Box(Modifier.fillMaxSize().clip(shape).background(SKY), contentAlignment = Alignment.Center) {
                 Text(temp?.let { "$it°" } ?: "–", color = Color.White, style = HospitalityTheme.typography.label.copy(fontSize = 22.sp, fontWeight = FontWeight.SemiBold))

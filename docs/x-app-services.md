@@ -138,13 +138,14 @@ Un arreglo de objetos con `id` y `size`, en el orden en que se dibujan:
 | `id` | Qué muestra |
 |---|---|
 | `live` | Canales en vivo: el programa al aire y, en `W`, los siguientes canales. Solo si la marca tiene `liveTv`. |
-| `vod` | Películas y series, con pósters. Solo si la marca tiene `vod`. |
+| `vod` | Películas y series, con pósters. Solo si la marca tiene `vod` y la cuenta tiene alguna película o serie. |
 | `widgets` | Los widgets de la cuenta (`X_APP_WIDGETS`), cada uno como un tile, en el orden de Panaccess. |
 | `wifi` | La red Wi-Fi de huéspedes con su QR (`X_APP_WIFI`). Solo si la cuenta la manda. |
 | `weather` | Temperatura y descripción del clima. Solo si la cuenta manda el clima. |
 | `services` | Servicios del hotel (`X_APP_SERVICES`). Solo si la cuenta los manda. |
 | `hotel` | Ficha del hotel. Solo si la marca tiene `hotelInfo`. |
-| `remote`, `settings` | Existen en el diseño pero **hoy no se dibujan**: no hay canal entre el celular y la TV, y el idioma viene de la cuenta. |
+| `remote` | Control remoto de la TV de la habitación (flechas, OK, volumen, canal, atrás, inicio, guía). Siempre está: si el huésped está en la app, el celular está vinculado a la TV. Las órdenes pasan por el backend. |
+| `settings` | Existe en el diseño pero **hoy no se dibuja**: el idioma viene de la cuenta. |
 
 - La grilla tiene 4 columnas. Un tile chico rellena el hueco que deja uno grande.
 - `widgets` se expande a un tile por cada widget de la cuenta. Con `M` (el valor habitual) forman un mosaico que

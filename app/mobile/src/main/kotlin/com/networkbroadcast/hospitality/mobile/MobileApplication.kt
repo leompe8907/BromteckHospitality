@@ -124,6 +124,18 @@ class MobileApplication : Application() {
         }
     }
 
+    /**
+     * Check-out desde el celular: termina la estadía de la habitación (el backend desvincula todos los celulares y la
+     * TV vuelve a elegir idioma), cierra la sesión de Panaccess y vuelve a la pantalla neutra. false si no llegó al
+     * backend: entonces no se toca nada.
+     */
+    suspend fun checkOut(): Boolean {
+        if (!companion.checkOut()) return false
+        panaccess.close()
+        _session.value = MobileSession.NoSession
+        return true
+    }
+
     /** Solo depuración: entra con una cuenta de prueba y la licencia de [room] (nombre de licencia). */
     fun debugLogin(user: String, password: String, room: String?) {
         check(isDebuggable) { "debugLogin solo existe en builds de depuración" }

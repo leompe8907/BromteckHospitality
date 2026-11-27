@@ -71,11 +71,13 @@ class ContentLogicTest {
     }
 
     @Test
-    fun `solo las pestanas que la marca tiene`() {
+    fun `solo las pestanas que la marca tiene, y peliculas aparte de la TV en vivo`() {
         val all = com.networkbroadcast.hospitality.brand.Features(liveTv = true, vod = true, guide = true)
-        assertEquals(listOf(ContentTab.Live, ContentTab.Guide, ContentTab.Vod), contentTabs(all))
-        assertEquals(listOf(ContentTab.Live, ContentTab.Guide, ContentTab.Catchup, ContentTab.Vod), contentTabs(all, hasCatchup = true))
+        assertEquals(listOf(ContentTab.Live, ContentTab.Guide), contentTabs(all))
+        assertEquals(listOf(ContentTab.Live, ContentTab.Guide, ContentTab.Catchup), contentTabs(all, hasCatchup = true))
+        assertEquals(listOf(ContentTab.Vod), contentTabs(all, hasCatchup = true, entry = ContentTab.Vod))
         val noVod = com.networkbroadcast.hospitality.brand.Features(liveTv = true, vod = false, guide = false)
         assertEquals(listOf(ContentTab.Live), contentTabs(noVod, hasCatchup = true))
+        assertEquals(emptyList<ContentTab>(), contentTabs(noVod, entry = ContentTab.Vod))
     }
 }

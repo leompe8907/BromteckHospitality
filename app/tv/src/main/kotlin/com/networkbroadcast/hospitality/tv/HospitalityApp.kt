@@ -389,6 +389,7 @@ fun HospitalityApp(
             is TvCommand.PlayVod -> { media = MediaRequest(Playable.Vod(c.vodId), ""); open(Screen.MediaPlayer) }
             TvCommand.OpenGuide -> { lastHomeAction = HomeAction.Guide; open(Screen.Guide) }
             TvCommand.OpenHotelInfo -> if (app.showsHotelInfo) open(Screen.AboutHotel)
+            is TvCommand.Key -> context.pressRemoteKey(c.key, onHome = { backStack.retainAll(listOf(Screen.Home)) })
             null -> Unit
         }
     }

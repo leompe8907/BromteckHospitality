@@ -36,6 +36,7 @@ internal fun TvCommand.toBody(): JsonObject = buildJsonObject {
         is TvCommand.PlayVod -> { put("type", "PlayVod"); put("vodId", c.vodId) }
         TvCommand.OpenGuide -> put("type", "OpenGuide")
         TvCommand.OpenHotelInfo -> put("type", "OpenHotelInfo")
+        is TvCommand.Key -> { put("type", "Key"); put("key", c.key.name) }
     }
 }
 
@@ -59,6 +60,8 @@ internal fun parseServerCommand(item: JsonElement): ServerCommand? {
         "PlayVod" -> obj.string("vodId")?.let { ServerCommand.FromPhone(id, TvCommand.PlayVod(it)) }
         "OpenGuide" -> ServerCommand.FromPhone(id, TvCommand.OpenGuide)
         "OpenHotelInfo" -> ServerCommand.FromPhone(id, TvCommand.OpenHotelInfo)
+        // Una tecla que esta versión no conoce se ignora, igual que un tipo desconocido.
+        "Key" -> RemoteKey.entries.firstOrNull { it.name == obj.string("key") }?.let { ServerCommand.FromPhone(id, TvCommand.Key(it)) }
         "Checkout" -> ServerCommand.Checkout(id, obj.long("stayNumber"))
         else -> null
     }

@@ -136,6 +136,14 @@ sealed interface TvCommand {
     data class PlayVod(val vodId: String) : TvCommand
     data object OpenGuide : TvCommand
     data object OpenHotelInfo : TvCommand
+
+    /** Una tecla del control remoto del celular. Una orden por pulsación; el backend la descarta a los 10 s. */
+    data class Key(val key: RemoteKey) : TvCommand
+}
+
+/** Teclas del control remoto del celular (`keyCommand.values` de contract/pairing.json, mismos nombres). */
+enum class RemoteKey {
+    BACK, HOME, UP, DOWN, LEFT, RIGHT, OK, VOLUME_UP, VOLUME_DOWN, MUTE, CHANNEL_UP, CHANNEL_DOWN,
 }
 
 /** Formato del código: 6 dígitos. Lo validan las dos apps antes de llamar al backend. */

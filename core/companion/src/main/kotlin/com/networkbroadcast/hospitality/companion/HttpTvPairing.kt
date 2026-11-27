@@ -62,6 +62,8 @@ class HttpTvPairing(
     private val activationCode: String? = null,
     /** Cuánto queda una orden en [commands] antes de volver a null. Ver [publish]. */
     private val commandHoldMs: Long = 500,
+    /** Lo mismo para las teclas del control remoto: varias seguidas en una consulta no tienen que tardar medio segundo cada una. */
+    private val keyHoldMs: Long = 120,
 ) : TvPairing {
     private val phones = MutableStateFlow<List<PairedPhone>>(emptyList())
     private val pending = MutableStateFlow<List<PairedPhone>>(emptyList())
@@ -189,7 +191,7 @@ class HttpTvPairing(
      */
     private suspend fun publish(item: TvCommand) = commandLock.withLock {
         command.value = item
-        delay(commandHoldMs)
+        delay(if (item is TvCommand.Key) keyHoldMs else commandHoldMs)
         command.value = null
     }
 

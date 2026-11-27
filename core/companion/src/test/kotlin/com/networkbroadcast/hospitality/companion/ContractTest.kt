@@ -57,6 +57,7 @@ class ContractTest {
                 "PlayVod" -> TvCommand.PlayVod(body.getValue("vodId").jsonPrimitive.content)
                 "OpenGuide" -> TvCommand.OpenGuide
                 "OpenHotelInfo" -> TvCommand.OpenHotelInfo
+                "Key" -> TvCommand.Key(RemoteKey.valueOf(body.getValue("key").jsonPrimitive.content))
                 else -> error("tipo sin TvCommand: $body")
             }
             assertEquals(case.getValue("name").jsonPrimitive.content, body, command.toBody())
@@ -78,9 +79,21 @@ class ContractTest {
     }
 
     @Test
+    fun `el celular manda todos los tipos y las mismas teclas que el contrato`() {
+        val types = contract.getValue("commandTypes").jsonObject.getValue("fromPhone").jsonArray.map { it.jsonPrimitive.content }
+        val sent = listOf(TvCommand.PlayChannel("1"), TvCommand.PlayVod("1"), TvCommand.OpenGuide, TvCommand.OpenHotelInfo, TvCommand.Key(RemoteKey.OK))
+            .map { it.toBody().getValue("type").jsonPrimitive.content }
+        assertEquals(types, sent)
+        val keys = contract.getValue("keyCommand").jsonObject.getValue("values").jsonArray.map { it.jsonPrimitive.content }
+        assertEquals(keys, RemoteKey.entries.map { it.name })
+    }
+
+    @Test
     fun `una orden de un tipo desconocido se ignora`() {
         assertNull(parseServerCommand(Json.parseToJsonElement("""{"id":3,"type":"Reboot"}""")))
         assertNull(parseServerCommand(Json.parseToJsonElement("""{"id":3,"type":"PlayChannel"}""")))
+        assertNull(parseServerCommand(Json.parseToJsonElement("""{"id":3,"type":"Key","key":"POWER"}""")))
+        assertNull(parseServerCommand(Json.parseToJsonElement("""{"id":3,"type":"Key"}""")))
     }
 
     @Test

@@ -3,7 +3,9 @@
   "code": {"length": 6, "ttlSeconds": 600, "format": "6 digitos, con ceros a la izquierda"},
   "linkErrors": {"InvalidCode": 400, "Expired": 410, "NotAvailable": 503, "TooManyAttempts": 429},
   "phoneErrors": {"Unlinked": 401, "InvalidCredentials": 401},
-  "commandTypes": {"fromPhone": ["PlayChannel", "PlayVod", "OpenGuide", "OpenHotelInfo"], "fromServer": ["Checkout"]},
+  "commandTypes": {"fromPhone": ["PlayChannel", "PlayVod", "OpenGuide", "OpenHotelInfo", "Key"], "fromServer": ["Checkout"]},
+  "commandTtlSeconds": {"default": 120, "Key": 10, "_comment": "Una orden que la TV no levanto en este tiempo se descarta (la TV no la ejecuta). Las teclas del control remoto vencen a los 10 s: una tecla vieja (subir volumen de hace 3 minutos) no se ejecuta si la TV estaba sin red. Checkout usa el default."},
+  "keyCommand": {"values": ["BACK", "HOME", "UP", "DOWN", "LEFT", "RIGHT", "OK", "VOLUME_UP", "VOLUME_DOWN", "MUTE", "CHANNEL_UP", "CHANNEL_DOWN"], "rule": "Lista cerrada, en mayusculas. Body del celular: {\"type\": \"Key\", \"key\": \"VOLUME_UP\"}; la TV recibe {id, type: \"Key\", key, phoneId, createdAt}. Tope propio: 300 por minuto por celular, aparte del de las otras ordenes (30 por minuto)."},
   "stay": {"keys": ["number", "checkedOutAt"], "seenIn": ["GET /api/tv/phones/", "GET /api/tv/commands/", "POST /api/tv/checkout/"],
            "checkoutVia": ["POST /api/phone/checkout/", "POST /api/staff/checkout/", "POST /api/tv/checkout/"],
            "rule": "number sube en 1 con cada check-out, venga de donde venga. La TV guarda el stay.number que vio por ultima vez; si el del servidor es MAYOR hubo un check-out (tambien si estaba apagada o sin red: no vence), y tiene que borrar la sesion del huesped y volver a elegir idioma, sin tocar la licencia de Panaccess de la TV. Si no guardo ninguno (TV recien instalada), adopta el actual sin resetear. La orden Checkout {stayNumber} es el camino rapido y vence a los 2 minutos: al recibirla la TV hace lo mismo y guarda stayNumber."},
@@ -37,6 +39,8 @@
     {"name": "reproducir pelicula", "body": {"type": "PlayVod", "vodId": "vod-77"}, "valid": true, "payload": {"vodId": "vod-77"}},
     {"name": "abrir la guia", "body": {"type": "OpenGuide"}, "valid": true, "payload": {}},
     {"name": "abrir la ficha del hotel", "body": {"type": "OpenHotelInfo"}, "valid": true, "payload": {}},
+    {"name": "tecla: subir volumen", "body": {"type": "Key", "key": "VOLUME_UP"}, "valid": true, "payload": {"key": "VOLUME_UP"}},
+    {"name": "tecla: OK", "body": {"type": "Key", "key": "OK"}, "valid": true, "payload": {"key": "OK"}},
     {"name": "tipo desconocido", "body": {"type": "Reboot"}, "valid": false, "errorFields": ["type"]},
     {"name": "sin tipo", "body": {"channelId": "4"}, "valid": false, "errorFields": ["type"]},
     {"name": "canal sin id", "body": {"type": "PlayChannel"}, "valid": false, "errorFields": ["channelId"]},
@@ -44,6 +48,13 @@
     {"name": "id que no es texto", "body": {"type": "PlayChannel", "channelId": 4}, "valid": false, "errorFields": ["channelId"]},
     {"name": "id demasiado largo", "body": {"type": "PlayChannel", "channelId": "ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"}, "valid": false, "errorFields": ["channelId"]},
     {"name": "campo de mas en una orden sin argumentos", "body": {"type": "OpenGuide", "channelId": "4"}, "valid": false, "errorFields": ["channelId"]},
-    {"name": "campo de mas en una orden con id", "body": {"type": "PlayChannel", "channelId": "4", "vodId": "1"}, "valid": false, "errorFields": ["vodId"]}
+    {"name": "campo de mas en una orden con id", "body": {"type": "PlayChannel", "channelId": "4", "vodId": "1"}, "valid": false, "errorFields": ["vodId"]},
+    {"name": "tecla sin key", "body": {"type": "Key"}, "valid": false, "errorFields": ["key"]},
+    {"name": "tecla desconocida", "body": {"type": "Key", "key": "POWER"}, "valid": false, "errorFields": ["key"]},
+    {"name": "tecla en minusculas", "body": {"type": "Key", "key": "volume_up"}, "valid": false, "errorFields": ["key"]},
+    {"name": "tecla vacia", "body": {"type": "Key", "key": ""}, "valid": false, "errorFields": ["key"]},
+    {"name": "tecla que no es texto", "body": {"type": "Key", "key": 5}, "valid": false, "errorFields": ["key"]},
+    {"name": "tecla que es una lista", "body": {"type": "Key", "key": ["OK"]}, "valid": false, "errorFields": ["key"]},
+    {"name": "campo de mas en una tecla", "body": {"type": "Key", "key": "OK", "channelId": "4"}, "valid": false, "errorFields": ["channelId"]}
   ]
 }

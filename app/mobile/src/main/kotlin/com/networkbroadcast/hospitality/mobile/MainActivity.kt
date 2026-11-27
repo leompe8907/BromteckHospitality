@@ -3,9 +3,11 @@ package com.networkbroadcast.hospitality.mobile
 import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -44,10 +46,14 @@ class MainActivity : ComponentActivity() {
                 guestChoice = null,
             )
             val locale = remember(language) { Locale.forLanguageTag(language) }
-            // Sin sesión todavía no se sabe de qué hotel es: pantalla neutra con los colores de la marca
-            // genérica. Con sesión, los colores del operador (Panaccess) pisan los de la marca.
-            val colors = app.brand.themeColors().let {
-                if (session == MobileSession.Ready) it.withOperator(app.panaccess.operatorConfig) else it
+            // Sin sesión todavía no se sabe de qué hotel es: pantalla neutra con los colores neutros del mockup (claros, acento
+            // azul), iguales para todas las marcas. Con sesión, los de la marca pisados por los del operador (Panaccess).
+            val colors = if (session == MobileSession.Ready) app.brand.themeColors().withOperator(app.panaccess.operatorConfig) else NeutralColors
+            // Íconos de la barra de estado que se lean sobre el fondo: oscuros sobre la pantalla neutra clara.
+            LaunchedEffect(colors.isDark) {
+                val transparent = android.graphics.Color.TRANSPARENT
+                val style = if (colors.isDark) SystemBarStyle.dark(transparent) else SystemBarStyle.light(transparent, transparent)
+                enableEdgeToEdge(statusBarStyle = style, navigationBarStyle = style)
             }
             // Una sola familia, la de texto de la TV, también para los títulos (ver Typography.kt).
             HospitalityTheme(colors = colors, displayFamily = MobileFontFamily, bodyFamily = MobileFontFamily) {
@@ -74,6 +80,10 @@ class MainActivity : ComponentActivity() {
                                 // Todavía no hay panel conectado: sin él el logo solo llega con la sesión (ver NeutralScreen).
                                 logoUrl = null,
                                 session = session,
+                                // El enlace del QR abierto con la cámara también llega sin sesión: se canjea acá.
+                                incomingCode = incomingCode.value,
+                                onCodeConsumed = { incomingCode.value = null },
+                                onLink = { code -> app.companion.link(code) },
                                 debugLogin = if (app.isDebuggable) app::debugLogin else null,
                             )
                         }

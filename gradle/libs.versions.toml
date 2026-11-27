@@ -41,6 +41,8 @@ panaccess-panexo-datasource = { module = "com.panaccess:panexo-datasource", vers
 panaccess-copyprotect = { module = "com.panaccess:copyprotect", version = "1.0.19r190" }
 constraintlayout = { module = "androidx.constraintlayout:constraintlayout", version = "2.2.1" }
 panaccess-drm-mobile = { module = "com.panaccess:drm-mobile-nb", version = "2.0.52r291" }
+# Escáner de QR de Google Play services: la cámara la maneja Play services, la app no pide permiso de cámara.
+play-services-code-scanner = { module = "com.google.android.gms:play-services-code-scanner", version = "16.1.0" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

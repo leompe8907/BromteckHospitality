@@ -71,6 +71,8 @@ dependencies {
     implementation(libs.panaccess.panexo.datasource)
     implementation(libs.media3.ui)
     implementation(libs.coil.network.okhttp)
+    // Botón "Escanear código QR" de la pantalla de antes del login.
+    implementation(libs.play.services.code.scanner)
     debugImplementation(libs.compose.ui.tooling)
     testImplementation(libs.junit)
 }
